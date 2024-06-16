@@ -196,15 +196,6 @@ async function requestCompletionsFromLLM(text, context, llm, modifier, onStream)
     text = modifierData.text;
   }
   const { real: realHistory, original: originalHistory } = history;
-
-  if (ENV.ENABLE_SHOWTOKENINFO) {
-    const counter = await tokensCounter();
-    const inputText = [...(realHistory || []), { role: 'user', content: text }]
-      .map(msg => `role: ${msg.role}, content: ${msg.content}`)
-      .join("")
-    context.CURRENT_CHAT_CONTEXT.promptToken = counter(inputText);
-  }
-  
   const answer = await llm(text, realHistory, context, onStream);
   if (!historyDisable) {
     originalHistory.push({role: 'user', content: text || '', cosplay: context.SHARE_CONTEXT.role || ''});
@@ -280,14 +271,12 @@ export async function chatWithLLM(text, context, modifier) {
     const generateInfo = async (text) => {
       const time = ((performance.now() - llmStart) / 1000).toFixed(2);
       extraInfo = ` ${time}s`;
-      if (ENV.ENABLE_SHOWTOKENINFO) {
-        const unit = ENV.GPT3_TOKENS_COUNT ? 'token' : 'chars';
-        const counter = await tokensCounter();
-        extraInfo += `\nprompt: ${context.CURRENT_CHAT_CONTEXT.promptToken}｜complete: ${counter(text)}${unit}`;
-      }
       if (context.CURRENT_CHAT_CONTEXT?.MIDDLE_INFO?.FILE_URL) {
         context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO = `🤖 ${context.USER_CONFIG.OPENAI_VISION_MODEL}` + extraInfo;
       } else {
+        if (ENV.ENABLE_SHOWTOKENINFO) {
+          extraInfo += '\n- ' + (context.CURRENT_CHAT_CONTEXT?.promptToken || '?') + (context.CURRENT_CHAT_CONTEXT?.completionToken || '?');
+        }
         context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO = context.USER_CONFIG.CUSTOM_TINFO + extraInfo;
       }
       return null;

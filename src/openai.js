@@ -78,7 +78,8 @@ export async function requestCompletionsFromOpenAI(message, history, context, on
     ...context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS,
     messages: messages,
     stream: onStream != null,
-  };
+    ...(!!onStream && { stream_options: { include_usage: true } }),
+  }
 
   const header = {
     'Content-Type': 'application/json',
@@ -142,7 +143,6 @@ export async function requestCompletionsFromOpenAICompatible(url, header, body, 
     body: JSON.stringify(body),
     signal,
   });
-  // const clone_resp = await resp.clone().text();
 
   if (onStream && resp.ok && isEventStreamResponse(resp)) {
     const stream = new Stream(resp, controller);
@@ -152,10 +152,12 @@ export async function requestCompletionsFromOpenAICompatible(url, header, body, 
     // let i = 1;
     let msgPromise = null;
     let lastChunk = null;
+    let usage = null;
     const immediatePromise = Promise.resolve('immediate'); 
     try {
       for await (const data of stream) {
         const c = data?.choices?.[0]?.delta?.content || '';
+        usage = data?.usage;
         lengthDelta += c.length;
         if (lastChunk) contentFull = contentFull + lastChunk;
         if (lastChunk && lengthDelta > updateStep) {
@@ -172,6 +174,12 @@ export async function requestCompletionsFromOpenAICompatible(url, header, body, 
       console.log(`errorEnd`);
     }
     contentFull += lastChunk;
+    if (ENV.GPT3_TOKENS_COUNT) {
+      onResult?.({usage});
+      context.CURRENT_CHAT_CONTEXT.promptToken = ' p:' + usage?.prompt_tokens;
+      context.CURRENT_CHAT_CONTEXT.completionToken = ' c:' + usage?.completion_tokens;
+    }
+
     let endTime = performance.now();
     console.log(`[DONE] Chat with openai: ${((endTime - startTime) / 1000).toFixed(2)}s`);
     await msgPromise;
@@ -308,7 +316,12 @@ async function updateBotUsage(usage, context) {
     return;
   }
 
-  let dbValue = JSON.parse(await DATABASE.get(context.SHARE_CONTEXT.usageKey));
+  let dbValue;
+  try {
+    dbValue = JSON.parse(await DATABASE.get(context.SHARE_CONTEXT.usageKey));
+  } catch {
+    dbValue = '';
+  }
 
   if (!dbValue) {
     dbValue = {

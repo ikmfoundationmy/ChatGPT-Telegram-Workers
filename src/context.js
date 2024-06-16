@@ -75,7 +75,6 @@ export class Context {
     // WorkersAI图片模型
     WORKER_IMAGE_MODEL: ENV.WORKERS_IMAGE_MODEL,
 
-
     // Google Gemini API Key
     GOOGLE_API_KEY: ENV.GOOGLE_API_KEY,
     // Google Gemini API
@@ -84,6 +83,96 @@ export class Context {
     GOOGLE_COMPLETIONS_MODEL: ENV.GOOGLE_COMPLETIONS_MODEL,
 
     EXTRA_TINFO: ENV.EXTRA_TINFO,
+    /*
+    MODEL_CONCISE: ENV.MODEL_CONCISE || {
+      'gpt-4o*': 'gpt-4o',
+      'gpt-4-turbo*': 'gpt 4 turbo',
+      'gpt-4-32k*': 'gpt 4 32k',
+      'gpt-4-vision*': 'gpt vision',
+      'gpt-4*': 'gpt 4',
+      'gpt-3.5*': 'gpt 3.5',
+      'claude-haiku*': 'claude haiku',
+      'claude-sonnet*': 'claude sonnet',
+      'claude-opus*': 'claude opus',
+      'gemini-1.5-pro*': 'gemini 1.5 pro',
+      'gemini-1.5-flash*': 'gemini 1.5 flash',
+    },
+    MODEL_LIGHTLY: MODEL => {
+      // TODO
+      // let MODEL_CONCISE = this.MODEL_CONCISE
+    },
+    */
+    // PROVIDER_SOURCES: {
+    //   ...(ENV.PROVIDER_SOURCE || {}),
+    //   DEFAULT: { PROXY_URL: this.OPENAI_API_BASE, API_KEY: ENV.API_KEY },
+    // },
+    
+    MODE_CONFIGS: {
+      text: {
+        0: [
+          {
+            PROVIDER_SOURCE: 'DEFAULT',
+            AI_PROVIDER: ENV.AI_PROVIDER,
+            MODEL: ENV.CHAT_MODEL,
+          },
+        ],
+        ...(ENV.MODE_CONFIGS?.text || {}),
+      },
+      audio: {
+        0: [
+          {
+            PROVIDER_SOURCE: 'DEFAULT',
+            AI_PROVIDER: ENV.AI_PROVIDER,
+            MODEL: ENV.OPENAI_STT_MODEL,
+          },
+          {
+            PROVIDER_SOURCE: 'DEFAULT',
+            AI_PROVIDER: ENV.AI_PROVIDER,
+            MODEL: ENV.CHAT_MODEL,
+          }
+        ],
+        ...(ENV.MODE_CONFIGS?.audio || {}),
+      },
+      image: {
+        0: [
+          {
+            PROVIDER_SOURCE: 'DEFAULT',
+            AI_PROVIDER: 'OPENAI',
+            MODEL: ENV.OPENAI_VISION_MODEL,
+          },
+        ],
+        ...(ENV.MODE_CONFIGS?.image || {}),
+      },
+      generate_image: {
+        0: [
+          {
+            PROVIDER_SOURCE: 'DEFAULT',
+            AI_PROVIDER: 'OPENAI',
+            MODEL: ENV.CHAT_MODEL,
+            extra_prompt: '',
+          },
+          {
+            PROVIDER_SOURCE: 'DEFAULT',
+            AI_PROVIDER: 'OPENAI',
+            MODEL: ENV.DALL_E_MODEL,
+          },
+        ],
+        ...(ENV.MODE_CONFIGS?.generate_image || {}),
+      },
+    },
+    DEFAULT_MODE: {
+      tag: 'default',
+      text: 0,
+      audio: 0,
+      image: 0,
+      generate_image: 0,
+    },
+    
+    INTERACTIVE_MODE: {
+      DEFAULT_PROCESS: this.DEFAULT_MODE,
+      ...(ENV.CUSTOM_MODE || {}),
+    },
+
     get CUSTOM_TINFO() {
       let AI_PROVIDER = this.AI_PROVIDER;
       if (this.AI_PROVIDER === "auto") {
