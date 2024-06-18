@@ -491,13 +491,15 @@ async function msgChatWithLLM(message, context) {
         case 'audio:text':
           context.USER_CONFIG.OPENAI_STT_MODEL = PROCESS?.MODEL || context.USER_CONFIG.OPENAI_STT_MODEL;
           result = await msgHandleFile(message, fileType, context);
-          context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO = null;
+          context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILE = null;
+          context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILEURL = null;
           break;
         case 'image:text':
           context.USER_CONFIG.OPENAI_VISION_MODEL = PROCESS.MODEL;
           await msgHandleFile(message, fileType, context);
           result = await chatWithLLM(message.text, context, null);
-          context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO = null;
+          context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILE = null;
+          context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILEURL = null;
           break;
         case 'audio:audio':
         default:

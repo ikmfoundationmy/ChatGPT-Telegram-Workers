@@ -149,7 +149,6 @@ export async function requestCompletionsFromOpenAICompatible(url, header, body, 
     let contentFull = '';
     let lengthDelta = 0;
     let updateStep = 20;
-    // let i = 1;
     let msgPromise = null;
     let lastChunk = null;
     let usage = null;
@@ -176,8 +175,8 @@ export async function requestCompletionsFromOpenAICompatible(url, header, body, 
     contentFull += lastChunk;
     if (ENV.GPT3_TOKENS_COUNT) {
       onResult?.({usage});
-      context.CURRENT_CHAT_CONTEXT.promptToken = ' p:' + usage?.prompt_tokens;
-      context.CURRENT_CHAT_CONTEXT.completionToken = ' c:' + usage?.completion_tokens;
+      context.CURRENT_CHAT_CONTEXT.promptToken = ' p:' + (usage.prompt_tokens ?? 0);
+      context.CURRENT_CHAT_CONTEXT.completionToken = ' c:' + (usage.completion_tokens ?? 0);
     }
 
     let endTime = performance.now();
@@ -332,11 +331,11 @@ async function updateBotUsage(usage, context) {
     };
   }
 
-  dbValue.tokens.total += usage.total_tokens;
+  dbValue.tokens.total += usage.total_tokens ?? 0;
   if (!dbValue.tokens.chats[context.SHARE_CONTEXT.chatId]) {
-    dbValue.tokens.chats[context.SHARE_CONTEXT.chatId] = usage.total_tokens;
+    dbValue.tokens.chats[context.SHARE_CONTEXT.chatId] = usage.total_tokens ?? 0;
   } else {
-    dbValue.tokens.chats[context.SHARE_CONTEXT.chatId] += usage.total_tokens;
+    dbValue.tokens.chats[context.SHARE_CONTEXT.chatId] += usage.total_tokens ?? 0;
   }
 
   await DATABASE.put(context.SHARE_CONTEXT.usageKey, JSON.stringify(dbValue));

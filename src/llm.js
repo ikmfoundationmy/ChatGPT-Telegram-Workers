@@ -217,6 +217,7 @@ async function requestCompletionsFromLLM(text, context, llm, modifier, onStream)
  * @return {Promise<Response>}
  */
 export async function chatWithLLM(text, context, modifier) {
+  text += context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO?.TEXT || '';
   const sendFinalMsg = async (msg) => {
     console.log(`[START] Final Msg`);
     const start = performance.now();
