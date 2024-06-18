@@ -118,6 +118,9 @@ class Environment {
   CHAT_MESSAGE_TRIGGER = { ':n': '/new', ':g3': '/gpt3', ':g4': '/gpt4', ':c':'' }
   // 额外信息
   EXTRA_TINFO = '';
+
+  // 是否读取图片
+  LOAD_IMAGE_FILE = false;
   // -- 模式开关 --
   //
   // 使用流模式

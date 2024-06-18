@@ -60,14 +60,14 @@ export async function requestCompletionsFromOpenAI(message, history, context, on
   const url = `${context.USER_CONFIG.OPENAI_API_BASE}/chat/completions`;
   let model = context.USER_CONFIG.CHAT_MODEL;
   let messages = [{ role: 'user', content: message }];
-  if (context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILE_URL) {
+  if (context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILEURL) {
     model = context.USER_CONFIG.OPENAI_VISION_MODEL;
     messages[0].content = [{
       "type": "text",
       "text": message || 'what is this?'  // cluade-3-haiku model 图像识别必须带文本
     }, {
       "type": "image_url", "image_url": {
-        "url": context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILE_URL
+        "url": ENV.LOAD_IMAGE_FILE? `${context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILE}`: context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILEURL
       }
     }];
   } else {

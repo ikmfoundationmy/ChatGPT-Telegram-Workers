@@ -53,8 +53,8 @@ export async function sendMessageToTelegram(message, token, context) {
   let origin_msg = message;
   let info = '';
   let STT_TEXT = '';
-  if (chatContext?.MIDDLE_INFO?.STT_TEXT) {
-    STT_TEXT = 'Transcription:\n' + chatContext.MIDDLE_INFO.STT_TEXT;
+  if (chatContext?.MIDDLE_INFO?.TEXT) {
+    STT_TEXT = 'Transcription:\n' + chatContext.MIDDLE_INFO?.TEXT;
   }
 
   let stt_text;
@@ -437,8 +437,6 @@ export async function getFileInfo(file_id, token) {
  * @param {string} token
  * @return {Promise<Response>}
  */
-export async function getFile(filePath, token) {
-  const fullPath = `${ENV.TELEGRAM_API_DOMAIN}/file/bot${token}/${filePath}`;
-  console.log('File url:', fullPath);
+export async function getFile(fullPath) {
   return fetchWithRetry(fullPath);
 }

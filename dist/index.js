@@ -4,9 +4,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1717167081;
+  BUILD_TIMESTAMP = 1718710782;
   // 当前版本 commit id
-  BUILD_VERSION = "9a0f8bd";
+  BUILD_VERSION = "434c7c5";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -105,6 +105,8 @@ var Environment = class {
   CHAT_MESSAGE_TRIGGER = { ":n": "/new", ":g3": "/gpt3", ":g4": "/gpt4", ":c": "" };
   // 额外信息
   EXTRA_TINFO = "";
+  // 是否读取图片
+  LOAD_IMAGE_FILE = false;
   // -- 模式开关 --
   //
   // 使用流模式
@@ -257,7 +259,7 @@ var Context = class {
     // 语音识别模型
     OPENAI_STT_MODEL: ENV.OPENAI_STT_MODEL,
     // 文字生成语音模型
-    // OPENAI_TTS_MODEL: ENV.OPENAI_TTS_MODEL,
+    OPENAI_TTS_MODEL: ENV.OPENAI_TTS_MODEL,
     // 图像识别模型
     OPENAI_VISION_MODEL: ENV.OPENAI_VISION_MODEL,
     // OenAI API Key
@@ -295,6 +297,99 @@ var Context = class {
     // Google Gemini Model
     GOOGLE_COMPLETIONS_MODEL: ENV.GOOGLE_COMPLETIONS_MODEL,
     EXTRA_TINFO: ENV.EXTRA_TINFO,
+    /*
+    MODEL_CONCISE: ENV.MODEL_CONCISE || {
+      'gpt-4o*': 'gpt-4o',
+      'gpt-4-turbo*': 'gpt 4 turbo',
+      'gpt-4-32k*': 'gpt 4 32k',
+      'gpt-4-vision*': 'gpt vision',
+      'gpt-4*': 'gpt 4',
+      'gpt-3.5*': 'gpt 3.5',
+      'claude-haiku*': 'claude haiku',
+      'claude-sonnet*': 'claude sonnet',
+      'claude-opus*': 'claude opus',
+      'gemini-1.5-pro*': 'gemini 1.5 pro',
+      'gemini-1.5-flash*': 'gemini 1.5 flash',
+    },
+    MODEL_LIGHTLY: MODEL => {
+      // TODO
+      // let MODEL_CONCISE = this.MODEL_CONCISE
+    },
+    */
+    PROVIDER_SOURCES: {
+      ...ENV.PROVIDER_SOURCE || {}
+      // TEST: { PROXY_URL: 'https://xxxxxx', API_KEY: 'xxxxxx' },
+    },
+    MODE_CONFIGS: {
+      text: {
+        0: [
+          {
+            TYPE: "text:text",
+            PROVIDER_SOURCE: "DEFAULT",
+            AI_PROVIDER: ENV.AI_PROVIDER
+            // MODEL: ENV.CHAT_MODEL,
+          }
+        ],
+        "dall-e": [
+          {
+            TYPE: "text:text",
+            PROVIDER_SOURCE: "DEFAULT",
+            AI_PROVIDER: "openai"
+            // MODEL: ENV.CHAT_MODEL,
+          },
+          {
+            TYPE: "text:image",
+            PROVIDER_SOURCE: "DEFAULT",
+            AI_PROVIDER: "openai"
+            // MODEL: ENV.DALL_E_MODEL,
+          }
+        ],
+        ...ENV.MODE_CONFIGS?.text || {}
+      },
+      audio: {
+        0: [
+          {
+            TYPE: "audio:text",
+            PROVIDER_SOURCE: "DEFAULT",
+            AI_PROVIDER: ENV.AI_PROVIDER
+            // MODEL: ENV.OPENAI_STT_MODEL,
+          },
+          {
+            TYPE: "text:text",
+            PROVIDER_SOURCE: "DEFAULT",
+            AI_PROVIDER: ENV.AI_PROVIDER
+            // MODEL: ENV.CHAT_MODEL,
+          }
+        ],
+        ...ENV.MODE_CONFIGS?.audio || {}
+      },
+      image: {
+        0: [
+          {
+            PROVIDER_SOURCE: "DEFAULT",
+            AI_PROVIDER: "openai",
+            MODEL: "gpt-4o"
+          }
+        ],
+        ...ENV.MODE_CONFIGS?.image || {}
+      }
+    },
+    // DEFAULT_MODE: {
+    //   tag: 'default',
+    //   text: 0,
+    //   audio: 0,
+    //   image: 0,
+    // },
+    INTERACTIVE_MODE: {
+      DEFAULT_MODE: {
+        tag: "default",
+        text: 0,
+        audio: 0,
+        image: 0
+      },
+      ...ENV.CUSTOM_MODES || {}
+    },
+    CURRENT_MODE: ENV.CURRENT_MODE || "DEFAULT_MODE",
     get CUSTOM_TINFO() {
       let AI_PROVIDER = this.AI_PROVIDER;
       if (this.AI_PROVIDER === "auto") {
@@ -882,8 +977,8 @@ async function sendMessageToTelegram(message, token, context) {
   let origin_msg = message;
   let info = "";
   let STT_TEXT = "";
-  if (chatContext?.MIDDLE_INFO?.STT_TEXT) {
-    STT_TEXT = "Transcription:\n" + chatContext.MIDDLE_INFO.STT_TEXT;
+  if (chatContext?.MIDDLE_INFO?.TEXT) {
+    STT_TEXT = "Transcription:\n" + chatContext.MIDDLE_INFO?.TEXT;
   }
   let stt_text;
   const escapeContent = (parse_mode = chatContext?.parse_mode) => {
@@ -1151,9 +1246,7 @@ async function getFileInfo(file_id, token) {
   }
   return data;
 }
-async function getFile(filePath, token) {
-  const fullPath = `${ENV.TELEGRAM_API_DOMAIN}/file/bot${token}/${filePath}`;
-  console.log("File url:", fullPath);
+async function getFile(fullPath) {
   return fetchWithRetry(fullPath);
 }
 
@@ -1355,7 +1448,7 @@ async function requestCompletionsFromOpenAI(message, history, context, onStream)
   const url = `${context.USER_CONFIG.OPENAI_API_BASE}/chat/completions`;
   let model = context.USER_CONFIG.CHAT_MODEL;
   let messages = [{ role: "user", content: message }];
-  if (context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILE_URL) {
+  if (context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILEURL) {
     model = context.USER_CONFIG.OPENAI_VISION_MODEL;
     messages[0].content = [{
       "type": "text",
@@ -1364,7 +1457,7 @@ async function requestCompletionsFromOpenAI(message, history, context, onStream)
     }, {
       "type": "image_url",
       "image_url": {
-        "url": context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILE_URL
+        "url": ENV.LOAD_IMAGE_FILE ? `${context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILE}` : context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILEURL
       }
     }];
   } else {
@@ -1374,7 +1467,8 @@ async function requestCompletionsFromOpenAI(message, history, context, onStream)
     model,
     ...context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS,
     messages,
-    stream: onStream != null
+    stream: onStream != null,
+    ...!!onStream && { stream_options: { include_usage: true } }
   };
   const header = {
     "Content-Type": "application/json",
@@ -1417,10 +1511,12 @@ async function requestCompletionsFromOpenAICompatible(url, header, body, context
     let updateStep = 20;
     let msgPromise = null;
     let lastChunk = null;
+    let usage = null;
     const immediatePromise = Promise.resolve("immediate");
     try {
       for await (const data of stream) {
         const c = data?.choices?.[0]?.delta?.content || "";
+        usage = data?.usage;
         lengthDelta += c.length;
         if (lastChunk)
           contentFull = contentFull + lastChunk;
@@ -1441,6 +1537,11 @@ ERROR: ${e.message}`;
       console.log(`errorEnd`);
     }
     contentFull += lastChunk;
+    if (ENV.GPT3_TOKENS_COUNT) {
+      onResult?.({ usage });
+      context.CURRENT_CHAT_CONTEXT.promptToken = " p:" + usage?.prompt_tokens;
+      context.CURRENT_CHAT_CONTEXT.completionToken = " c:" + usage?.completion_tokens;
+    }
     let endTime = performance.now();
     console.log(`[DONE] Chat with openai: ${((endTime - startTime) / 1e3).toFixed(2)}s`);
     await msgPromise;
@@ -1547,7 +1648,12 @@ async function updateBotUsage(usage, context) {
   if (!ENV.ENABLE_USAGE_STATISTICS) {
     return;
   }
-  let dbValue = JSON.parse(await DATABASE.get(context.SHARE_CONTEXT.usageKey));
+  let dbValue;
+  try {
+    dbValue = JSON.parse(await DATABASE.get(context.SHARE_CONTEXT.usageKey));
+  } catch {
+    dbValue = "";
+  }
   if (!dbValue) {
     dbValue = {
       tokens: {
@@ -1823,20 +1929,18 @@ async function requestCompletionsFromLLM(text, context, llm, modifier, onStream)
   const historyDisable = ENV.AUTO_TRIM_HISTORY && ENV.MAX_HISTORY_LENGTH <= 0;
   const historyKey = context.SHARE_CONTEXT.chatHistoryKey;
   const readStartTime = performance.now();
-  let history = await loadHistory(historyKey, context);
-  const readTime = ((performance.now() - readStartTime) / 1e3).toFixed(2);
-  console.log(`readHistoryTime: ${readTime}s`);
-  if (modifier) {
-    const modifierData = modifier(history, text);
-    history = modifierData.history;
-    text = modifierData.text;
+  let history = { real: [], original: [] };
+  if (!context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEXT && !context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILEURL) {
+    history = await loadHistory(historyKey, context);
+    const readTime = ((performance.now() - readStartTime) / 1e3).toFixed(2);
+    console.log(`readHistoryTime: ${readTime}s`);
+    if (modifier) {
+      const modifierData = modifier(history, text);
+      history = modifierData.history;
+      text = modifierData.text;
+    }
   }
   const { real: realHistory, original: originalHistory } = history;
-  if (ENV.ENABLE_SHOWTOKENINFO) {
-    const counter = await tokensCounter();
-    const inputText = [...realHistory || [], { role: "user", content: text }].map((msg) => `role: ${msg.role}, content: ${msg.content}`).join("");
-    context.CURRENT_CHAT_CONTEXT.promptToken = counter(inputText);
-  }
   const answer = await llm(text, realHistory, context, onStream);
   if (!historyDisable) {
     originalHistory.push({ role: "user", content: text || "", cosplay: context.SHARE_CONTEXT.role || "" });
@@ -1899,15 +2003,12 @@ async function chatWithLLM(text, context, modifier) {
     const generateInfo = async (text2) => {
       const time = ((performance.now() - llmStart) / 1e3).toFixed(2);
       extraInfo = ` ${time}s`;
-      if (ENV.ENABLE_SHOWTOKENINFO) {
-        const unit = ENV.GPT3_TOKENS_COUNT ? "token" : "chars";
-        const counter = await tokensCounter();
-        extraInfo += `
-prompt: ${context.CURRENT_CHAT_CONTEXT.promptToken}\uFF5Ccomplete: ${counter(text2)}${unit}`;
-      }
       if (context.CURRENT_CHAT_CONTEXT?.MIDDLE_INFO?.FILE_URL) {
         context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO = `\u{1F916} ${context.USER_CONFIG.OPENAI_VISION_MODEL}` + extraInfo;
       } else {
+        if (ENV.ENABLE_SHOWTOKENINFO) {
+          extraInfo += "\n- " + (context.CURRENT_CHAT_CONTEXT?.promptToken || "?") + (context.CURRENT_CHAT_CONTEXT?.completionToken || "?");
+        }
         context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO = context.USER_CONFIG.CUSTOM_TINFO + extraInfo;
       }
       return null;
@@ -1950,7 +2051,9 @@ prompt: ${context.CURRENT_CHAT_CONTEXT.promptToken}\uFF5Ccomplete: ${counter(tex
       }
     }
     await generateInfo(answer);
-    return sendFinalMsg(answer);
+    await sendFinalMsg(answer);
+    context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEXT = answer;
+    return null;
   } catch (e) {
     let errMsg = `Error: ${e.message}`;
     if (errMsg.length > 2048) {
@@ -2057,8 +2160,8 @@ var commandHandlers = {
     needAuth: commandAuthCheck.shareModeGroup
   }
 };
-async function commandUpdateRole(message, command, subcommand, context) {
-  if (subcommand === "show") {
+async function commandUpdateRole(message, command, subcommand2, context) {
+  if (subcommand2 === "show") {
     const size = Object.getOwnPropertyNames(context.USER_DEFINE.ROLE).length;
     if (size === 0) {
       return sendMessageToTelegramWithContext(context)(ENV.I18N.command.role.not_defined_any_role);
@@ -2075,12 +2178,12 @@ async function commandUpdateRole(message, command, subcommand, context) {
     context.CURRENT_CHAT_CONTEXT.parse_mode = "HTML";
     return sendMessageToTelegramWithContext(context)(showMsg);
   }
-  const kv = subcommand.indexOf(" ");
+  const kv = subcommand2.indexOf(" ");
   if (kv === -1) {
     return sendMessageToTelegramWithContext(context)(ENV.I18N.command.role.help);
   }
-  const role = subcommand.slice(0, kv);
-  const settings = subcommand.slice(kv + 1).trim();
+  const role = subcommand2.slice(0, kv);
+  const settings = subcommand2.slice(kv + 1).trim();
   const skv = settings.indexOf("=");
   if (skv === -1) {
     if (settings === "del") {
@@ -2120,8 +2223,8 @@ async function commandUpdateRole(message, command, subcommand, context) {
     return sendMessageToTelegramWithContext(context)(ENV.I18N.command.role.update_role_error(e));
   }
 }
-async function commandGenerateImg(message, command, subcommand, context) {
-  if (subcommand === "") {
+async function commandGenerateImg(message, command, subcommand2, context) {
+  if (subcommand2 === "") {
     return sendMessageToTelegramWithContext(context)(ENV.I18N.command.img.help);
   }
   try {
@@ -2131,7 +2234,7 @@ async function commandGenerateImg(message, command, subcommand, context) {
       return sendMessageToTelegramWithContext(context)(`ERROR: Image generator not found`);
     }
     const startTime = performance.now();
-    const img = await gen(subcommand, context);
+    const img = await gen(subcommand2, context);
     if (typeof img === "string") {
       const provider = (context.USER_CONFIG.AI_PROVIDER == "auto" ? "openai" : context.USER_CONFIG.AI_PROVIDER).toUpperCase();
       let model = "dall-e-2";
@@ -2151,11 +2254,11 @@ async function commandGenerateImg(message, command, subcommand, context) {
     return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`);
   }
 }
-async function commandGetHelp(message, command, subcommand, context) {
+async function commandGetHelp(message, command, subcommand2, context) {
   const helpMsg = ENV.I18N.command.help.summary + Object.keys(commandHandlers).map((key) => `${key}\uFF1A${ENV.I18N.command.help[key.substring(1)]}`).join("\n");
   return sendMessageToTelegramWithContext(context)(helpMsg);
 }
-async function commandCreateNewChatContext(message, command, subcommand, context) {
+async function commandCreateNewChatContext(message, command, subcommand2, context) {
   try {
     await DATABASE.delete(context.SHARE_CONTEXT.chatHistoryKey);
     context.CURRENT_CHAT_CONTEXT.reply_markup = JSON.stringify({
@@ -2178,13 +2281,13 @@ async function commandCreateNewChatContext(message, command, subcommand, context
     return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`);
   }
 }
-async function commandUpdateUserConfig(message, command, subcommand, context) {
-  const kv = subcommand.indexOf("=");
+async function commandUpdateUserConfig(message, command, subcommand2, context) {
+  const kv = subcommand2.indexOf("=");
   if (kv === -1) {
     return sendMessageToTelegramWithContext(context)(ENV.I18N.command.setenv.help);
   }
-  const key = subcommand.slice(0, kv);
-  const value = subcommand.slice(kv + 1);
+  const key = subcommand2.slice(0, kv);
+  const value = subcommand2.slice(kv + 1);
   if (ENV.LOCK_USER_CONFIG_KEYS.includes(key)) {
     const msg = ENV.I18N.command.setenv.update_config_error(new Error(`Key ${key} is locked`));
     return sendMessageToTelegramWithContext(context)(msg);
@@ -2202,9 +2305,9 @@ async function commandUpdateUserConfig(message, command, subcommand, context) {
     return sendMessageToTelegramWithContext(context)(ENV.I18N.command.setenv.update_config_error(e));
   }
 }
-async function commandUpdateUserConfigs(message, command, subcommand, context) {
+async function commandUpdateUserConfigs(message, command, subcommand2, context) {
   try {
-    const values = JSON.parse(subcommand);
+    const values = JSON.parse(subcommand2);
     for (const ent of Object.entries(values)) {
       const [key, value] = ent;
       if (ENV.LOCK_USER_CONFIG_KEYS.includes(key)) {
@@ -2225,17 +2328,17 @@ async function commandUpdateUserConfigs(message, command, subcommand, context) {
     return sendMessageToTelegramWithContext(context)(ENV.I18N.command.setenv.update_config_error(e));
   }
 }
-async function commandDeleteUserConfig(message, command, subcommand, context) {
-  if (ENV.LOCK_USER_CONFIG_KEYS.includes(subcommand)) {
-    const msg = ENV.I18N.command.setenv.update_config_error(new Error(`Key ${subcommand} is locked`));
+async function commandDeleteUserConfig(message, command, subcommand2, context) {
+  if (ENV.LOCK_USER_CONFIG_KEYS.includes(subcommand2)) {
+    const msg = ENV.I18N.command.setenv.update_config_error(new Error(`Key ${subcommand2} is locked`));
     return sendMessageToTelegramWithContext(context)(msg);
   }
   try {
-    if (subcommand === "all") {
+    if (subcommand2 === "all") {
       context.USER_CONFIG = new Context().USER_CONFIG;
     } else
-      context.USER_CONFIG[subcommand] = null;
-    context.USER_CONFIG.DEFINE_KEYS = context.USER_CONFIG.DEFINE_KEYS.filter((key) => key !== subcommand);
+      context.USER_CONFIG[subcommand2] = null;
+    context.USER_CONFIG.DEFINE_KEYS = context.USER_CONFIG.DEFINE_KEYS.filter((key) => key !== subcommand2);
     await DATABASE.put(
       context.SHARE_CONTEXT.configStoreKey,
       JSON.stringify(context.USER_CONFIG)
@@ -2245,7 +2348,7 @@ async function commandDeleteUserConfig(message, command, subcommand, context) {
     return sendMessageToTelegramWithContext(context)(ENV.I18N.command.setenv.update_config_error(e));
   }
 }
-async function commandClearUserConfig(message, command, subcommand, context) {
+async function commandClearUserConfig(message, command, subcommand2, context) {
   try {
     context.USER_CONFIG.DEFINE_KEYS = [];
     context.USER_CONFIG = {};
@@ -2258,7 +2361,7 @@ async function commandClearUserConfig(message, command, subcommand, context) {
     return sendMessageToTelegramWithContext(context)(ENV.I18N.command.setenv.update_config_error(e));
   }
 }
-async function commandFetchUpdate(message, command, subcommand, context) {
+async function commandFetchUpdate(message, command, subcommand2, context) {
   const config = {
     headers: {
       "User-Agent": CONST.USER_AGENT
@@ -2283,7 +2386,7 @@ async function commandFetchUpdate(message, command, subcommand, context) {
     return sendMessageToTelegramWithContext(context)(msg);
   }
 }
-async function commandUsage(message, command, subcommand, context) {
+async function commandUsage(message, command, subcommand2, context) {
   if (!ENV.ENABLE_USAGE_STATISTICS) {
     return sendMessageToTelegramWithContext(context)(ENV.I18N.command.usage.usage_not_open);
   }
@@ -2307,7 +2410,7 @@ async function commandUsage(message, command, subcommand, context) {
   }
   return sendMessageToTelegramWithContext(context)(text);
 }
-async function commandSystem(message, command, subcommand, context) {
+async function commandSystem(message, command, subcommand2, context) {
   let msg = "<pre>GLOBAL_CHAT_MODEL: " + ENV.CHAT_MODEL + "\n";
   msg += "AI_PROVIDER: " + context.USER_CONFIG.AI_PROVIDER + "\nINFO: " + context.USER_CONFIG.CUSTOM_TINFO + "\nVISION_MODEL: " + context.USER_CONFIG.OPENAI_VISION_MODEL + "\nSTT_MODEL: " + context.USER_CONFIG.OPENAI_STT_MODEL + "\nDALL_E_MODEL: " + context.USER_CONFIG.DALL_E_MODEL + " " + context.USER_CONFIG.DALL_E_IMAGE_SIZE + " " + context.USER_CONFIG.DALL_E_IMAGE_QUALITY + " " + context.USER_CONFIG.DALL_E_IMAGE_STYLE;
   if (ENV.DEV_MODE) {
@@ -2331,7 +2434,7 @@ USER_CONFIG: ${JSON.stringify(context.USER_CONFIG, null, 2)}
   context.CURRENT_CHAT_CONTEXT.parse_mode = "HTML";
   return sendMessageToTelegramWithContext(context)(msg);
 }
-async function commandRegenerate(message, command, subcommand, context) {
+async function commandRegenerate(message, command, subcommand2, context) {
   const mf = (history, text) => {
     const { real, original } = history;
     let nextText = text;
@@ -2350,14 +2453,14 @@ async function commandRegenerate(message, command, subcommand, context) {
         break;
       }
     }
-    if (subcommand) {
-      nextText = subcommand;
+    if (subcommand2) {
+      nextText = subcommand2;
     }
     return { history: { real, original }, text: nextText };
   };
   return chatWithLLM(null, context, mf);
 }
-async function commandEcho(message, command, subcommand, context) {
+async function commandEcho(message, command, subcommand2, context) {
   let msg = "<pre>";
   msg += JSON.stringify({ message }, null, 2);
   msg += "</pre>";
@@ -2376,7 +2479,7 @@ async function handleCommandMessage(message, context) {
       needAuth: commandAuthCheck.default
     };
   }
-  if (context.CURRENT_CHAT_CONTEXT?.MIDDLE_INFO?.FILE_URL) {
+  if (context.CURRENT_CHAT_CONTEXT?.MIDDLE_INFO?.FILEURL) {
     return null;
   }
   const customKey = Object.keys(CUSTOM_COMMAND).find((k) => message.text.startsWith(k));
@@ -2406,10 +2509,10 @@ async function handleCommandMessage(message, context) {
       } catch (e) {
         return sendMessageToTelegramWithContext(context)(ENV.I18N.command.permission.role_error(e));
       }
-      const subcommand = commandMsg.substring(key.length).trim();
+      const subcommand2 = commandMsg.substring(key.length).trim();
       try {
-        const result = await command.fn(message, key, subcommand, context);
-        console.log("[DONE] Command: " + key + " " + subcommand);
+        const result = await command.fn(message, key, subcommand2, context);
+        console.log("[DONE] Command: " + key + " " + subcommand2);
         if (!otherMsg) {
           return result;
         }
@@ -2605,7 +2708,7 @@ async function msgHandleGroupMessage(message, context) {
             break;
           case "mention":
           case "text_mention":
-            if (!mentioned && context.CURRENT_CHAT_CONTEXT?.MIDDLE_INFO?.FILE_URL) {
+            if (!mentioned && context.CURRENT_CHAT_CONTEXT?.MIDDLE_INFO?.FILEURL) {
               mentioned = true;
               break;
             } else if (!mentioned) {
@@ -2667,57 +2770,59 @@ async function msgHandleRole(message, context) {
     }
   }
 }
-async function msgHandleFile(message, context) {
-  const acceptType = ["photo", "voice", "audio", "document", "text"];
-  let msgType = acceptType.find((key) => key in message);
-  let fileType = msgType;
-  if (msgType == "document") {
-    if (message.document.mime_type.match(/image/)) {
-      fileType = "photo";
-    } else if (message.document.mime_type.match(/audio/))
-      fileType = "audio";
-  }
-  if (fileType === "text") {
-    return null;
-  } else if (!fileType) {
-    return sendMessageToTelegramWithContext(context)(ENV.I18N.message.not_supported_chat_type_message);
-  }
-  console.log("[FILE][START]: " + msgType);
-  const start = performance.now();
-  let file_id = "";
-  if (fileType === "photo") {
-    const photoLength = message[msgType].length;
-    file_id = (message[msgType]?.[photoLength - 1]?.file_id || message[msgType]?.file_id) ?? 0;
-    console.log("photo: \n" + JSON.stringify(message[msgType]));
-  } else {
-    file_id = message[msgType].file_id ?? "0";
-  }
-  if (!message.text) {
-    message.text = message.caption ?? "";
-  }
-  const info = await getFileInfo(file_id, context.SHARE_CONTEXT.currentBotToken);
-  if (!info.file_path) {
-    console.log("[FILE][FAILED]: " + msgType);
-    await sendMessageToTelegramWithContext(context)(`GET FILE_PATH ERROR: ${info.description}`);
-    return new Response("Handle file msg error", { status: 200 });
-  }
+async function msgHandleFile(message, fileType, context) {
+  let file = null, file_name = "", file_url = "";
   let errorMsg = "";
-  if (!context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO) {
-    context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO = {};
+  if (!context.CURRENT_CHAT_CONTEXT?.MIDDLE_INFO?.FILEURL && !context.CURRENT_CHAT_CONTEXT?.MIDDLE_INFO?.FILE) {
+    let file_id;
+    if (fileType == "photo") {
+      const photoLength = message[fileType].length;
+      file_id = (message[fileType]?.[photoLength - 1]?.file_id || message[fileType]?.file_id) ?? 0;
+      console.log("photo: \n" + JSON.stringify(message[fileType]));
+    } else {
+      file_id = message[fileType]?.file_id ?? "0";
+    }
+    if (!message.text) {
+      message.text = message.caption ?? "";
+    }
+    const info = await getFileInfo(file_id, context.SHARE_CONTEXT.currentBotToken);
+    if (!info.file_path) {
+      console.log("[FILE][FAILED]: " + msgType);
+      await sendMessageToTelegramWithContext(context)(`GET FILE_PATH ERROR: ${info.description}`);
+      return new Response("Handle file msg error", { status: 200 });
+    }
+    if (!context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO) {
+      context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO = {};
+    }
+    file_name = info.file_path.split("/").pop();
+    file_url = `${ENV.TELEGRAM_API_DOMAIN}/file/bot${context.SHARE_CONTEXT.currentBotToken}/${info.file_path}`;
+    console.log("File url:", file_url);
+    context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILEURL = file_url;
+    if (fileType != "photo" || fileType == "photo" && ENV.LOAD_IMAGE_FILE) {
+      const file_resp = await getFile(file_url);
+      if (file_resp.status !== 200) {
+        errorMsg = `[FILE][FAILED] Get file: ${await file_resp.text()}`;
+        console.log(`${errorMsg}`);
+      }
+      file = await file_resp.blob();
+      context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILE = file;
+      context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILENAME = file_name;
+    }
+  } else {
+    file = context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILE;
+    file_name = context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILENAME;
+    file_url = context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILEURL;
   }
-  const file_name = info.file_path.split("/").pop();
-  const file_resp = await getFile(info.file_path, context.SHARE_CONTEXT.currentBotToken);
-  if (file_resp.status !== 200) {
-    errorMsg = `[FILE][FAILED] Get file: ${await file_resp.text()}`;
-    console.log(`${errorMsg}`);
-  }
-  const file = await file_resp.blob();
+  const start = performance.now();
   switch (fileType) {
     case "photo":
+    case "image":
       if (errorMsg)
         break;
-      context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILE_URL = `data:image/jpeg;base64,${Buffer.from(await file.arrayBuffer()).toString("base64")}`;
-      console.log(`[FILE][DONE] ${msgType}: ${((performance.now() - start) / 1e3).toFixed(2)}s`);
+      if (ENV.LOAD_IMAGE_FILE) {
+        context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILE = `data:image/jpeg;base64,${Buffer.from(await file.arrayBuffer()).toString("base64")}`;
+      }
+      console.log(`[FILE][DONE] ${fileType}: ${((performance.now() - start) / 1e3).toFixed(2)}s`);
       return null;
     case "voice":
     case "audio": {
@@ -2731,7 +2836,8 @@ async function msgHandleFile(message, context) {
       }
       console.log(`[FILE][DONE] Speech to text: ${((performance.now() - start) / 1e3).toFixed(2)}s`);
       console.log("transcription:\n" + stt_data.text);
-      context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.STT_TEXT = stt_data.text;
+      let currentText = context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEXT || "";
+      context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEXT = currentText + (currentText ? "\n" : "") + stt_data.text;
       const msgResp = await sendMessageToTelegramWithContext(context)("Transcription:\n" + stt_data.text).then((r) => r.json());
       if (!msgResp.ok) {
         errorMsg = `[FILE][FAILED] Send transcription failed: ${msgResp.message}`;
@@ -2739,8 +2845,7 @@ async function msgHandleFile(message, context) {
         break;
       }
       context.CURRENT_CHAT_CONTEXT.message_id = msgResp.result.message_id;
-      message.text = stt_data.text;
-      console.log("[FILE][DONE]: " + msgType);
+      console.log("[FILE][DONE]: " + fileType);
       return null;
     }
   }
@@ -2748,34 +2853,116 @@ async function msgHandleFile(message, context) {
   return new Response("Handle file msg failed", { status: 200 });
 }
 async function msgChatWithLLM(message, context) {
-  const result = await msgHandleFile(message, context);
-  if (result && result instanceof Response) {
-    return result;
+  const acceptType = ["photo", "image", "voice", "audio", "text"];
+  let fileType = acceptType.find((key) => key in message);
+  if (!fileType && message?.document) {
+    if (message.document.mime_type.match(/image/)) {
+      msgType2 = "image";
+    } else if (message.document.mime_type.match(/audio/))
+      msgType2 = "audio";
   }
-  let text = message.text.trim();
+  if (!fileType) {
+    return sendMessageToTelegramWithContext(context)(ENV.I18N.message.not_supported_chat_type_message);
+  }
+  console.log("[FILE]: " + fileType);
+  const MODE = context.USER_CONFIG.INTERACTIVE_MODE[context.USER_CONFIG.CURRENT_MODE];
+  let msgType2 = fileType;
+  if (msgType2 == "voice") {
+    msgType2 = "audio";
+  } else if (msgType2 == "photo") {
+    msgType2 = "image";
+  }
+  const HANDLE_PROCESS = MODE?.[msgType2] || context.USER_CONFIG.MODE_CONFIGS[msgType2]["0"];
+  let text = (message.text || "").trim();
   if (ENV.EXTRA_MESSAGE_CONTEXT && context.SHARE_CONTEXT?.extraMessageContext?.text) {
     text = context.SHARE_CONTEXT.extraMessageContext.text + "\n" + text;
   }
-  return chatWithLLM(text, context, null);
+  const PROVIDER = context.USER_CONFIG.PROVIDER_SOURCES;
+  try {
+    let result;
+    for (const PROCESS of HANDLE_PROCESS) {
+      if (result && result instanceof Response) {
+        return result;
+      }
+      const PROVIDER_SOURCE = PROVIDER?.[PROCESS.PROVIDER_SOURCE];
+      context.USER_CONFIG.AI_PROVIDER = PROCESS.AI_PROVIDER;
+      switch (PROCESS.AI_PROVIDER) {
+        case "openai":
+          if (PROVIDER_SOURCE) {
+            if (PROCESS.TYPE == "text:text") {
+              context.USER_CONFIG.OPENAI_API_BASE = PROVIDER_SOURCE?.PROXY_URL;
+              context.USER_CONFIG.OPENAI_API_KEY = PROVIDER_SOURCE?.API_KEY;
+            }
+          }
+          break;
+        case "azure":
+        case "workers":
+        case "gemini":
+        case "mistral":
+        default:
+          break;
+      }
+      if (!PROCESS.TYPE) {
+        PROCESS.TYPE = `${msgType2}:text`;
+      }
+      switch (PROCESS.TYPE) {
+        case "text:text":
+          context.USER_CONFIG.CHAT_MODEL = PROCESS?.MODEL || context.USER_CONFIG.CHAT_MODEL;
+          result = await chatWithLLM(text, context, null);
+          break;
+        case "text:image":
+          context.USER_CONFIG.DALL_E_MODEL = PROCESS?.MODEL || context.USER_CONFIG.DALL_E_MODEL;
+          const gen = loadImageGen(context);
+          if (!gen) {
+            return sendMessageToTelegramWithContext(context)(`ERROR: Image generator not found`);
+          }
+          result = await gen(subcommand, context);
+          await sendPhotoToTelegramWithContext(context)(result);
+          break;
+        case "text:audio":
+          context.USER_CONFIG.OPENAI_TTS_MODEL = PROCESS?.MODEL || context.USER_CONFIG.OPENAI_TTS_MODEL;
+          break;
+        case "audio:text":
+          context.USER_CONFIG.OPENAI_STT_MODEL = PROCESS?.MODEL || context.USER_CONFIG.OPENAI_STT_MODEL;
+          result = await msgHandleFile(message, fileType, context);
+          context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO = null;
+          break;
+        case "image:text":
+          context.USER_CONFIG.OPENAI_VISION_MODEL = PROCESS.MODEL;
+          await msgHandleFile(message, fileType, context);
+          result = await chatWithLLM(message.text, context, null);
+          context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO = null;
+          break;
+        case "audio:audio":
+        default:
+          return sendMessageToTelegramWithContext(context)("unsupport trans type");
+          break;
+      }
+    }
+  } catch (e) {
+    console.error(e);
+    return new Response(errorToString(e), { status: 500 });
+  }
+  return new Response("success", { status: 200 });
 }
 async function msgProcessByChatType(message, context) {
   const handlerMap = {
     "private": [
-      msgHandlePrivateMessage,
       msgFilterWhiteList,
+      msgHandlePrivateMessage,
       // msgFilterNonTextMessage,
       msgHandleCommand,
       msgHandleRole
     ],
     "group": [
-      msgHandleGroupMessage,
       msgFilterWhiteList,
+      msgHandleGroupMessage,
       msgHandleCommand,
       msgHandleRole
     ],
     "supergroup": [
-      msgHandleGroupMessage,
       msgFilterWhiteList,
+      msgHandleGroupMessage,
       msgHandleCommand,
       msgHandleRole
     ]
@@ -2830,10 +3017,10 @@ async function handleMessage(request) {
     // 保存最后一条消息
     msgCheckEnvIsReady,
     // 检查环境是否准备好: API_KEY, DATABASE
-    msgProcessByChatType,
-    // 根据类型对消息进一步处理
     msgIgnoreOldMessage,
     // 忽略旧消息
+    msgProcessByChatType,
+    // 根据类型对消息进一步处理
     msgChatWithLLM
     // 与llm聊天
   ];

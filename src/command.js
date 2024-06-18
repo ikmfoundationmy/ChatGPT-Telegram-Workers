@@ -596,7 +596,7 @@ export async function handleCommandMessage(message, context) {
   //   message.text = CUSTOM_COMMAND[message.text];
   // }
 
-  if (context.CURRENT_CHAT_CONTEXT?.MIDDLE_INFO?.FILE_URL) {
+  if (context.CURRENT_CHAT_CONTEXT?.MIDDLE_INFO?.FILEURL) {
     return null;
   }
 

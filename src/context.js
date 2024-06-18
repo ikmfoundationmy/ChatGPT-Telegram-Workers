@@ -40,7 +40,7 @@ export class Context {
     // 语音识别模型
     OPENAI_STT_MODEL: ENV.OPENAI_STT_MODEL,
     // 文字生成语音模型
-    // OPENAI_TTS_MODEL: ENV.OPENAI_TTS_MODEL,
+    OPENAI_TTS_MODEL: ENV.OPENAI_TTS_MODEL,
     // 图像识别模型
     OPENAI_VISION_MODEL: ENV.OPENAI_VISION_MODEL,
     // OenAI API Key
@@ -102,18 +102,33 @@ export class Context {
       // let MODEL_CONCISE = this.MODEL_CONCISE
     },
     */
-    // PROVIDER_SOURCES: {
-    //   ...(ENV.PROVIDER_SOURCE || {}),
-    //   DEFAULT: { PROXY_URL: this.OPENAI_API_BASE, API_KEY: ENV.API_KEY },
-    // },
-    
+    PROVIDER_SOURCES: {
+      ...(ENV.PROVIDER_SOURCE || {}),
+      // TEST: { PROXY_URL: 'https://xxxxxx', API_KEY: 'xxxxxx' },
+    },
+
     MODE_CONFIGS: {
       text: {
         0: [
           {
+            TYPE: 'text:text',
             PROVIDER_SOURCE: 'DEFAULT',
             AI_PROVIDER: ENV.AI_PROVIDER,
-            MODEL: ENV.CHAT_MODEL,
+            // MODEL: ENV.CHAT_MODEL,
+          },
+        ],
+        'dall-e': [
+          {
+            TYPE: 'text:text',
+            PROVIDER_SOURCE: 'DEFAULT',
+            AI_PROVIDER: 'openai',
+            // MODEL: ENV.CHAT_MODEL,
+          },
+          {
+            TYPE: 'text:image',
+            PROVIDER_SOURCE: 'DEFAULT',
+            AI_PROVIDER: 'openai',
+            // MODEL: ENV.DALL_E_MODEL,
           },
         ],
         ...(ENV.MODE_CONFIGS?.text || {}),
@@ -121,57 +136,51 @@ export class Context {
       audio: {
         0: [
           {
+            TYPE: 'audio:text',
             PROVIDER_SOURCE: 'DEFAULT',
             AI_PROVIDER: ENV.AI_PROVIDER,
-            MODEL: ENV.OPENAI_STT_MODEL,
+            // MODEL: ENV.OPENAI_STT_MODEL,
           },
           {
+            TYPE: 'text:text',
             PROVIDER_SOURCE: 'DEFAULT',
             AI_PROVIDER: ENV.AI_PROVIDER,
-            MODEL: ENV.CHAT_MODEL,
-          }
+            // MODEL: ENV.CHAT_MODEL,
+          },
         ],
+
         ...(ENV.MODE_CONFIGS?.audio || {}),
       },
       image: {
         0: [
           {
             PROVIDER_SOURCE: 'DEFAULT',
-            AI_PROVIDER: 'OPENAI',
-            MODEL: ENV.OPENAI_VISION_MODEL,
+            AI_PROVIDER: 'openai',
+            MODEL: 'gpt-4o',
           },
         ],
         ...(ENV.MODE_CONFIGS?.image || {}),
       },
-      generate_image: {
-        0: [
-          {
-            PROVIDER_SOURCE: 'DEFAULT',
-            AI_PROVIDER: 'OPENAI',
-            MODEL: ENV.CHAT_MODEL,
-            extra_prompt: '',
-          },
-          {
-            PROVIDER_SOURCE: 'DEFAULT',
-            AI_PROVIDER: 'OPENAI',
-            MODEL: ENV.DALL_E_MODEL,
-          },
-        ],
-        ...(ENV.MODE_CONFIGS?.generate_image || {}),
-      },
     },
-    DEFAULT_MODE: {
-      tag: 'default',
-      text: 0,
-      audio: 0,
-      image: 0,
-      generate_image: 0,
-    },
-    
+
+    // DEFAULT_MODE: {
+    //   tag: 'default',
+    //   text: 0,
+    //   audio: 0,
+    //   image: 0,
+    // },
+
     INTERACTIVE_MODE: {
-      DEFAULT_PROCESS: this.DEFAULT_MODE,
-      ...(ENV.CUSTOM_MODE || {}),
+      DEFAULT_MODE: {
+        tag: 'default',
+        text: 0,
+        audio: 0,
+        image: 0,
+      },
+      ...(ENV.CUSTOM_MODES || {}),
     },
+
+    CURRENT_MODE: ENV.CURRENT_MODE || 'DEFAULT_MODE',
 
     get CUSTOM_TINFO() {
       let AI_PROVIDER = this.AI_PROVIDER;
