@@ -4,9 +4,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1718722699;
+  BUILD_TIMESTAMP = 1718733075;
   // 当前版本 commit id
-  BUILD_VERSION = "a9ea566";
+  BUILD_VERSION = "069ac36";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -1537,10 +1537,10 @@ ERROR: ${e.message}`;
       console.log(`errorEnd`);
     }
     contentFull += lastChunk;
-    if (ENV.GPT3_TOKENS_COUNT) {
+    if (ENV.GPT3_TOKENS_COUNT && usage) {
       onResult?.({ usage });
-      context.CURRENT_CHAT_CONTEXT.promptToken = " p:" + (usage.prompt_tokens ?? 0);
-      context.CURRENT_CHAT_CONTEXT.completionToken = " c:" + (usage.completion_tokens ?? 0);
+      context.CURRENT_CHAT_CONTEXT.promptToken = " p:" + (usage?.prompt_tokens ?? 0);
+      context.CURRENT_CHAT_CONTEXT.completionToken = " c:" + (usage?.completion_tokens ?? 0);
     }
     let endTime = performance.now();
     console.log(`[DONE] Chat with openai: ${((endTime - startTime) / 1e3).toFixed(2)}s`);
@@ -1662,11 +1662,11 @@ async function updateBotUsage(usage, context) {
       }
     };
   }
-  dbValue.tokens.total += usage.total_tokens ?? 0;
+  dbValue.tokens.total += usage?.total_tokens ?? 0;
   if (!dbValue.tokens.chats[context.SHARE_CONTEXT.chatId]) {
-    dbValue.tokens.chats[context.SHARE_CONTEXT.chatId] = usage.total_tokens ?? 0;
+    dbValue.tokens.chats[context.SHARE_CONTEXT.chatId] = usage?.total_tokens ?? 0;
   } else {
-    dbValue.tokens.chats[context.SHARE_CONTEXT.chatId] += usage.total_tokens ?? 0;
+    dbValue.tokens.chats[context.SHARE_CONTEXT.chatId] += usage?.total_tokens ?? 0;
   }
   await DATABASE.put(context.SHARE_CONTEXT.usageKey, JSON.stringify(dbValue));
 }
@@ -2007,8 +2007,8 @@ async function chatWithLLM(text, context, modifier) {
       if (context.CURRENT_CHAT_CONTEXT?.MIDDLE_INFO?.FILE_URL) {
         context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO = `\u{1F916} ${context.USER_CONFIG.OPENAI_VISION_MODEL}` + extraInfo;
       } else {
-        if (ENV.ENABLE_SHOWTOKENINFO) {
-          extraInfo += "\n- " + (context.CURRENT_CHAT_CONTEXT?.promptToken || "?") + (context.CURRENT_CHAT_CONTEXT?.completionToken || "?");
+        if (ENV.ENABLE_SHOWTOKENINFO && context.CURRENT_CHAT_CONTEXT?.promptToken && context.CURRENT_CHAT_CONTEXT?.completionToken) {
+          extraInfo += "\n|" + context.CURRENT_CHAT_CONTEXT.promptToken + context.CURRENT_CHAT_CONTEXT.completionToken;
         }
         context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO = context.USER_CONFIG.CUSTOM_TINFO + extraInfo;
       }
