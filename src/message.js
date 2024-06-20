@@ -2,7 +2,7 @@ import {CONST, DATABASE, ENV} from './env.js';
 import {Context} from './context.js';
 import {getBot, sendMessageToTelegramWithContext, sendPhotoToTelegramWithContext, getFileInfo, getFile} from './telegram.js';
 import {handleCommandMessage} from './command.js';
-import {errorToString} from './utils.js';
+import {errorToString, getCurrentProcessInfo} from './utils.js';
 import { chatWithLLM, loadImageGen } from './llm.js';
 import { requestTranscriptionFromOpenAI } from './openai.js';
 // eslint-disable-next-line no-unused-vars
@@ -321,6 +321,13 @@ async function msgHandleRole(message, context) {
  * @return {Promise<Response>}
  */
 async function msgHandleFile(message, fileType, context) {
+  if (!context.CURRENT_CHAT_CONTEXT.message_id) {
+    const msg = await sendMessageToTelegramWithContext(context)(
+      ENV.I18N.message.loading
+    ).then(r => r.json());
+    context.CURRENT_CHAT_CONTEXT.message_id = msg.result.message_id;
+    context.CURRENT_CHAT_CONTEXT.reply_markup = null;
+  }
   let file = null, file_name = '', file_url = '';
   let errorMsg = '';
   if (!context.CURRENT_CHAT_CONTEXT?.MIDDLE_INFO?.FILEURL && !context.CURRENT_CHAT_CONTEXT?.MIDDLE_INFO?.FILE) {
@@ -367,43 +374,57 @@ async function msgHandleFile(message, fileType, context) {
   const start = performance.now();
   // console.log(JSON.stringify(message.voice,null,2))
 
-  switch (fileType) {
-    case 'photo':
-    case 'image':
-      if (errorMsg) break;
-      if (ENV.LOAD_IMAGE_FILE) {
-        context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILE = `data:image/jpeg;base64,${Buffer.from(await file.arrayBuffer()).toString('base64')}`;
-      }
-      
-      console.log(`[FILE][DONE] ${fileType}: ${((performance.now() - start) / 1000).toFixed(2)}s`);
-      return null;
-    case 'voice':
-    case 'audio': {
-      if (errorMsg) break;
-      const stt_data = await requestTranscriptionFromOpenAI(file, file_name, context).then(r => r.json());
-      if (stt_data.error) {
-        errorMsg = `[FILE][FAILED] Speech to text: ${stt_data.error.message}`
-        console.log(`${errorMsg}`);
-        break;
-      }
-      console.log(`[FILE][DONE] Speech to text: ${((performance.now() - start) / 1000).toFixed(2)}s`);
-      console.log('transcription:\n' + stt_data.text);
-      let currentText = context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEXT || '';
-      context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEXT =
-        currentText + (currentText ? '\n' : '') + stt_data.text;
-      const msgResp = await sendMessageToTelegramWithContext(context)('Transcription:\n' + stt_data.text).then(r => r.json());
-      if (!msgResp.ok) {
-        errorMsg = `[FILE][FAILED] Send transcription failed: ${msgResp.message}`;
-        console.log(`${errorMsg}`);
-        break;
-      }
+  try {
+    switch (fileType) {
+      case 'photo':
+      case 'image':
+        if (errorMsg) break;
+        if (ENV.LOAD_IMAGE_FILE) {
+          context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILE = `data:image/jpeg;base64,${Buffer.from(await file.arrayBuffer()).toString('base64')}`
+        };
+        console.log(
+          `[FILE][DONE] ${fileType}: ${((performance.now() - start) / 1000).toFixed(2)}s`
+        );
+        return null;
+      case 'voice':
+      case 'audio': {
+        if (errorMsg) break;
+        const stt_data = await requestTranscriptionFromOpenAI(
+          file,
+          file_name,
+          context
+        ).then(r => r.json());
+        if (stt_data.error) {
+          errorMsg = `[FILE][FAILED] Speech to text: ${stt_data.error.message}`;
+          console.log(`${errorMsg}`);
+          break;
+        }
+        const time = ((performance.now() - start) / 1000).toFixed(2) + 's   ';
+        console.log(`[FILE][DONE] Speech to text: ${time}`);
+        console.log('Transcription:\n' + stt_data.text);
+        context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO =
+          (context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO?.TEMP_INFO || '') +
+          getCurrentProcessInfo(context, 'MODEL') +
+          ' ' +
+          time;
+        context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEXT = stt_data.text;
+        const msgResp = await sendMessageToTelegramWithContext(context)(
+          stt_data.text
+        ).then(r => r.json());
+        if (!msgResp.ok) {
+          errorMsg = `[FILE][FAILED] Send transcription failed: ${msgResp.message}`;
+          console.log(`${errorMsg}`);
+          break;
+        }
 
-      context.CURRENT_CHAT_CONTEXT.message_id = msgResp.result.message_id;
-      console.log('[FILE][DONE]: ' + fileType);
-      return null;
+        context.CURRENT_CHAT_CONTEXT.message_id = msgResp.result.message_id;
+        console.log('[FILE][DONE]: ' + fileType);
+        return null;
+      }
     }
+  } catch (e) {
+    console.error(e);
   }
-  await sendMessageToTelegramWithContext(context)(`${errorMsg}`);
   return new Response('Handle file msg failed', { status: 200 });
 }
 
@@ -429,7 +450,7 @@ async function msgChatWithLLM(message, context) {
   console.log('[FILE]: ' + fileType);
 
   // 与LLM交互
-  const MODE = context.USER_CONFIG.INTERACTIVE_MODE[context.USER_CONFIG.CURRENT_MODE];
+  const MODE = context.USER_CONFIG.CURRENT_MODE;
 
   let msgType = fileType;
   if (msgType == 'voice') {
@@ -437,47 +458,32 @@ async function msgChatWithLLM(message, context) {
   } else if (msgType == 'photo') {
     msgType = 'image';
   }
-  const HANDLE_PROCESS = MODE?.[msgType] || context.USER_CONFIG.MODE_CONFIGS[msgType]['0'];
-  let text = (message.text || '').trim();
-  if (ENV.EXTRA_MESSAGE_CONTEXT && context.SHARE_CONTEXT?.extraMessageContext?.text) {
-    text = context.SHARE_CONTEXT.extraMessageContext.text + '\n' + text;
-  }
-  const PROVIDER = context.USER_CONFIG.PROVIDER_SOURCES;
+
   try {
+    const HANDLE_PROCESS = context.USER_CONFIG.MODES?.[MODE]?.[msgType] || MODES.default.text;
+    let text = (message.text || '').trim();
+    if (ENV.EXTRA_MESSAGE_CONTEXT && context.SHARE_CONTEXT?.extraMessageContext?.text) {
+      text = context.SHARE_CONTEXT.extraMessageContext.text + '\n' + text;
+    }
+
     let result;
-    for (const PROCESS of HANDLE_PROCESS) {
+
+    for (const [i, PROCESS] of HANDLE_PROCESS.entries()) {
       if (result && result instanceof Response) {
         return result;
       }
-      const PROVIDER_SOURCE = PROVIDER?.[PROCESS.PROVIDER_SOURCE];
       context.USER_CONFIG.AI_PROVIDER = PROCESS.AI_PROVIDER;
-      switch (PROCESS.AI_PROVIDER) {
-        case 'openai':
-          if (PROVIDER_SOURCE) {
-            if (PROCESS.TYPE == 'text:text') {
-              context.USER_CONFIG.OPENAI_API_BASE = PROVIDER_SOURCE?.PROXY_URL;
-              context.USER_CONFIG.OPENAI_API_KEY = PROVIDER_SOURCE?.API_KEY;
-            }
-          }
-          break;
-        case 'azure':
-        case 'workers':
-        case 'gemini':
-        case 'mistral':
-        default:
-          break;
-      }
-
+      // 标记当前使用的模型数据
+      context.CURRENT_CHAT_CONTEXT.TAG = [msgType, i];
       if (!PROCESS.TYPE) {
         PROCESS.TYPE = `${msgType}:text`;
       }
       switch (PROCESS.TYPE) {
         case 'text:text':
-          context.USER_CONFIG.CHAT_MODEL = PROCESS?.MODEL || context.USER_CONFIG.CHAT_MODEL;
           result = await chatWithLLM(text, context, null);
+          context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO += context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEXT;
           break;
         case 'text:image':
-          context.USER_CONFIG.DALL_E_MODEL = PROCESS?.MODEL || context.USER_CONFIG.DALL_E_MODEL;
           const gen = loadImageGen(context);
           if (!gen) {
             return sendMessageToTelegramWithContext(context)(`ERROR: Image generator not found`);
@@ -485,26 +491,23 @@ async function msgChatWithLLM(message, context) {
           result = await gen(subcommand, context);
           await sendPhotoToTelegramWithContext(context)(result);
           break;
-        case 'text:audio':
-          context.USER_CONFIG.OPENAI_TTS_MODEL = PROCESS?.MODEL || context.USER_CONFIG.OPENAI_TTS_MODEL;
-          break;
         case 'audio:text':
-          context.USER_CONFIG.OPENAI_STT_MODEL = PROCESS?.MODEL || context.USER_CONFIG.OPENAI_STT_MODEL;
           result = await msgHandleFile(message, fileType, context);
+          context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO +=  '\n' + context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEXT + '\n';
           context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILE = null;
           context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILEURL = null;
           break;
         case 'image:text':
-          context.USER_CONFIG.OPENAI_VISION_MODEL = PROCESS.MODEL;
           await msgHandleFile(message, fileType, context);
           result = await chatWithLLM(message.text, context, null);
+          context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO += '\n' + context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEXT + '\n';
           context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILE = null;
           context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILEURL = null;
           break;
         case 'audio:audio':
+        case 'text:audio':
         default:
-          return sendMessageToTelegramWithContext(context)('unsupport trans type');
-          break;
+          return sendMessageToTelegramWithContext(context)('unsupported trans type');
       }
     }
   } catch (e) {

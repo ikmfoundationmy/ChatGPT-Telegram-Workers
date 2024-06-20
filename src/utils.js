@@ -301,3 +301,44 @@ export const fetchWithRetry = fetchWithRetryFunc();
 export function delay(ms = 1000) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
+
+
+/** 
+ * 获取当前流程信息
+ * @param {Context} context
+ * @param {enum} queryType 
+ * @return {string}
+ */
+export function getCurrentProcessInfo(context, queryType = 'MODEL') {
+  const processes =
+    context.USER_CONFIG.MODES[context.USER_CONFIG.CURRENT_MODE][context.CURRENT_CHAT_CONTEXT.TAG[0]] ||
+    context.USER_CONFIG.MODES.default.text;
+  const currentProcess = processes?.[context.CURRENT_CHAT_CONTEXT?.TAG[1] ?? 0];
+
+  if (queryType == 'PROXY_URL' || queryType == 'API_KEY') {
+    if (
+      context.USER_CONFIG.PROVIDER_SOURCES?.[currentProcess?.PROVIDER_SOURCE]
+    ) {
+      return context.USER_CONFIG.PROVIDER_SOURCES?.[
+        currentProcess.PROVIDER_SOURCE
+      ]?.[queryType]
+    } else return null;
+  } else if (!currentProcess?.[queryType]) {
+    const AI_PROVIDER = (context.USER_CONFIG.AI_PROVIDER || 'openai').toUpperCase();
+    switch (currentProcess.TYPE) {
+      case 'text:text':
+        return context.USER_CONFIG[`CHAT_MODEL`];
+      case 'text:image':
+        return context.USER_CONFIG.DALL_E_MODEL;
+      case 'audio:text':
+        return context.USER_CONFIG[`${AI_PROVIDER}_STT_MODEL`];
+      case 'image:text':
+        return context.USER_CONFIG[`${AI_PROVIDER}_VISION_MODEL`];
+      case 'text:audio':
+        return context.USER_CONFIG[`${AI_PROVIDER}_TTS_MODEL`];
+      case 'audio:audio':
+      default:
+        return sendMessageToTelegramWithContext(context)('unsupported trans type');
+    }
+  } else return currentProcess?.[queryType];
+}

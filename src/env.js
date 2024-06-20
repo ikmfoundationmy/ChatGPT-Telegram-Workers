@@ -157,7 +157,7 @@ class Environment {
   // Google Gemini API BASE
   GOOGLE_API_BASE = null;
   // Google Gemini Model
-  GOOGLE_COMPLETIONS_MODEL = 'gemini-pro';
+  GOOGLE_CHAT_MODEL = 'gemini-pro';
 
   // mistral api key
   MISTRAL_API_KEY = null;

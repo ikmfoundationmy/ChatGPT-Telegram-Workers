@@ -80,7 +80,7 @@ export class Context {
     // Google Gemini API
     GOOGLE_COMPLETIONS_API: ENV.GOOGLE_API_BASE || ENV.GOOGLE_COMPLETIONS_API,
     // Google Gemini Model
-    GOOGLE_COMPLETIONS_MODEL: ENV.GOOGLE_COMPLETIONS_MODEL,
+    GOOGLE_CHAT_MODEL: ENV.GOOGLE_CHAT_MODEL,
 
     EXTRA_TINFO: ENV.EXTRA_TINFO,
     /*
@@ -107,80 +107,57 @@ export class Context {
       // TEST: { PROXY_URL: 'https://xxxxxx', API_KEY: 'xxxxxx' },
     },
 
-    MODE_CONFIGS: {
-      text: {
-        0: [
+  
+    MODES: {
+      default: {
+        text:[
           {
             TYPE: 'text:text',
-            PROVIDER_SOURCE: 'DEFAULT',
-            AI_PROVIDER: ENV.AI_PROVIDER,
-            // MODEL: ENV.CHAT_MODEL,
-          },
-        ],
-        'dall-e': [
-          {
-            TYPE: 'text:text',
-            PROVIDER_SOURCE: 'DEFAULT',
+            // PROVIDER_SOURCE: 'default',
             AI_PROVIDER: 'openai',
             // MODEL: ENV.CHAT_MODEL,
           },
-          {
-            TYPE: 'text:image',
-            PROVIDER_SOURCE: 'DEFAULT',
-            AI_PROVIDER: 'openai',
-            // MODEL: ENV.DALL_E_MODEL,
-          },
         ],
-        ...(ENV.MODE_CONFIGS?.text || {}),
-      },
-      audio: {
-        0: [
+        audio: [
           {
             TYPE: 'audio:text',
-            PROVIDER_SOURCE: 'DEFAULT',
-            AI_PROVIDER: ENV.AI_PROVIDER,
-            // MODEL: ENV.OPENAI_STT_MODEL,
+            // PROVIDER_SOURCE: 'default',
+            AI_PROVIDER: 'openai',
           },
           {
             TYPE: 'text:text',
-            PROVIDER_SOURCE: 'DEFAULT',
-            AI_PROVIDER: ENV.AI_PROVIDER,
-            // MODEL: ENV.CHAT_MODEL,
+            // PROVIDER_SOURCE: 'default',
+            AI_PROVIDER: 'openai',
           },
         ],
-
-        ...(ENV.MODE_CONFIGS?.audio || {}),
-      },
-      image: {
-        0: [
+        image:[
           {
-            PROVIDER_SOURCE: 'DEFAULT',
+            TYPE: 'image:text',
+            // PROVIDER_SOURCE: 'default',
             AI_PROVIDER: 'openai',
             MODEL: 'gpt-4o',
           },
         ],
-        ...(ENV.MODE_CONFIGS?.image || {}),
       },
+      'dall-e': {
+        text: [
+          {
+            TYPE: 'text:text',
+            // PROVIDER_SOURCE: 'default',
+            // AI_PROVIDER: 'openai',
+          },
+          {
+            TYPE: 'text:image',
+            // PROVIDER_SOURCE: 'default',
+            // AI_PROVIDER: 'openai',
+            // MODEL: ENV.DALL_E_MODEL,
+          },
+        ]
+      },
+      ...(ENV.MODES || {})
     },
 
-    // DEFAULT_MODE: {
-    //   tag: 'default',
-    //   text: 0,
-    //   audio: 0,
-    //   image: 0,
-    // },
-
-    INTERACTIVE_MODE: {
-      DEFAULT_MODE: {
-        tag: 'default',
-        text: 0,
-        audio: 0,
-        image: 0,
-      },
-      ...(ENV.CUSTOM_MODES || {}),
-    },
-
-    CURRENT_MODE: ENV.CURRENT_MODE || 'DEFAULT_MODE',
+    CURRENT_MODE: ENV.CURRENT_MODE || 'default',
 
     get CUSTOM_TINFO() {
       let AI_PROVIDER = this.AI_PROVIDER;
@@ -192,19 +169,19 @@ export class Context {
         case "openai":
         case "azure":
         default:
-          CHAT_MODEL = this.CHAT_MODEL;
+          CHAT_MODEL = this.OPENAI_CHAT_MODEL;
           break;
         case "workers":
           CHAT_MODEL = this.WORKERS_CHAT_MODEL;
           break;
         case "gemini":
-          CHAT_MODEL = this.GOOGLE_COMPLETIONS_MODEL;
+          CHAT_MODEL = this.GOOGLE_CHAT_MODEL;
           break;
         case "mistral":
           CHAT_MODEL = this.MISTRAL_CHAT_MODEL;
           break;
       }
-      let info = `🤖️ ${CHAT_MODEL}`;
+      let info = `${CHAT_MODEL}`;
       if (this.EXTRA_TINFO){
         info += ` ${this.EXTRA_TINFO}`;
       }

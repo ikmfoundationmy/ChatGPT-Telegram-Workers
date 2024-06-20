@@ -15,7 +15,7 @@ async function sendMessage(message, token, context) {
     text: message,
   };
   for (const key of Object.keys(context)) {
-    if (context[key] !== undefined && context[key] !== null & key !== 'MIDDLE_INFO') {
+    if (context[key] !== undefined && context[key] !== null && key !== 'MIDDLE_INFO') {
       body[key] = context[key];
     }
   }
@@ -52,31 +52,22 @@ export async function sendMessageToTelegram(message, token, context) {
 
   let origin_msg = message;
   let info = '';
-  let STT_TEXT = '';
-  if (chatContext?.MIDDLE_INFO?.TEXT) {
-    STT_TEXT = 'Transcription:\n' + chatContext.MIDDLE_INFO?.TEXT;
-  }
+  let MIDDLE_TEXT = '';
 
-  let stt_text;
   const escapeContent = (parse_mode = chatContext?.parse_mode) => {
-    stt_text = STT_TEXT;
     if (parse_mode === 'MarkdownV2' && chatContext?.MIDDLE_INFO?.TEMP_INFO) {
-      info = '`' + (context.MIDDLE_INFO.TEMP_INFO).replace('\n', '\n') + '`\n';
-      info = escapeText(info, 'info');
-      // stt_text = stt_text.replace('\n', '\n>');
-      stt_text = stt_text ? escapeText('>`' + stt_text + '`\n\n\n', 'info') : escapeText('\n');
-      message = info + stt_text + escapeText(origin_msg, 'llm');
+      info = context.MIDDLE_INFO.TEMP_INFO.trim();
+      message = '```\n' + info + '   ```\n' + escapeText(origin_msg, 'llm');
     } else if (parse_mode === 'MarkdownV2') { 
       chatContext.parse_mode = null;
     } else{
       info = chatContext?.MIDDLE_INFO?.TEMP_INFO ? (chatContext.MIDDLE_INFO.TEMP_INFO + '\n') : '';
-      message = (info + stt_text) ? (info + stt_text + '\n' + origin_msg) : origin_msg;
+      message = (info) ? (info + '\n' + origin_msg) : origin_msg;
     }
     if (parse_mode !== 'MarkdownV2' && context?.MIDDLE_INFO?.TEMP_INFO) {
       chatContext.entities = [
         { type: 'code', offset: 0, length: info.length },
-        { type: 'code', offset: info.length, length: stt_text.length },
-        { type: 'blockquote', offset: info.length, length: stt_text.length },
+        { type: 'blockquote', offset: 0, length: info.length },
       ]
     }
   }

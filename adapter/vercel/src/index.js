@@ -9,7 +9,7 @@ export const config = {
 export default async (req, res) => {
   const redis = new RedisCache(process.env.REDIS_URL, process.env.REDIS_TOKEN)
   const env = {
-    ...Object.assign({}, process.env),
+    ...(process.env || {}),
     DATABASE: redis,
   }
   const body = await req.text()

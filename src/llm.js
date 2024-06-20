@@ -13,7 +13,7 @@ import {
   requestCompletionsFromOpenAI,
   requestImageFromOpenAI,
 } from './openai.js';
-import {tokensCounter, delay} from './utils.js';
+import {tokensCounter, delay, getCurrentProcessInfo} from './utils.js';
 import {isWorkersAIEnable, requestCompletionsFromWorkersAI, requestImageFromWorkersAI} from './workersai.js';
 import {isGeminiAIEnable, requestCompletionsFromGeminiAI} from './gemini.js';
 import {isMistralAIEnable, requestCompletionsFromMistralAI} from './mistralai.js';
@@ -119,7 +119,7 @@ async function loadHistory(key, context) {
  * @return {function}
  */
 export function loadChatLLM(context) {
-  switch (context.USER_CONFIG.AI_PROVIDER) {
+  switch (getCurrentProcessInfo(context, 'AI_PROVIDER')) {
     case 'openai':
       return requestCompletionsFromOpenAI;
     case 'azure':
@@ -156,7 +156,7 @@ export function loadChatLLM(context) {
  * @return {function}
  */
 export function loadImageGen(context) {
-  switch (context.USER_CONFIG.AI_IMAGE_PROVIDER) {
+  switch (getCurrentProcessInfo(context, 'PROVIDER') || context.USER_CONFIG.AI_IMAGE_PROVIDER) {
     case 'openai':
       return requestImageFromOpenAI;
     case 'azure':
@@ -246,16 +246,14 @@ export async function chatWithLLM(text, context, modifier) {
     if (!context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO) {
       context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO = {}
     }
-    context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO = '';
+    const tempInfo = context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO || '';
+    context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO = tempInfo ? `${tempInfo}---\n` : '';
     if (context.CURRENT_CHAT_CONTEXT.reply_markup) {
       delete context.CURRENT_CHAT_CONTEXT.reply_markup;
     }
     let extraInfo = '';
     const parseMode = context.CURRENT_CHAT_CONTEXT.parse_mode;
     try {
-      if (ENV.ENABLE_SHOWINFO) {
-        context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO = context.USER_CONFIG.CUSTOM_TINFO;
-      }
       if (!context.CURRENT_CHAT_CONTEXT.message_id) {
         const msg = await sendMessageToTelegramWithContext(context)(
           ENV.I18N.message.loading
@@ -263,22 +261,28 @@ export async function chatWithLLM(text, context, modifier) {
         context.CURRENT_CHAT_CONTEXT.message_id = msg.result.message_id
         context.CURRENT_CHAT_CONTEXT.reply_markup = null
       }
+
+      if (ENV.ENABLE_SHOWINFO) {
+        context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO += getCurrentProcessInfo(context, 'MODEL');
+      }
       
     } catch (e) {
       console.error(e);
     }
+
+    const originalInfo = context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO || '';
     setTimeout(() => sendChatActionToTelegramWithContext(context)('typing').catch(console.error), 0);
     let onStream = null;
     const generateInfo = async (text) => {
       const time = ((performance.now() - llmStart) / 1000).toFixed(2);
       extraInfo = ` ${time}s`;
       if (context.CURRENT_CHAT_CONTEXT?.MIDDLE_INFO?.FILE_URL) {
-        context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO = `🤖 ${context.USER_CONFIG.OPENAI_VISION_MODEL}` + extraInfo;
+        context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO = (context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO?.TEMP_INFO || '') + `${context.USER_CONFIG.OPENAI_VISION_MODEL}` + extraInfo + '   \n';
       } else {
         if (ENV.ENABLE_SHOWTOKENINFO && context.CURRENT_CHAT_CONTEXT?.promptToken && context.CURRENT_CHAT_CONTEXT?.completionToken) {
-          extraInfo += '\n|' + context.CURRENT_CHAT_CONTEXT.promptToken + context.CURRENT_CHAT_CONTEXT.completionToken;
+          extraInfo += '   \nToken: ' + context.CURRENT_CHAT_CONTEXT.promptToken + ' | ' + context.CURRENT_CHAT_CONTEXT.completionToken + '\n';
         }
-        context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO = context.USER_CONFIG.CUSTOM_TINFO + extraInfo;
+        context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO =  originalInfo + extraInfo;
       }
       return null;
     }
@@ -299,9 +303,6 @@ export async function chatWithLLM(text, context, modifier) {
       };
     }
     
-    // if (context.CURRENT_CHAT_CONTEXT?.MIDDLE_INFO?.FILE_URL){
-    // onStream =null;
-    // } 
     const llm = loadChatLLM(context);
     if (llm === null) {
       return sendMessageToTelegramWithContext(context)(`LLM is not enable`);
@@ -310,11 +311,7 @@ export async function chatWithLLM(text, context, modifier) {
     const llmStart = performance.now();
     const answer = await requestCompletionsFromLLM(text, context, llm, modifier, onStream);
     console.log(`[DONE] Chat with LLM: ${((performance.now()- llmStart)/1000).toFixed(2)}s`);
-    /*
-    if (extraInfo === '') {
-      await generateInfo(answer);
-    }
-    */
+
     context.CURRENT_CHAT_CONTEXT.parse_mode = parseMode;
     if (ENV.SHOW_REPLY_BUTTON && context.CURRENT_CHAT_CONTEXT.message_id) {
       try {
