@@ -103,7 +103,7 @@ export class Context {
     },
     */
     PROVIDER_SOURCES: {
-      ...(ENV.PROVIDER_SOURCE || {}),
+      ...(ENV.PROVIDER_SOURCES || {}),
       // TEST: { PROXY_URL: 'https://xxxxxx', API_KEY: 'xxxxxx' },
     },
 
@@ -165,11 +165,16 @@ export class Context {
         AI_PROVIDER = "openai";
       }
       let CHAT_MODEL = "";
+      const PROCESS = this.MODES[this.CURRENT_MODE];
+      let info = '';
+      for (const [k, v] of Object.entries(PROCESS)) {
+        info += `\n- ${k}\n` + ' '.repeat(4) + v.map(i => Object.values(i).join(' ') || `${k}:text`).join('\n' + ' '.repeat(4));
+      }
       switch (AI_PROVIDER) {
         case "openai":
         case "azure":
         default:
-          CHAT_MODEL = this.OPENAI_CHAT_MODEL;
+          CHAT_MODEL = this.CHAT_MODEL;
           break;
         case "workers":
           CHAT_MODEL = this.WORKERS_CHAT_MODEL;
@@ -181,10 +186,9 @@ export class Context {
           CHAT_MODEL = this.MISTRAL_CHAT_MODEL;
           break;
       }
-      let info = `${CHAT_MODEL}`;
-      if (this.EXTRA_TINFO){
-        info += ` ${this.EXTRA_TINFO}`;
-      }
+      info = `${info}\nCHAT_MODEL:${CHAT_MODEL}`;
+      info += `\nTAG: ${this.EXTRA_TINFO || 'default'}`;
+      
       return info;
     },
     set CUSTOM_TINFO(info) {},

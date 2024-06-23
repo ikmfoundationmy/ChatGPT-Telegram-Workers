@@ -399,14 +399,14 @@ async function msgHandleFile(message, fileType, context) {
           console.log(`${errorMsg}`);
           break;
         }
-        const time = ((performance.now() - start) / 1000).toFixed(2) + 's   ';
-        console.log(`[FILE][DONE] Speech to text: ${time}`);
+        const time = ((performance.now() - start) / 1000).toFixed(2);
+        console.log(`[FILE][DONE] Speech to text: ${time}s`);
         console.log('Transcription:\n' + stt_data.text);
+        const model_time_msg = ENV.ENABLE_SHOWINFO
+          ? `${getCurrentProcessInfo(context, 'MODEL')} ${time}s   `
+          : '';
         context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO =
-          (context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO?.TEMP_INFO || '') +
-          getCurrentProcessInfo(context, 'MODEL') +
-          ' ' +
-          time;
+          (context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO?.TEMP_INFO || '') + model_time_msg;
         context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEXT = stt_data.text;
         const msgResp = await sendMessageToTelegramWithContext(context)(
           stt_data.text
@@ -481,19 +481,28 @@ async function msgChatWithLLM(message, context) {
       switch (PROCESS.TYPE) {
         case 'text:text':
           result = await chatWithLLM(text, context, null);
-          context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO += context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEXT;
+          context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO += '\n' + context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEXT + '\n';
           break;
         case 'text:image':
           const gen = loadImageGen(context);
           if (!gen) {
             return sendMessageToTelegramWithContext(context)(`ERROR: Image generator not found`);
           }
-          result = await gen(subcommand, context);
+          const startTime = performance.now();
+          result = await gen(context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEXT, context);
+          if (typeof result === 'string') {
+            context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILEURL = result;
+          } else context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILE = result;
+          const time = ((performance.now() - startTime) / 1000).toFixed(2);
+          context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO = (context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO || '') + getCurrentProcessInfo(context, 'MODEL') + ` ${time}s  `;
           await sendPhotoToTelegramWithContext(context)(result);
           break;
         case 'audio:text':
           result = await msgHandleFile(message, fileType, context);
-          context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO +=  '\n' + context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEXT + '\n';
+          context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO +=
+            (ENV.ENABLE_SHOWINFO ? '\n' : '\nTranscription: \n') +
+            context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEXT +
+            '\n';
           context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILE = null;
           context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILEURL = null;
           break;
@@ -512,7 +521,7 @@ async function msgChatWithLLM(message, context) {
     }
   } catch (e) {
       console.error(e);
-      return new Response(errorToString(e), {status: 500});
+      return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`);
     } 
 
   return new Response('success', { status: 200 });
@@ -553,7 +562,9 @@ export async function msgProcessByChatType(message, context) {
     );
   }
   const handlers = handlerMap[context.SHARE_CONTEXT.chatType];
+  // console.log('聊天分类中间件');
   for (const handler of handlers) {
+    // console.log(handler.name);
     try {
       const result = await handler(message, context);
       if (result && result instanceof Response) {
@@ -616,8 +627,9 @@ export async function handleMessage(request) {
     msgProcessByChatType, // 根据类型对消息进一步处理
     msgChatWithLLM, // 与llm聊天
   ];
-
+  // console.log('消息中间件')
   for (const handler of handlers) {
+    // console.log(handler.name);
     try {
       const result = await handler(message, context);
       if (result && result instanceof Response) {

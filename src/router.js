@@ -31,9 +31,11 @@ function buildKeyNotFoundHTML(key) {
 async function bindWebHookAction(request) {
   const result = [];
   const domain = new URL(request.url).host;
+  // console.log(`url: ${request.url}\n domain: ${domain}`);
   const hookMode = API_GUARD ? 'safehook' : 'webhook';
   for (const token of ENV.TELEGRAM_AVAILABLE_TOKENS) {
     const url = `https://${domain}/telegram/${token.trim()}/${hookMode}`;
+    console.log(`webhook url: ${url}`);
     const id = token.split(':')[0];
     result[id] = {
       webhook: await bindTelegramWebHook(token, url).catch((e) => errorToString(e)),

@@ -42,6 +42,7 @@ const commandSortList = [
   '/usage',
   '/system',
   '/help',
+  '/mode'
 ];
 
 // 命令绑定
@@ -108,6 +109,11 @@ const commandHandlers = {
   '/redo': {
     scopes: ['all_private_chats', 'all_group_chats', 'all_chat_administrators'],
     fn: commandRegenerate,
+    needAuth: commandAuthCheck.shareModeGroup,
+  },
+  '/mode': {
+    scopes: [],
+    fn: commandUpdateUserConfig,
     needAuth: commandAuthCheck.shareModeGroup,
   },
 };
@@ -243,10 +249,12 @@ async function commandGenerateImg(message, command, subcommand, context) {
  */
 async function commandGetHelp(message, command, subcommand, context) {
   const helpMsg =
-      ENV.I18N.command.help.summary +
-      Object.keys(commandHandlers)
-          .map((key) => `${key}：${ENV.I18N.command.help[key.substring(1)]}`)
-          .join('\n');
+    ENV.I18N.command.help.summary +
+    '<pre>' +
+    Object.keys(commandHandlers)
+      .map((key) => `${key}：${ENV.I18N.command.help[key.substring(1)]}`)
+      .join('\n') + '</pre>';
+  context.CURRENT_CHAT_CONTEXT.parse_mode = 'HTML';
   return sendMessageToTelegramWithContext(context)(helpMsg);
 }
 
@@ -295,6 +303,20 @@ async function commandCreateNewChatContext(message, command, subcommand, context
  * @return {Promise<Response>}
  */
 async function commandUpdateUserConfig(message, command, subcommand, context) {
+  if (command == '/mode') {
+    if (subcommand == 'all') {
+      const msg = `<pre>mode清单:   \n- ${Object.keys(context.USER_CONFIG.MODES).join('\n- ')}</pre>`;
+      context.CURRENT_CHAT_CONTEXT.parse_mode = 'HTML';
+      return sendMessageToTelegramWithContext(context)(msg);
+    } else if (!subcommand) {
+      return sendMessageToTelegramWithContext(context)(ENV.I18N.command.mode.help); 
+    }
+    if (!context.USER_CONFIG.MODES?.[subcommand]) {
+      const msg = ENV.I18N.command.setenv.update_config_error(new Error(`mode \`${subcommand}\` not exist`));
+      return sendMessageToTelegramWithContext(context)(msg);
+    }
+    subcommand = `CURRENT_MODE=${subcommand}`
+  }
   const kv = subcommand.indexOf('=');
   if (kv === -1) {
     return sendMessageToTelegramWithContext(context)(ENV.I18N.command.setenv.help);
@@ -695,6 +717,8 @@ export async function bindCommandForTelegram(token) {
         },
     ).then((res) => res.json());
   }
+  // console.log('--------')
+  // console.log(`${JSON.stringify(result,null, 2)}`)
   return {ok: true, result: result};
 }
 

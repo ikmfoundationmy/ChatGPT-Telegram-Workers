@@ -217,7 +217,7 @@ async function requestCompletionsFromLLM(text, context, llm, modifier, onStream)
  * @return {Promise<Response>}
  */
 export async function chatWithLLM(text, context, modifier) {
-  text += context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO?.TEXT || '';
+  text = (context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO?.TEXT || '') + text;
   const sendFinalMsg = async (msg) => {
     console.log(`[START] Final Msg`);
     const start = performance.now();
@@ -246,13 +246,12 @@ export async function chatWithLLM(text, context, modifier) {
     if (!context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO) {
       context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO = {}
     }
-    const tempInfo = context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO || '';
-    context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO = tempInfo ? `${tempInfo}---\n` : '';
+    context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO = context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO || '';
+    // const tempInfo = context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO || '';
+    // context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO = tempInfo ? `${tempInfo}\n---` : '';
     if (context.CURRENT_CHAT_CONTEXT.reply_markup) {
       delete context.CURRENT_CHAT_CONTEXT.reply_markup;
     }
-    let extraInfo = '';
-    const parseMode = context.CURRENT_CHAT_CONTEXT.parse_mode;
     try {
       if (!context.CURRENT_CHAT_CONTEXT.message_id) {
         const msg = await sendMessageToTelegramWithContext(context)(
@@ -263,6 +262,9 @@ export async function chatWithLLM(text, context, modifier) {
       }
 
       if (ENV.ENABLE_SHOWINFO) {
+        if (context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO) {
+          context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO += '---\n'
+        }
         context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO += getCurrentProcessInfo(context, 'MODEL');
       }
       
@@ -270,24 +272,26 @@ export async function chatWithLLM(text, context, modifier) {
       console.error(e);
     }
 
-    const originalInfo = context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO || '';
+    const originalInfo = context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO;
     setTimeout(() => sendChatActionToTelegramWithContext(context)('typing').catch(console.error), 0);
     let onStream = null;
+    let extraInfo = '';
     const generateInfo = async (text) => {
-      const time = ((performance.now() - llmStart) / 1000).toFixed(2);
-      extraInfo = ` ${time}s`;
+      if (ENV.ENABLE_SHOWINFO) {
+        const time = ((performance.now() - llmStart) / 1000).toFixed(2);
+        extraInfo = ` ${time}s`;
+      } else extraInfo = '';
       if (context.CURRENT_CHAT_CONTEXT?.MIDDLE_INFO?.FILE_URL) {
-        context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO = (context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO?.TEMP_INFO || '') + `${context.USER_CONFIG.OPENAI_VISION_MODEL}` + extraInfo + '   \n';
+        context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO = context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO + `${context.USER_CONFIG.OPENAI_VISION_MODEL}` + extraInfo + '  ';
       } else {
         if (ENV.ENABLE_SHOWTOKENINFO && context.CURRENT_CHAT_CONTEXT?.promptToken && context.CURRENT_CHAT_CONTEXT?.completionToken) {
-          extraInfo += '   \nToken: ' + context.CURRENT_CHAT_CONTEXT.promptToken + ' | ' + context.CURRENT_CHAT_CONTEXT.completionToken + '\n';
+          extraInfo += '  \nToken: ' + context.CURRENT_CHAT_CONTEXT.promptToken + ' | ' + context.CURRENT_CHAT_CONTEXT.completionToken + '  ';
         }
         context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO =  originalInfo + extraInfo;
       }
       return null;
     }
     if (ENV.STREAM_MODE) {
-      // context.CURRENT_CHAT_CONTEXT.parse_mode = null;
       onStream = async (text) => {
         try {
           await generateInfo(text);
@@ -312,7 +316,6 @@ export async function chatWithLLM(text, context, modifier) {
     const answer = await requestCompletionsFromLLM(text, context, llm, modifier, onStream);
     console.log(`[DONE] Chat with LLM: ${((performance.now()- llmStart)/1000).toFixed(2)}s`);
 
-    context.CURRENT_CHAT_CONTEXT.parse_mode = parseMode;
     if (ENV.SHOW_REPLY_BUTTON && context.CURRENT_CHAT_CONTEXT.message_id) {
       try {
         await deleteMessageFromTelegramWithContext(context)(context.CURRENT_CHAT_CONTEXT.message_id);

@@ -119,6 +119,11 @@ class Environment {
   // 额外信息
   EXTRA_TINFO = '';
 
+  MODES = '';
+  CURRENT_MODE = 'default';
+
+  PROVIDER_SOURCES = {};
+
   // 是否读取图片
   LOAD_IMAGE_FILE = false;
   // -- 模式开关 --
@@ -203,6 +208,8 @@ export function initEnv(env, i18n) {
     GOOGLE_API_KEY: 'string',
     GOOGLE_API_BASE: 'string',
     MISTRAL_API_KEY: 'string',
+    PROVIDER_SOURCES: 'object',
+    MODES: 'object'
   };
 
 

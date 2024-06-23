@@ -35,6 +35,7 @@ export default {
       'redo': '重做上一次的对话, /redo 加修改过的内容 或者 直接 /redo',
       'echo': '回显消息',
       'bill': '查看当前账单',
+      'mode': '设置当前模式 命令完整格式为 /mode NAME, 当NAME=all时, 查看所有mode',
     },
     role: {
       'not_defined_any_role': '还未定义任何角色',
@@ -84,5 +85,8 @@ export default {
     bill: {
       'bill_detail': (totalAmount, totalUsage, remaining) => `📊 本月机器人用量\n\n\t- 总额度: $${totalAmount || 0}\n\t- 已使用: $${totalUsage || 0}\n\t- 剩余额度: $${remaining || 0}`,
     },
+    mode: {
+      'help': '配置项格式错误: 命令完整格式为 /mode NAME, 当NAME=all时, 查看所有mode',
+    }
   },
 };

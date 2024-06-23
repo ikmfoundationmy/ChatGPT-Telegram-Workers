@@ -19,6 +19,9 @@ export default async (req, res) => {
     ...(body && { body }),
   })
 
+  // console.log(`url: ${req.url}`)
+  // console.log(`body: ${JSON.stringify(req)}`);
+
   const controller = new AbortController()
   const signal = controller.signal
   const timeoutId = setTimeout(() => {
@@ -29,7 +32,7 @@ export default async (req, res) => {
     async start(controller) {
       const sendFirstBeat = () => {
         console.log('first heartbeat.')
-        controller.enqueue(encoder.encode('<p>loading...</p>'))
+        controller.enqueue(encoder.encode(''))
       }
       const heartBeat = setTimeout(sendFirstBeat, 0)
       try {

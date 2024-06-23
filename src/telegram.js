@@ -1,7 +1,7 @@
 // eslint-disable-next-line no-unused-vars
 import {Context} from './context.js';
 import {DATABASE, ENV} from './env.js';
-import { fetchWithRetry, escapeText } from "./utils.js";
+import { fetchWithRetry, escapeText, getCurrentProcessInfo } from "./utils.js";
 
 /**
  *
@@ -57,7 +57,7 @@ export async function sendMessageToTelegram(message, token, context) {
   const escapeContent = (parse_mode = chatContext?.parse_mode) => {
     if (parse_mode === 'MarkdownV2' && chatContext?.MIDDLE_INFO?.TEMP_INFO) {
       info = context.MIDDLE_INFO.TEMP_INFO.trim();
-      message = '```\n' + info + '   ```\n' + escapeText(origin_msg, 'llm');
+      message = '>`' + info + '  `\n' + escapeText(origin_msg, 'llm');
     } else if (parse_mode === 'MarkdownV2') { 
       chatContext.parse_mode = null;
     } else{
@@ -181,21 +181,21 @@ export async function sendPhotoToTelegram(photo, token, context) {
     body = {
       photo: photo,
     };
-    for (const key of Object.keys(context)) {
+    for (const key of Object.keys(context.CURRENT_CHAT_CONTEXT)) {
       if (context[key] !== undefined && context[key] !== null && key !== 'MIDDLE_INFO.TEMP_INFO') {
         body[key] = context[key];
       }
     }
-    let info = '>' + (context.MIDDLE_INFO.TEMP_INFO).replace('\n', '\n>');
-    info = escapeText(info, 'info');
+    // let info = '>' + (context.MIDDLE_INFO.TEMP_INFO).replace('\n', '\n>');
+    // info = escapeText(info, 'info');
     body.parse_mode = 'MarkdownV2';
-    body.caption = info + ` [原始图片](${photo})`;
+    body.caption = getCurrentProcessInfo(context, 'MODEL') + '\n' + context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEXT + ` [原始图片](${photo})`;
     body = JSON.stringify(body);
     headers['Content-Type'] = 'application/json';
   } else {
     body = new FormData();
     body.append('photo', photo, 'photo.png');
-    for (const key of Object.keys(context)) {
+    for (const key of Object.keys(context.CURRENT_CHAT_CONTEXT)) {
       if (context[key] !== undefined && context[key] !== null) {
         body.append(key, `${context[key]}`);
       }
@@ -204,11 +204,13 @@ export async function sendPhotoToTelegram(photo, token, context) {
   const option = {
     method: 'POST',
     headers,
-    body: body,
+    body,
   };
   const resp = await fetchWithRetry(url, option);
   if (resp.status === 400) {
+    body = JSON.parse(body);
     body.parse_mode = null;
+    option.body = JSON.stringify(body);
     return await fetchWithRetry(url, option);
   }
   return resp;
@@ -222,7 +224,7 @@ export async function sendPhotoToTelegram(photo, token, context) {
  */
 export function sendPhotoToTelegramWithContext(context) {
   return (url) => {
-    return sendPhotoToTelegram(url, context.SHARE_CONTEXT.currentBotToken, context.CURRENT_CHAT_CONTEXT);
+    return sendPhotoToTelegram(url, context.SHARE_CONTEXT.currentBotToken, context);
   };
 }
 
