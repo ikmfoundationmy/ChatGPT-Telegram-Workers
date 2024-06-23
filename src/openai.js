@@ -1,7 +1,7 @@
 /* eslint-disable no-unused-vars */
 import {Context} from './context.js';
 import {DATABASE, ENV} from './env.js';
-import {isEventStreamResponse, isJsonResponse, getCurrentProcessInfo} from './utils.js';
+import {isEventStreamResponse, isJsonResponse} from './utils.js';
 import {Stream} from './vendors/stream.js';
 
 
@@ -10,7 +10,7 @@ import {Stream} from './vendors/stream.js';
  * @return {string|null}
  */
 function openAIKeyFromContext(context) {
-  const API_KEY = getCurrentProcessInfo(context, 'API_KEY') || context.USER_CONFIG.OPENAI_API_KEY;
+  const API_KEY = context.CURRENT_CHAT_CONTEXT.PROCESS_INFO['API_KEY'];
 
   if (API_KEY) {
     return API_KEY;
@@ -26,7 +26,7 @@ function openAIKeyFromContext(context) {
  * @return {string|null}
  */
 function azureKeyFromContext(context) {
-  return getCurrentProcessInfo(context, 'API_KEY') || context.USER_CONFIG.AZURE_API_KEY || ENV.AZURE_API_KEY;
+  return context.CURRENT_CHAT_CONTEXT.PROCESS_INFO['API_KEY'] || ENV.AZURE_API_KEY;
 }
 
 
@@ -43,7 +43,7 @@ export function isOpenAIEnable(context) {
  * @return {boolean}
  */
 export function isAzureEnable(context) {
-  // const api = context.USER_CONFIG.AZURE_COMPLETIONS_API || ENV.AZURE_COMPLETIONS_API;
+  // const api = context.USER_CONFIG.AZURE_API_BASE || ENV.AZURE_API_BASE;
   const key = context.USER_CONFIG.AZURE_API_KEY || ENV.AZURE_API_KEY;
   return key !== null;
 }
@@ -59,8 +59,8 @@ export function isAzureEnable(context) {
  * @return {Promise<string>}
  */
 export async function requestCompletionsFromOpenAI(message, history, context, onStream) {
-  const url = `${(getCurrentProcessInfo(context, 'PROXY_URL') || context.USER_CONFIG.OPENAI_API_BASE)}/chat/completions`;
-  let model = getCurrentProcessInfo(context, 'MODEL') || context.USER_CONFIG.CHAT_MODEL;
+  const url = `${context.CURRENT_CHAT_CONTEXT.PROCESS_INFO['PROXY_URL']}/chat/completions`;
+  let model = context.CURRENT_CHAT_CONTEXT.PROCESS_INFO['MODEL'];
   let messages = [{ role: 'user', content: message }];
   if (context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILEURL) {
     model = context.USER_CONFIG.OPENAI_VISION_MODEL;
@@ -104,7 +104,7 @@ export async function requestCompletionsFromOpenAI(message, history, context, on
  * @return {Promise<string>}
  */
 export async function requestCompletionsFromAzureOpenAI(message, history, context, onStream) {
-  const url = getCurrentProcessInfo(context, 'PROXY_URL') || context.USER_CONFIG.AZURE_COMPLETIONS_API;
+  const url = context.CURRENT_CHAT_CONTEXT.PROCESS_INFO['PROXY_URL'];
 
   const body = {
     ...context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS,
@@ -219,7 +219,7 @@ export async function requestCompletionsFromOpenAICompatible(url, header, body, 
  * @return {Promise<string>}
  */
 export async function requestImageFromOpenAI(prompt, context) {
-  let url = getCurrentProcessInfo(context, 'PROXY_URL') || `${context.USER_CONFIG.OPENAI_API_BASE}/images/generations`;
+  let url = `${context.CURRENT_CHAT_CONTEXT.PROCESS_INFO['PROXY_URL']}/images/generations`;
   const header = {
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${openAIKeyFromContext(context)}`,
@@ -228,14 +228,14 @@ export async function requestImageFromOpenAI(prompt, context) {
     prompt: prompt,
     n: 1,
     size: context.USER_CONFIG.DALL_E_IMAGE_SIZE,
-    model: getCurrentProcessInfo(context, 'MODEL') || context.USER_CONFIG.DALL_E_MODEL,
+    model: context.CURRENT_CHAT_CONTEXT.PROCESS_INFO['MODEL'] || context.USER_CONFIG.DALL_E_MODEL,
   };
   if (body.model === 'dall-e-3') {
     body.quality = context.USER_CONFIG.DALL_E_IMAGE_QUALITY;
     body.style = context.USER_CONFIG.DALL_E_IMAGE_STYLE;
   }
   {
-    const provider = getCurrentProcessInfo(context, 'PROVIDER') || context.USER_CONFIG.AI_IMAGE_PROVIDER;
+    const provider = context.CURRENT_CHAT_CONTEXT.PROCESS_INFO['PROVIDER'] || context.USER_CONFIG.AI_IMAGE_PROVIDER;
     let isAzureModel = false;
     switch (provider) {
       case 'azure':
@@ -251,7 +251,7 @@ export async function requestImageFromOpenAI(prompt, context) {
         break;
     }
     if (isAzureModel) {
-      url = getCurrentProcessInfo(context, 'PROXY_URL') || context.USER_CONFIG.AZURE_DALLE_API;
+      url = context.CURRENT_CHAT_CONTEXT.PROCESS_INFO['PROXY_URL'] || context.USER_CONFIG.AZURE_DALLE_API;
       const validSize = ['1792x1024', '1024x1024', '1024x1792'];
       if (!validSize.includes(body.size)) {
         body.size = '1024x1024';
@@ -288,7 +288,7 @@ export async function requestTranscriptionFromOpenAI(audio, file_name, context) 
   };
   const formData = new FormData();
   formData.append('file', audio, file_name);
-  formData.append('model', getCurrentProcessInfo(context, 'MODEL') || context.USER_CONFIG.OPENAI_STT_MODEL);
+  formData.append('model', context.CURRENT_CHAT_CONTEXT.PROCESS_INFO['MODEL']);
   if (context.USER_CONFIG.OPENAI_STT_EXTRA_PARAMS) {
     Object.entries(context.USER_CONFIG.OPENAI_STT_EXTRA_PARAMS).forEach(([k, v]) => {
       formData.append(k, v);

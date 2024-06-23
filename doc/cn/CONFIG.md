@@ -51,7 +51,7 @@
 | OPENAI_API_BASE           | OPENAI API Base URL                        | `https://api.openai.com/v1`                                         | 兼容Cloudflare AI 网关                                                                                                              |
 | -                         | -                                          | -                                                                   | -                                                                                                                               |
 | AZURE_API_KEY             | azure api key                              | `null`                                                              | 支持azure的API，两个密钥随便选一个就可以。如果你要默认使用azure，你可以设置`AI_PROVIDER`为`azure`                                                               |
-| AZURE_COMPLETIONS_API     | azure api url                              | `null`                                                              | 格式`https://YOUR_RESOURCE_NAME.openai.azure.com/openai/deployments/YOUR_DEPLOYMENT_NAME/chat/completions?api-version=2023-05-15` |
+| AZURE_API_BASE     | azure api url                              | `null`                                                              | 格式`https://YOUR_RESOURCE_NAME.openai.azure.com/openai/deployments/YOUR_DEPLOYMENT_NAME/chat/completions?api-version=2023-05-15` |
 | AZURE_DALLE_API           | azure dalle api url                        | `null`                                                              | 格式`https://YOUR_RESOURCE_NAME.openai.azure.com/openai/deployments/dall-e-3/images/generations?api-version=2023-12-01-preview`   |
 | -                         | -                                          | -                                                                   | -                                                                                                                               |
 | CLOUDFLARE_ACCOUNT_ID     | Cloudflare 的 用户ID                          | `null`                                                              | 你可以在workers首页的右侧信息栏中找到这个信息。如果你要默认使用workers ai，你可以设置`AI_PROVIDER`为`workers`                                                      |
@@ -101,7 +101,7 @@
 | DALL_E_IMAGE_QUALITY     | 配置与  `ENV.DALL_E_IMAGE_QUALITY` 相同                                                                               |
 | DALL_E_IMAGE_STYLE       | 配置与  `ENV.DALL_E_IMAGE_STYLE` 相同                                                                                 |
 | AZURE_API_KEY            | 配置与  `ENV.AZURE_API_KEY` 相同                                                                                      |
-| AZURE_COMPLETIONS_API    | 配置与  `ENV.AZURE_COMPLETIONS_API` 相同                                                                              |
+| AZURE_API_BASE    | 配置与  `ENV.AZURE_API_BASE` 相同                                                                              |
 | AZURE_DALLE_API          | 配置与  `ENV.AZURE_DALLE_API` 相同                                                                                    |
 | WORKERS_CHAT_MODEL       | 配置与  `ENV.WORKERS_CHAT_MODEL` 相同                                                                                 |
 | WORKER_IMAGE_MODEL       | 配置与  `ENV.WORKER_IMAGE_MODEL` 相同                                                                                 |

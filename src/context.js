@@ -66,7 +66,7 @@ export class Context {
     // Azure API Key
     AZURE_API_KEY: ENV.AZURE_API_KEY,
     // Azure Completions API
-    AZURE_COMPLETIONS_API: ENV.AZURE_COMPLETIONS_API,
+    AZURE_API_BASE: ENV.AZURE_API_BASE,
     // Azure DALL-E API
     AZURE_DALLE_API: ENV.AZURE_DALLE_API,
 
@@ -165,11 +165,6 @@ export class Context {
         AI_PROVIDER = "openai";
       }
       let CHAT_MODEL = "";
-      const PROCESS = this.MODES[this.CURRENT_MODE];
-      let info = '';
-      for (const [k, v] of Object.entries(PROCESS)) {
-        info += `\n- ${k}\n` + ' '.repeat(4) + v.map(i => Object.values(i).join(' ') || `${k}:text`).join('\n' + ' '.repeat(4));
-      }
       switch (AI_PROVIDER) {
         case "openai":
         case "azure":
@@ -186,8 +181,12 @@ export class Context {
           CHAT_MODEL = this.MISTRAL_CHAT_MODEL;
           break;
       }
-      info = `${info}\nCHAT_MODEL:${CHAT_MODEL}`;
-      info += `\nTAG: ${this.EXTRA_TINFO || 'default'}`;
+
+      let info = `TAG: ${this.EXTRA_TINFO || 'default'}\n` + `CHAT_MODEL:${CHAT_MODEL}`;
+      const PROCESS = this.MODES[this.CURRENT_MODE];
+      for (const [k, v] of Object.entries(PROCESS)) {
+        info += `\n- ${k}\n` + ' '.repeat(4) + v.map(i => Object.values(i).join(' ') || `${k}:text`).join('\n' + ' '.repeat(4));
+      }
       
       return info;
     },

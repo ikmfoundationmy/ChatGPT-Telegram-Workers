@@ -13,7 +13,7 @@ import {
   requestCompletionsFromOpenAI,
   requestImageFromOpenAI,
 } from './openai.js';
-import {tokensCounter, delay, getCurrentProcessInfo} from './utils.js';
+import {tokensCounter, delay} from './utils.js';
 import {isWorkersAIEnable, requestCompletionsFromWorkersAI, requestImageFromWorkersAI} from './workersai.js';
 import {isGeminiAIEnable, requestCompletionsFromGeminiAI} from './gemini.js';
 import {isMistralAIEnable, requestCompletionsFromMistralAI} from './mistralai.js';
@@ -119,7 +119,7 @@ async function loadHistory(key, context) {
  * @return {function}
  */
 export function loadChatLLM(context) {
-  switch (getCurrentProcessInfo(context, 'AI_PROVIDER')) {
+  switch (context.CURRENT_CHAT_CONTEXT.PROCESS_INFO['AI_PROVIDER']) {
     case 'openai':
       return requestCompletionsFromOpenAI;
     case 'azure':
@@ -156,7 +156,7 @@ export function loadChatLLM(context) {
  * @return {function}
  */
 export function loadImageGen(context) {
-  switch (getCurrentProcessInfo(context, 'PROVIDER') || context.USER_CONFIG.AI_IMAGE_PROVIDER) {
+  switch (context.CURRENT_CHAT_CONTEXT.PROCESS_INFO['PROVIDER'] || context.USER_CONFIG.AI_IMAGE_PROVIDER) {
     case 'openai':
       return requestImageFromOpenAI;
     case 'azure':
@@ -265,7 +265,7 @@ export async function chatWithLLM(text, context, modifier) {
         if (context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO) {
           context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO += '---\n'
         }
-        context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO += getCurrentProcessInfo(context, 'MODEL');
+        context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO += context.CURRENT_CHAT_CONTEXT.PROCESS_INFO['MODEL'];
       }
       
     } catch (e) {

@@ -1,7 +1,7 @@
 // eslint-disable-next-line no-unused-vars
 import {Context} from './context.js';
 import {DATABASE, ENV} from './env.js';
-import { fetchWithRetry, escapeText, getCurrentProcessInfo } from "./utils.js";
+import { fetchWithRetry, escapeText } from "./utils.js";
 
 /**
  *
@@ -189,7 +189,7 @@ export async function sendPhotoToTelegram(photo, token, context) {
     // let info = '>' + (context.MIDDLE_INFO.TEMP_INFO).replace('\n', '\n>');
     // info = escapeText(info, 'info');
     body.parse_mode = 'MarkdownV2';
-    body.caption = getCurrentProcessInfo(context, 'MODEL') + '\n' + context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEXT + ` [原始图片](${photo})`;
+    body.caption = context.CURRENT_CHAT_CONTEXT.PROCESS_INFO['MODEL'] + '\n' + context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEXT + ` [原始图片](${photo})`;
     body = JSON.stringify(body);
     headers['Content-Type'] = 'application/json';
   } else {

@@ -516,19 +516,36 @@ async function commandUsage(message, command, subcommand, context) {
  * @return {Promise<Response>}
  */
 async function commandSystem(message, command, subcommand, context) {
-  let msg = "<pre>GLOBAL_CHAT_MODEL: " + ENV.CHAT_MODEL + "\n";
-  msg += "AI_PROVIDER: " + context.USER_CONFIG.AI_PROVIDER + "\n"
-    + "INFO: " + context.USER_CONFIG.CUSTOM_TINFO + "\n"
-    + "VISION_MODEL: " + context.USER_CONFIG.OPENAI_VISION_MODEL + "\n"
-    + "STT_MODEL: " + context.USER_CONFIG.OPENAI_STT_MODEL + "\n"
-    + "DALL_E_MODEL: " + context.USER_CONFIG.DALL_E_MODEL + " " + context.USER_CONFIG.DALL_E_IMAGE_SIZE + " " + context.USER_CONFIG.DALL_E_IMAGE_QUALITY + " " + context.USER_CONFIG.DALL_E_IMAGE_STYLE;
+  let msg = '<pre>GLOBAL_CHAT_MODEL: ' + ENV.CHAT_MODEL + '\n';
+  msg +=
+    'AI_PROVIDER: ' +
+    context.USER_CONFIG.AI_PROVIDER +
+    '\n' +
+    'VISION_MODEL: ' +
+    context.USER_CONFIG.OPENAI_VISION_MODEL +
+    '\n' +
+    'STT_MODEL: ' +
+    context.USER_CONFIG.OPENAI_STT_MODEL +
+    '\n' +
+    'DALL_E_MODEL: ' +
+    context.USER_CONFIG.DALL_E_MODEL +
+    ' ' +
+    context.USER_CONFIG.DALL_E_IMAGE_SIZE +
+    ' ' +
+    context.USER_CONFIG.DALL_E_IMAGE_QUALITY +
+    ' ' +
+    context.USER_CONFIG.DALL_E_IMAGE_STYLE +
+    '\n' +
+    '---\n' +
+    context.USER_CONFIG.CUSTOM_TINFO +
+    '\n';
 
   if (ENV.DEV_MODE) {
     const shareCtx = { ...context.SHARE_CONTEXT };
     shareCtx.currentBotToken = "******";
     context.USER_CONFIG.OPENAI_API_KEY = "******";
     context.USER_CONFIG.AZURE_API_KEY = "******";
-    context.USER_CONFIG.AZURE_COMPLETIONS_API = "******";
+    context.USER_CONFIG.AZURE_API_BASE = "******";
     context.USER_CONFIG.AZURE_DALLE_API = "******";
     context.USER_CONFIG.GOOGLE_API_KEY = "******";
     context.USER_CONFIG.MISTRAL_API_KEY = "******";
@@ -539,8 +556,8 @@ async function commandSystem(message, command, subcommand, context) {
     msg += `SHARE_CONTEXT: ${JSON.stringify(shareCtx, null, 2)}
 `;
   }
-  msg += "</pre>";
-  context.CURRENT_CHAT_CONTEXT.parse_mode = "HTML";
+  msg += '</pre>';
+  context.CURRENT_CHAT_CONTEXT.parse_mode = 'HTML';
   return sendMessageToTelegramWithContext(context)(msg);
 }
 /**

@@ -4,9 +4,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1719128406;
+  BUILD_TIMESTAMP = 1719143941;
   // 当前版本 commit id
-  BUILD_VERSION = "0913db6";
+  BUILD_VERSION = "c883bab";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -125,7 +125,7 @@ var Environment = class {
   // Azure API Key
   AZURE_API_KEY = null;
   // Azure Completions API
-  AZURE_COMPLETIONS_API = null;
+  AZURE_API_BASE = null;
   // Azure DallE API
   AZURE_DALLE_API = null;
   // Cloudflare Account ID
@@ -167,7 +167,7 @@ function initEnv(env, i18n2) {
     SYSTEM_INIT_MESSAGE: "string",
     OPENAI_API_BASE: "string",
     AZURE_API_KEY: "string",
-    AZURE_COMPLETIONS_API: "string",
+    AZURE_API_BASE: "string",
     AZURE_DALLE_API: "string",
     CLOUDFLARE_ACCOUNT_ID: "string",
     CLOUDFLARE_TOKEN: "string",
@@ -288,7 +288,7 @@ var Context = class {
     // Azure API Key
     AZURE_API_KEY: ENV.AZURE_API_KEY,
     // Azure Completions API
-    AZURE_COMPLETIONS_API: ENV.AZURE_COMPLETIONS_API,
+    AZURE_API_BASE: ENV.AZURE_API_BASE,
     // Azure DALL-E API
     AZURE_DALLE_API: ENV.AZURE_DALLE_API,
     // WorkersAI聊天记录模型
@@ -380,13 +380,6 @@ var Context = class {
         AI_PROVIDER = "openai";
       }
       let CHAT_MODEL = "";
-      const PROCESS = this.MODES[this.CURRENT_MODE];
-      let info = "";
-      for (const [k, v] of Object.entries(PROCESS)) {
-        info += `
-- ${k}
-` + " ".repeat(4) + v.map((i) => Object.values(i).join(" ") || `${k}:text`).join("\n" + " ".repeat(4));
-      }
       switch (AI_PROVIDER) {
         case "openai":
         case "azure":
@@ -403,10 +396,14 @@ var Context = class {
           CHAT_MODEL = this.MISTRAL_CHAT_MODEL;
           break;
       }
-      info = `${info}
+      let info = `TAG: ${this.EXTRA_TINFO || "default"}
 CHAT_MODEL:${CHAT_MODEL}`;
-      info += `
-TAG: ${this.EXTRA_TINFO || "default"}`;
+      const PROCESS = this.MODES[this.CURRENT_MODE];
+      for (const [k, v] of Object.entries(PROCESS)) {
+        info += `
+- ${k}
+` + " ".repeat(4) + v.map((i) => Object.values(i).join(" ") || `${k}:text`).join("\n" + " ".repeat(4));
+      }
       return info;
     },
     set CUSTOM_TINFO(info) {
@@ -934,33 +931,41 @@ var fetchWithRetry = fetchWithRetryFunc();
 function delay(ms = 1e3) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
-function getCurrentProcessInfo(context, queryType = "MODEL") {
-  const processes = context.USER_CONFIG.MODES[context.USER_CONFIG.CURRENT_MODE][context.CURRENT_CHAT_CONTEXT.TAG[0]] || context.USER_CONFIG.MODES.default.text;
-  const currentProcess = processes?.[context.CURRENT_CHAT_CONTEXT?.TAG[1] ?? 0];
-  if (queryType == "PROXY_URL" || queryType == "API_KEY") {
-    if (context.USER_CONFIG.PROVIDER_SOURCES?.[currentProcess?.PROVIDER_SOURCE]) {
-      return context.USER_CONFIG.PROVIDER_SOURCES?.[currentProcess.PROVIDER_SOURCE]?.[queryType];
-    } else
-      return null;
-  } else if (!currentProcess?.[queryType]) {
-    const AI_PROVIDER = (context.USER_CONFIG.AI_PROVIDER || "openai").toUpperCase();
-    switch (currentProcess.TYPE) {
+function queryProcessInfo(context, PROCESS) {
+  const PROCESS_INFO = {
+    TYPE: PROCESS.TYPE,
+    PROVIDER_SOURCE: PROCESS.PROVIDER_SOURCE || "default",
+    AI_PROVIDER: PROCESS.AI_PROVIDER || context.USER_CONFIG.AI_PROVIDER,
+    MODEL: PROCESS.MODEL
+  };
+  const provider_up = PROCESS_INFO.AI_PROVIDER.toUpperCase();
+  PROCESS_INFO.PROXY_URL = context.USER_CONFIG.PROVIDER_SOURCES?.[PROCESS.PROVIDER_SOURCE]?.["PROXY_URL"] || context.USER_CONFIG?.[`${provider_up}_API_BASE`];
+  PROCESS_INFO.API_KEY = context.USER_CONFIG.PROVIDER_SOURCES?.[PROCESS.PROVIDER_SOURCE]?.["API_KEY"] || context.USER_CONFIG?.[`${provider_up}_API_KEY`];
+  if (!PROCESS_INFO.MODEL) {
+    switch (PROCESS.TYPE) {
       case "text:text":
-        return context.USER_CONFIG[`CHAT_MODEL`];
+        PROCESS_INFO.MODEL = context.USER_CONFIG[`CHAT_MODEL`];
+        break;
       case "text:image":
-        return context.USER_CONFIG.DALL_E_MODEL;
+        PROCESS_INFO.MODEL = context.USER_CONFIG.DALL_E_MODEL;
+        break;
       case "audio:text":
-        return context.USER_CONFIG[`${AI_PROVIDER}_STT_MODEL`];
+        PROCESS_INFO.MODEL = context.USER_CONFIG[`${provider_up}_STT_MODEL`];
+        break;
       case "image:text":
-        return context.USER_CONFIG[`${AI_PROVIDER}_VISION_MODEL`];
+        PROCESS_INFO.MODEL = context.USER_CONFIG[`${provider_up}_VISION_MODEL`];
+        break;
       case "text:audio":
-        return context.USER_CONFIG[`${AI_PROVIDER}_TTS_MODEL`];
+        PROCESS_INFO.MODEL = context.USER_CONFIG[`${provider_up}_TTS_MODEL`];
+        break;
       case "audio:audio":
       default:
-        return sendMessageToTelegramWithContext(context)("unsupported trans type");
+        return sendMessageToTelegramWithContext(context)(
+          "unsupported type"
+        );
     }
-  } else
-    return currentProcess?.[queryType];
+  }
+  return PROCESS_INFO;
 }
 
 // src/telegram.js
@@ -1103,7 +1108,7 @@ async function sendPhotoToTelegram(photo, token, context) {
       }
     }
     body.parse_mode = "MarkdownV2";
-    body.caption = getCurrentProcessInfo(context, "MODEL") + "\n" + context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEXT + ` [\u539F\u59CB\u56FE\u7247](${photo})`;
+    body.caption = context.CURRENT_CHAT_CONTEXT.PROCESS_INFO["MODEL"] + "\n" + context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEXT + ` [\u539F\u59CB\u56FE\u7247](${photo})`;
     body = JSON.stringify(body);
     headers["Content-Type"] = "application/json";
   } else {
@@ -1437,7 +1442,7 @@ function partition(str, delimiter) {
 
 // src/openai.js
 function openAIKeyFromContext(context) {
-  const API_KEY = getCurrentProcessInfo(context, "API_KEY") || context.USER_CONFIG.OPENAI_API_KEY;
+  const API_KEY = context.CURRENT_CHAT_CONTEXT.PROCESS_INFO["API_KEY"];
   if (API_KEY) {
     return API_KEY;
   }
@@ -1447,7 +1452,7 @@ function openAIKeyFromContext(context) {
   return ENV.API_KEY[Math.floor(Math.random() * ENV.API_KEY.length)];
 }
 function azureKeyFromContext(context) {
-  return getCurrentProcessInfo(context, "API_KEY") || context.USER_CONFIG.AZURE_API_KEY || ENV.AZURE_API_KEY;
+  return context.CURRENT_CHAT_CONTEXT.PROCESS_INFO["API_KEY"] || ENV.AZURE_API_KEY;
 }
 function isOpenAIEnable(context) {
   return context.USER_CONFIG.OPENAI_API_KEY || ENV.API_KEY.length > 0;
@@ -1457,8 +1462,8 @@ function isAzureEnable(context) {
   return key !== null;
 }
 async function requestCompletionsFromOpenAI(message, history, context, onStream) {
-  const url = `${getCurrentProcessInfo(context, "PROXY_URL") || context.USER_CONFIG.OPENAI_API_BASE}/chat/completions`;
-  let model = getCurrentProcessInfo(context, "MODEL") || context.USER_CONFIG.CHAT_MODEL;
+  const url = `${context.CURRENT_CHAT_CONTEXT.PROCESS_INFO["PROXY_URL"]}/chat/completions`;
+  let model = context.CURRENT_CHAT_CONTEXT.PROCESS_INFO["MODEL"];
   let messages = [{ role: "user", content: message }];
   if (context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILEURL) {
     model = context.USER_CONFIG.OPENAI_VISION_MODEL;
@@ -1491,7 +1496,7 @@ async function requestCompletionsFromOpenAI(message, history, context, onStream)
   });
 }
 async function requestCompletionsFromAzureOpenAI(message, history, context, onStream) {
-  const url = getCurrentProcessInfo(context, "PROXY_URL") || context.USER_CONFIG.AZURE_COMPLETIONS_API;
+  const url = context.CURRENT_CHAT_CONTEXT.PROCESS_INFO["PROXY_URL"];
   const body = {
     ...context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS,
     messages: [...history || [], { role: "user", content: message }],
@@ -1579,7 +1584,7 @@ ERROR: ${e.message}`;
   }
 }
 async function requestImageFromOpenAI(prompt, context) {
-  let url = getCurrentProcessInfo(context, "PROXY_URL") || `${context.USER_CONFIG.OPENAI_API_BASE}/images/generations`;
+  let url = `${context.CURRENT_CHAT_CONTEXT.PROCESS_INFO["PROXY_URL"]}/images/generations`;
   const header = {
     "Content-Type": "application/json",
     "Authorization": `Bearer ${openAIKeyFromContext(context)}`
@@ -1588,14 +1593,14 @@ async function requestImageFromOpenAI(prompt, context) {
     prompt,
     n: 1,
     size: context.USER_CONFIG.DALL_E_IMAGE_SIZE,
-    model: getCurrentProcessInfo(context, "MODEL") || context.USER_CONFIG.DALL_E_MODEL
+    model: context.CURRENT_CHAT_CONTEXT.PROCESS_INFO["MODEL"] || context.USER_CONFIG.DALL_E_MODEL
   };
   if (body.model === "dall-e-3") {
     body.quality = context.USER_CONFIG.DALL_E_IMAGE_QUALITY;
     body.style = context.USER_CONFIG.DALL_E_IMAGE_STYLE;
   }
   {
-    const provider = getCurrentProcessInfo(context, "PROVIDER") || context.USER_CONFIG.AI_IMAGE_PROVIDER;
+    const provider = context.CURRENT_CHAT_CONTEXT.PROCESS_INFO["PROVIDER"] || context.USER_CONFIG.AI_IMAGE_PROVIDER;
     let isAzureModel = false;
     switch (provider) {
       case "azure":
@@ -1611,7 +1616,7 @@ async function requestImageFromOpenAI(prompt, context) {
         break;
     }
     if (isAzureModel) {
-      url = getCurrentProcessInfo(context, "PROXY_URL") || context.USER_CONFIG.AZURE_DALLE_API;
+      url = context.CURRENT_CHAT_CONTEXT.PROCESS_INFO["PROXY_URL"] || context.USER_CONFIG.AZURE_DALLE_API;
       const validSize = ["1792x1024", "1024x1024", "1024x1792"];
       if (!validSize.includes(body.size)) {
         body.size = "1024x1024";
@@ -1640,7 +1645,7 @@ async function requestTranscriptionFromOpenAI(audio, file_name, context) {
   };
   const formData = new FormData();
   formData.append("file", audio, file_name);
-  formData.append("model", getCurrentProcessInfo(context, "MODEL") || context.USER_CONFIG.OPENAI_STT_MODEL);
+  formData.append("model", context.CURRENT_CHAT_CONTEXT.PROCESS_INFO["MODEL"]);
   if (context.USER_CONFIG.OPENAI_STT_EXTRA_PARAMS) {
     Object.entries(context.USER_CONFIG.OPENAI_STT_EXTRA_PARAMS).forEach(([k, v]) => {
       formData.append(k, v);
@@ -1890,7 +1895,7 @@ async function loadHistory(key, context) {
   return { real: history, original };
 }
 function loadChatLLM(context) {
-  switch (getCurrentProcessInfo(context, "AI_PROVIDER")) {
+  switch (context.CURRENT_CHAT_CONTEXT.PROCESS_INFO["AI_PROVIDER"]) {
     case "openai":
       return requestCompletionsFromOpenAI;
     case "azure":
@@ -1921,7 +1926,7 @@ function loadChatLLM(context) {
   }
 }
 function loadImageGen(context) {
-  switch (getCurrentProcessInfo(context, "PROVIDER") || context.USER_CONFIG.AI_IMAGE_PROVIDER) {
+  switch (context.CURRENT_CHAT_CONTEXT.PROCESS_INFO["PROVIDER"] || context.USER_CONFIG.AI_IMAGE_PROVIDER) {
     case "openai":
       return requestImageFromOpenAI;
     case "azure":
@@ -2008,7 +2013,7 @@ async function chatWithLLM(text, context, modifier) {
         if (context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO) {
           context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO += "---\n";
         }
-        context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO += getCurrentProcessInfo(context, "MODEL");
+        context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO += context.CURRENT_CHAT_CONTEXT.PROCESS_INFO["MODEL"];
       }
     } catch (e) {
       console.error(e);
@@ -2453,13 +2458,13 @@ async function commandUsage(message, command, subcommand, context) {
 }
 async function commandSystem(message, command, subcommand, context) {
   let msg = "<pre>GLOBAL_CHAT_MODEL: " + ENV.CHAT_MODEL + "\n";
-  msg += "AI_PROVIDER: " + context.USER_CONFIG.AI_PROVIDER + "\nINFO: " + context.USER_CONFIG.CUSTOM_TINFO + "\nVISION_MODEL: " + context.USER_CONFIG.OPENAI_VISION_MODEL + "\nSTT_MODEL: " + context.USER_CONFIG.OPENAI_STT_MODEL + "\nDALL_E_MODEL: " + context.USER_CONFIG.DALL_E_MODEL + " " + context.USER_CONFIG.DALL_E_IMAGE_SIZE + " " + context.USER_CONFIG.DALL_E_IMAGE_QUALITY + " " + context.USER_CONFIG.DALL_E_IMAGE_STYLE;
+  msg += "AI_PROVIDER: " + context.USER_CONFIG.AI_PROVIDER + "\nVISION_MODEL: " + context.USER_CONFIG.OPENAI_VISION_MODEL + "\nSTT_MODEL: " + context.USER_CONFIG.OPENAI_STT_MODEL + "\nDALL_E_MODEL: " + context.USER_CONFIG.DALL_E_MODEL + " " + context.USER_CONFIG.DALL_E_IMAGE_SIZE + " " + context.USER_CONFIG.DALL_E_IMAGE_QUALITY + " " + context.USER_CONFIG.DALL_E_IMAGE_STYLE + "\n---\n" + context.USER_CONFIG.CUSTOM_TINFO + "\n";
   if (ENV.DEV_MODE) {
     const shareCtx = { ...context.SHARE_CONTEXT };
     shareCtx.currentBotToken = "******";
     context.USER_CONFIG.OPENAI_API_KEY = "******";
     context.USER_CONFIG.AZURE_API_KEY = "******";
-    context.USER_CONFIG.AZURE_COMPLETIONS_API = "******";
+    context.USER_CONFIG.AZURE_API_BASE = "******";
     context.USER_CONFIG.AZURE_DALLE_API = "******";
     context.USER_CONFIG.GOOGLE_API_KEY = "******";
     context.USER_CONFIG.MISTRAL_API_KEY = "******";
@@ -2893,7 +2898,7 @@ async function msgHandleFile(message, fileType, context) {
         const time = ((performance.now() - start) / 1e3).toFixed(2);
         console.log(`[FILE][DONE] Speech to text: ${time}s`);
         console.log("Transcription:\n" + stt_data.text);
-        const model_time_msg = ENV.ENABLE_SHOWINFO ? `${getCurrentProcessInfo(context, "MODEL")} ${time}s   ` : "";
+        const model_time_msg = ENV.ENABLE_SHOWINFO ? `${context.CURRENT_CHAT_CONTEXT.PROCESS_INFO["MODEL"]} ${time}s   ` : "";
         context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO = (context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO?.TEMP_INFO || "") + model_time_msg;
         context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEXT = stt_data.text;
         const msgResp = await sendMessageToTelegramWithContext2(context)(
@@ -2911,6 +2916,9 @@ async function msgHandleFile(message, fileType, context) {
     }
   } catch (e) {
     console.error(e);
+  }
+  if (errorMsg) {
+    return sendMessageToTelegramWithContext2(context, errorMsg);
   }
   return new Response("Handle file msg failed", { status: 200 });
 }
@@ -2935,21 +2943,27 @@ async function msgChatWithLLM(message, context) {
     msgType2 = "image";
   }
   try {
-    const HANDLE_PROCESS = context.USER_CONFIG.MODES?.[MODE]?.[msgType2] || MODES.default.text;
+    const HANDLE_PROCESS = context.USER_CONFIG.MODES?.[MODE]?.[msgType2] || context.USER_CONFIG.MODES.default?.[msgType2];
     let text = (message.text || "").trim();
     if (ENV.EXTRA_MESSAGE_CONTEXT && context.SHARE_CONTEXT?.extraMessageContext?.text) {
       text = context.SHARE_CONTEXT.extraMessageContext.text + "\n" + text;
+    }
+    if (context.USER_CONFIG.AI_PROVIDER == "auto") {
+      context.USER_CONFIG.AI_PROVIDER = "openai";
     }
     let result;
     for (const [i, PROCESS] of HANDLE_PROCESS.entries()) {
       if (result && result instanceof Response) {
         return result;
       }
-      context.USER_CONFIG.AI_PROVIDER = PROCESS.AI_PROVIDER;
-      context.CURRENT_CHAT_CONTEXT.TAG = [msgType2, i];
       if (!PROCESS.TYPE) {
         PROCESS.TYPE = `${msgType2}:text`;
       }
+      const PROCESS_INFO = queryProcessInfo(context, PROCESS);
+      if (PROCESS_INFO instanceof Response) {
+        return PROCESS_INFO;
+      }
+      context.CURRENT_CHAT_CONTEXT.PROCESS_INFO = PROCESS_INFO;
       switch (PROCESS.TYPE) {
         case "text:text":
           result = await chatWithLLM(text, context, null);
@@ -2967,7 +2981,7 @@ async function msgChatWithLLM(message, context) {
           } else
             context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILE = result;
           const time = ((performance.now() - startTime) / 1e3).toFixed(2);
-          context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO = (context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO || "") + getCurrentProcessInfo(context, "MODEL") + ` ${time}s  `;
+          context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO = (context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO || "") + context.CURRENT_CHAT_CONTEXT.PROCESS_INFO["MODEL"] + ` ${time}s  `;
           await sendPhotoToTelegramWithContext(context)(result);
           break;
         case "audio:text":

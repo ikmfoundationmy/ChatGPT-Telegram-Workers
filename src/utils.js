@@ -307,38 +307,51 @@ export function delay(ms = 1000) {
  * 获取当前流程信息
  * @param {Context} context
  * @param {enum} queryType 
- * @return {string}
+ * @return {object}
  */
-export function getCurrentProcessInfo(context, queryType = 'MODEL') {
-  const processes =
-    context.USER_CONFIG.MODES[context.USER_CONFIG.CURRENT_MODE][context.CURRENT_CHAT_CONTEXT.TAG[0]] ||
-    context.USER_CONFIG.MODES.default.text;
-  const currentProcess = processes?.[context.CURRENT_CHAT_CONTEXT?.TAG[1] ?? 0];
+export function queryProcessInfo(context, PROCESS) {
+  const PROCESS_INFO = {
+    TYPE: PROCESS.TYPE,
+    PROVIDER_SOURCE: PROCESS.PROVIDER_SOURCE || 'default',
+    AI_PROVIDER: PROCESS.AI_PROVIDER || context.USER_CONFIG.AI_PROVIDER,
+    MODEL: PROCESS.MODEL,
+  };
 
-  if (queryType == 'PROXY_URL' || queryType == 'API_KEY') {
-    if (
-      context.USER_CONFIG.PROVIDER_SOURCES?.[currentProcess?.PROVIDER_SOURCE]
-    ) {
-      return context.USER_CONFIG.PROVIDER_SOURCES?.[
-        currentProcess.PROVIDER_SOURCE
-      ]?.[queryType]
-    } else return null;
-  } else if (!currentProcess?.[queryType]) {
-    const AI_PROVIDER = (context.USER_CONFIG.AI_PROVIDER || 'openai').toUpperCase();
-    switch (currentProcess.TYPE) {
+  const provider_up = PROCESS_INFO.AI_PROVIDER.toUpperCase();
+
+  PROCESS_INFO.PROXY_URL =
+    context.USER_CONFIG.PROVIDER_SOURCES?.[PROCESS.PROVIDER_SOURCE]?.[
+      'PROXY_URL'
+    ] || context.USER_CONFIG?.[`${provider_up}_API_BASE`];
+
+  PROCESS_INFO.API_KEY =
+    context.USER_CONFIG.PROVIDER_SOURCES?.[PROCESS.PROVIDER_SOURCE]?.[
+      'API_KEY'
+    ] || context.USER_CONFIG?.[`${provider_up}_API_KEY`];
+
+  if (!PROCESS_INFO.MODEL) {
+    switch (PROCESS.TYPE) {
       case 'text:text':
-        return context.USER_CONFIG[`CHAT_MODEL`];
+        PROCESS_INFO.MODEL = context.USER_CONFIG[`CHAT_MODEL`];
+        break;
       case 'text:image':
-        return context.USER_CONFIG.DALL_E_MODEL;
+        PROCESS_INFO.MODEL = context.USER_CONFIG.DALL_E_MODEL;
+        break;
       case 'audio:text':
-        return context.USER_CONFIG[`${AI_PROVIDER}_STT_MODEL`];
+        PROCESS_INFO.MODEL = context.USER_CONFIG[`${provider_up}_STT_MODEL`];
+        break;
       case 'image:text':
-        return context.USER_CONFIG[`${AI_PROVIDER}_VISION_MODEL`];
+        PROCESS_INFO.MODEL = context.USER_CONFIG[`${provider_up}_VISION_MODEL`];
+        break;
       case 'text:audio':
-        return context.USER_CONFIG[`${AI_PROVIDER}_TTS_MODEL`];
+        PROCESS_INFO.MODEL = context.USER_CONFIG[`${provider_up}_TTS_MODEL`];
+        break;
       case 'audio:audio':
       default:
-        return sendMessageToTelegramWithContext(context)('unsupported trans type');
+        return sendMessageToTelegramWithContext(context)(
+          'unsupported type'
+        );
     }
-  } else return currentProcess?.[queryType];
+  }
+  return PROCESS_INFO;
 }
