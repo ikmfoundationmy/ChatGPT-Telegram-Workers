@@ -395,28 +395,33 @@ async function msgHandleFile(message, fileType, context) {
           context
         ).then(r => r.json());
         if (stt_data.error) {
-          errorMsg = `[FILE][FAILED] Speech to text: ${stt_data.error.message}`;
+          errorMsg = `[FILE][FAILED] STT: ${stt_data.error.message}`;
           console.log(`${errorMsg}`);
           break;
         }
         const time = ((performance.now() - start) / 1000).toFixed(2);
-        console.log(`[FILE][DONE] Speech to text: ${time}s`);
+        console.log(`[FILE][DONE] STT: ${time}s`);
         console.log('Transcription:\n' + stt_data.text);
-        const model_time_msg = ENV.ENABLE_SHOWINFO
-          ? `${context.CURRENT_CHAT_CONTEXT.PROCESS_INFO['MODEL']} ${time}s   `
-          : '';
-        context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO =
-          (context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO?.TEMP_INFO || '') + model_time_msg;
+        
         context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEXT = stt_data.text;
-        const msgResp = await sendMessageToTelegramWithContext(context)(
-          stt_data.text
-        ).then(r => r.json());
-        if (!msgResp.ok) {
-          errorMsg = `[FILE][FAILED] Send transcription failed: ${msgResp.message}`;
-          console.log(`${errorMsg}`);
-          break;
+        const steps = context.CURRENT_CHAT_CONTEXT.PROCESS_INFO.STEP.split('/');
+        const isLastStep = steps[0] == steps[1]; 
+        if (!ENV.HIDE_MIDDLE_MESSAGE || isLastStep) {
+          const model_time_msg = ENV.ENABLE_SHOWINFO
+            ? `${context.CURRENT_CHAT_CONTEXT.PROCESS_INFO['MODEL']} ${time}s   `
+            : '';
+          context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO += model_time_msg;
+
+          const msgResp = await sendMessageToTelegramWithContext(context)(
+            stt_data.text
+          ).then(r => r.json());
+          if (!msgResp.ok) {
+            errorMsg = `[FILE][FAILED] Send transcription failed: ${msgResp.message}`;
+            console.log(`${errorMsg}`);
+            break;
+          }
         }
-        context.CURRENT_CHAT_CONTEXT.message_id = msgResp.result.message_id;
+
         console.log('[FILE][DONE]: ' + fileType);
         return null;
       }
@@ -425,7 +430,7 @@ async function msgHandleFile(message, fileType, context) {
     console.error(e);
   }
   if (errorMsg) {
-    return sendMessageToTelegramWithContext(context, errorMsg);
+    return sendMessageToTelegramWithContext(context)(errorMsg);
   }
   return new Response('Handle file msg failed', { status: 200 });
 }
@@ -480,17 +485,29 @@ async function msgChatWithLLM(message, context) {
       if (!PROCESS.TYPE) {
         PROCESS.TYPE = `${msgType}:text`;
       }
+      // 每个流程独立消息
+      if (context.CURRENT_CHAT_CONTEXT.message_id && !ENV.HIDE_MIDDLE_MESSAGE) {
+        context.CURRENT_CHAT_CONTEXT.message_id = null;
+      }
       const PROCESS_INFO = queryProcessInfo(context, PROCESS);
+      PROCESS_INFO.STEP = `${i + 1}/${HANDLE_PROCESS.length}`;
       if (PROCESS_INFO instanceof Response) {
         return PROCESS_INFO;
       }
       // 标记当前使用的模型数据
       context.CURRENT_CHAT_CONTEXT.PROCESS_INFO = PROCESS_INFO;
+      if (!context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO) {
+        context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO = {};
+      }
+      context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO =
+        (HANDLE_PROCESS.length == 1 || ENV.HIDE_MIDDLE_MESSAGE)
+          ? ''
+          : `[step ${PROCESS_INFO.STEP}]\n`;
 
       switch (PROCESS.TYPE) {
         case 'text:text':
           result = await chatWithLLM(text, context, null);
-          context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO += '\n' + context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEXT + '\n';
+          // context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO += '\n' + context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEXT + '\n';
           break;
         case 'text:image':
           const gen = loadImageGen(context);
@@ -504,21 +521,24 @@ async function msgChatWithLLM(message, context) {
           } else context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILE = result;
           const time = ((performance.now() - startTime) / 1000).toFixed(2);
           context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO = (context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO || '') + context.CURRENT_CHAT_CONTEXT.PROCESS_INFO['MODEL'] + ` ${time}s  `;
-          await sendPhotoToTelegramWithContext(context)(result);
+          const response = await sendPhotoToTelegramWithContext(context)(result);
+          if (response.status != 200) {
+            console.error(await response.text())
+          }
           break;
         case 'audio:text':
           result = await msgHandleFile(message, fileType, context);
-          context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO +=
-            (ENV.ENABLE_SHOWINFO ? '\n' : '\nTranscription: \n') +
-            context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEXT +
-            '\n';
+          // context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO +=
+          //   (ENV.ENABLE_SHOWINFO ? '\n' : '\nTranscription: \n') +
+          //   context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEXT +
+          //   '\n';
           context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILE = null;
           context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILEURL = null;
           break;
         case 'image:text':
           await msgHandleFile(message, fileType, context);
           result = await chatWithLLM(message.text, context, null);
-          context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO += '\n' + context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEXT + '\n';
+          // context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO += '\n' + context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEXT + '\n';
           context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILE = null;
           context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILEURL = null;
           break;

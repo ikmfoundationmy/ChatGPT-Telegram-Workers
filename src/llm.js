@@ -156,7 +156,7 @@ export function loadChatLLM(context) {
  * @return {function}
  */
 export function loadImageGen(context) {
-  switch (context.CURRENT_CHAT_CONTEXT.PROCESS_INFO['PROVIDER'] || context.USER_CONFIG.AI_IMAGE_PROVIDER) {
+  switch (context.CURRENT_CHAT_CONTEXT?.PROCESS_INFO?.['PROVIDER'] || context.USER_CONFIG.AI_IMAGE_PROVIDER) {
     case 'openai':
       return requestImageFromOpenAI;
     case 'azure':
@@ -235,7 +235,7 @@ export async function chatWithLLM(text, context, modifier) {
       finalResponse = await sendMessageToTelegramWithContext(context)(msg);
     } 
     if (finalResponse.status !== 200) {
-      console.log(`[FAILED] Final Msg: ${await secondResponse.text()}`);
+      console.log(`[FAILED] Final Msg: ${await finalResponse.text()}`);
     } else {
       const time = ((performance.now() - start) / 1000).toFixed(2);
       console.log(`[DONE] Final Msg: ${time}s`);
@@ -246,25 +246,20 @@ export async function chatWithLLM(text, context, modifier) {
     if (!context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO) {
       context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO = {}
     }
-    context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO = context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO || '';
-    // const tempInfo = context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO || '';
-    // context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO = tempInfo ? `${tempInfo}\n---` : '';
+
     if (context.CURRENT_CHAT_CONTEXT.reply_markup) {
       delete context.CURRENT_CHAT_CONTEXT.reply_markup;
     }
     try {
       if (!context.CURRENT_CHAT_CONTEXT.message_id) {
-        const msg = await sendMessageToTelegramWithContext(context)(
-          ENV.I18N.message.loading
-        ).then(r => r.json())
-        context.CURRENT_CHAT_CONTEXT.message_id = msg.result.message_id
-        context.CURRENT_CHAT_CONTEXT.reply_markup = null
+      const msg = await sendMessageToTelegramWithContext(context)(
+        ENV.I18N.message.loading
+      ).then(r => r.json());
+      context.CURRENT_CHAT_CONTEXT.message_id = msg.result.message_id;
+      context.CURRENT_CHAT_CONTEXT.reply_markup = null;
       }
 
       if (ENV.ENABLE_SHOWINFO) {
-        if (context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO) {
-          context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO += '---\n'
-        }
         context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO += context.CURRENT_CHAT_CONTEXT.PROCESS_INFO['MODEL'];
       }
       
@@ -273,26 +268,28 @@ export async function chatWithLLM(text, context, modifier) {
     }
 
     const originalInfo = context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO;
+    const steps = context.CURRENT_CHAT_CONTEXT.PROCESS_INFO.STEP.split('/');
+    const isLastStep = steps[0] == steps[1];
     setTimeout(() => sendChatActionToTelegramWithContext(context)('typing').catch(console.error), 0);
     let onStream = null;
-    let extraInfo = '';
     const generateInfo = async (text) => {
+      let extraInfo = '';
       if (ENV.ENABLE_SHOWINFO) {
         const time = ((performance.now() - llmStart) / 1000).toFixed(2);
         extraInfo = ` ${time}s`;
-      } else extraInfo = '';
-      if (context.CURRENT_CHAT_CONTEXT?.MIDDLE_INFO?.FILE_URL) {
-        context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO = context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO + `${context.USER_CONFIG.OPENAI_VISION_MODEL}` + extraInfo + '  ';
-      } else {
-        if (ENV.ENABLE_SHOWTOKENINFO && context.CURRENT_CHAT_CONTEXT?.promptToken && context.CURRENT_CHAT_CONTEXT?.completionToken) {
-          extraInfo += '  \nToken: ' + context.CURRENT_CHAT_CONTEXT.promptToken + ' | ' + context.CURRENT_CHAT_CONTEXT.completionToken + '  ';
-        }
-        context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO =  originalInfo + extraInfo;
       }
+  
+      if (ENV.ENABLE_SHOWTOKENINFO && context.CURRENT_CHAT_CONTEXT?.MIDDLE_INFO.promptToken && context.CURRENT_CHAT_CONTEXT?.MIDDLE_INFO.completionToken) {
+        extraInfo += '  \nToken: ' + context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.promptToken + ' | ' + context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.completionToken + '  ';
+      }
+      context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO =  originalInfo + extraInfo;
       return null;
     }
     if (ENV.STREAM_MODE) {
       onStream = async (text) => {
+        if (ENV.HIDE_MIDDLE_MESSAGE && !isLastStep) {
+          return;
+        }
         try {
           await generateInfo(text);
           const resp = await sendMessageToTelegramWithContext(context)(text);
@@ -311,7 +308,7 @@ export async function chatWithLLM(text, context, modifier) {
     if (llm === null) {
       return sendMessageToTelegramWithContext(context)(`LLM is not enable`);
     }
-    console.log(`[START] Chat with LLM`);
+    console.log(`[START] Chat via ${llm.name}`);
     const llmStart = performance.now();
     const answer = await requestCompletionsFromLLM(text, context, llm, modifier, onStream);
     console.log(`[DONE] Chat with LLM: ${((performance.now()- llmStart)/1000).toFixed(2)}s`);
@@ -331,12 +328,15 @@ export async function chatWithLLM(text, context, modifier) {
       }
     }
     // 缓存LLM回答结果给后续步骤使用
-    await generateInfo(answer);
-    await sendFinalMsg(answer);
+    if (!ENV.HIDE_MIDDLE_MESSAGE || isLastStep) {
+      await generateInfo(answer);
+      await sendFinalMsg(answer);
+    }
     context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEXT = answer;
     return null;
   } catch (e) {
     let errMsg = `Error: ${e.message}`;
+    console.error(errMsg);
     if (errMsg.length > 2048) { // 裁剪错误信息 最长2048
       errMsg = errMsg.substring(0, 2048);
     }

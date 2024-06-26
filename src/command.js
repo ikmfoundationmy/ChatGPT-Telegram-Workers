@@ -234,6 +234,7 @@ async function commandGenerateImg(message, command, subcommand, context) {
     
     return sendPhotoToTelegramWithContext(context)(img);
   } catch (e) {
+    console.error(e.message);
     return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`);
   }
 }

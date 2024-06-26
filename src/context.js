@@ -108,54 +108,7 @@ export class Context {
     },
 
   
-    MODES: {
-      default: {
-        text:[
-          {
-            TYPE: 'text:text',
-            // PROVIDER_SOURCE: 'default',
-            AI_PROVIDER: 'openai',
-            // MODEL: ENV.CHAT_MODEL,
-          },
-        ],
-        audio: [
-          {
-            TYPE: 'audio:text',
-            // PROVIDER_SOURCE: 'default',
-            AI_PROVIDER: 'openai',
-          },
-          {
-            TYPE: 'text:text',
-            // PROVIDER_SOURCE: 'default',
-            AI_PROVIDER: 'openai',
-          },
-        ],
-        image:[
-          {
-            TYPE: 'image:text',
-            // PROVIDER_SOURCE: 'default',
-            AI_PROVIDER: 'openai',
-            MODEL: 'gpt-4o',
-          },
-        ],
-      },
-      'dall-e': {
-        text: [
-          {
-            TYPE: 'text:text',
-            // PROVIDER_SOURCE: 'default',
-            // AI_PROVIDER: 'openai',
-          },
-          {
-            TYPE: 'text:image',
-            // PROVIDER_SOURCE: 'default',
-            // AI_PROVIDER: 'openai',
-            // MODEL: ENV.DALL_E_MODEL,
-          },
-        ]
-      },
-      ...(ENV.MODES || {})
-    },
+    MODES: ENV.MODES,
 
     CURRENT_MODE: ENV.CURRENT_MODE || 'default',
 

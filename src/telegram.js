@@ -15,7 +15,7 @@ async function sendMessage(message, token, context) {
     text: message,
   };
   for (const key of Object.keys(context)) {
-    if (context[key] !== undefined && context[key] !== null && key !== 'MIDDLE_INFO') {
+    if (context[key] !== undefined && context[key] !== null && ['MIDDLE_INFO', 'PROCESS_INFO'].indexOf(key) < 0) {
       body[key] = context[key];
     }
   }
@@ -52,17 +52,22 @@ export async function sendMessageToTelegram(message, token, context) {
 
   let origin_msg = message;
   let info = '';
-  let MIDDLE_TEXT = '';
-
+  const step = context.PROCESS_INFO?.STEP.split('/') || [0, 0];
   const escapeContent = (parse_mode = chatContext?.parse_mode) => {
-    if (parse_mode === 'MarkdownV2' && chatContext?.MIDDLE_INFO?.TEMP_INFO) {
-      info = context.MIDDLE_INFO.TEMP_INFO.trim();
-      message = '>`' + info + '  `\n' + escapeText(origin_msg, 'llm');
-    } else if (parse_mode === 'MarkdownV2') { 
+    info = context.MIDDLE_INFO?.TEMP_INFO.trim() || '';
+    if (step[0] < step[1] && !ENV.HIDE_MIDDLE_MESSAGE) {
       chatContext.parse_mode = null;
-    } else{
-      info = chatContext?.MIDDLE_INFO?.TEMP_INFO ? (chatContext.MIDDLE_INFO.TEMP_INFO + '\n') : '';
-      message = (info) ? (info + '\n' + origin_msg) : origin_msg;
+      message = info + '  \n' + escapeText(origin_msg, 'llm');
+      chatContext.entities = [
+        { type: 'code', offset: 0, length: message.length },
+        { type: 'blockquote', offset: 0, length: message.length },
+      ]
+    } else if (parse_mode === 'MarkdownV2' && chatContext?.MIDDLE_INFO?.TEMP_INFO) {
+      message = '>`' + info + '  `\n' + escapeText(origin_msg, 'llm');
+    } else if (parse_mode === 'MarkdownV2') {
+      chatContext.parse_mode = null;
+    } else {
+      message = (info) ? (info + '\n\n' + origin_msg) : origin_msg;
     }
     if (parse_mode !== 'MarkdownV2' && context?.MIDDLE_INFO?.TEMP_INFO) {
       chatContext.entities = [
@@ -99,20 +104,23 @@ export async function sendMessageToTelegram(message, token, context) {
 
   for (let i = 0; i < message.length; i += limit) {
     chatContext.message_id = context.message_id[msgIndex];
-    const msg = message.slice(i, Math.min(i + limit, message.length));
     msgIndex += 1;
-    const offsetValue = (msgIndex == 1) ? info.length + 1 : 0;
-    const lengthValue = (msgIndex == 1) ? msg.length - info.length - 1 : msg.length;
-    chatContext.entities.slice(1).forEach(e => {
-      e.offset = offsetValue;
-      e.length = lengthValue;
-    });
 
+    // 跳过二次发送中间消息，防止bad request
     if (msgIndex > 1 && context.message_id[msgIndex] && (i + limit < message.length)) {
-      // 跳过二次发送中间消息
       // msgIndex < (Math.ceil(message.length / limit) - 1)
       continue;
     }
+    // 当隐藏INFO与TOKEN信息，跳过二次发送头部消息，防止bad request
+    if ((msgIndex == 1 && context.message_id.length > 1 && !ENV.ENABLE_SHOWINFO && !ENV.ENABLE_SHOWTOKENINFO)) {
+      continue;
+    }
+
+    const msg = message.slice(i, Math.min(i + limit, message.length));
+    chatContext.entities[1].length = msg.length;
+    chatContext.entities[0].length = msgIndex == 1 ? info.length : 0;
+
+
     let resp = await sendMessage(msg, token, chatContext);
     if (resp.status == 429) {
       return resp;
@@ -181,22 +189,23 @@ export async function sendPhotoToTelegram(photo, token, context) {
     body = {
       photo: photo,
     };
-    for (const key of Object.keys(context.CURRENT_CHAT_CONTEXT)) {
-      if (context[key] !== undefined && context[key] !== null && key !== 'MIDDLE_INFO.TEMP_INFO') {
+    for (const key of Object.keys(context)) {
+      if (context[key] !== undefined && context[key] !== null && ['MIDDLE_INFO', 'PROCESS'].indexOf(key) < 0) {
         body[key] = context[key];
       }
     }
     // let info = '>' + (context.MIDDLE_INFO.TEMP_INFO).replace('\n', '\n>');
     // info = escapeText(info, 'info');
     body.parse_mode = 'MarkdownV2';
-    body.caption = context.CURRENT_CHAT_CONTEXT.PROCESS_INFO['MODEL'] + '\n' + context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEXT + ` [原始图片](${photo})`;
+    let info = '>' + context?.PROCESS_INFO?.['MODEL'] + '\n' + context.MIDDLE_INFO.TEXT + '\n' ;
+    body.caption = escapeText(info, 'info') + `[原始图片](${photo})`;
     body = JSON.stringify(body);
     headers['Content-Type'] = 'application/json';
   } else {
     body = new FormData();
     body.append('photo', photo, 'photo.png');
-    for (const key of Object.keys(context.CURRENT_CHAT_CONTEXT)) {
-      if (context[key] !== undefined && context[key] !== null) {
+    for (const key of Object.keys(context)) {
+      if (context[key] !== undefined && context[key] !== null && ['MIDDLE_INFO', 'PROCESS'].indexOf(key) < 0) {
         body.append(key, `${context[key]}`);
       }
     }
@@ -208,10 +217,11 @@ export async function sendPhotoToTelegram(photo, token, context) {
   };
   const resp = await fetchWithRetry(url, option);
   if (resp.status === 400) {
+    console.log(await resp.text())
     body = JSON.parse(body);
-    body.parse_mode = null;
+    delete body.parse_mode;
     option.body = JSON.stringify(body);
-    return await fetchWithRetry(url, option);
+    return fetchWithRetry(url, option);
   }
   return resp;
 }
@@ -224,7 +234,7 @@ export async function sendPhotoToTelegram(photo, token, context) {
  */
 export function sendPhotoToTelegramWithContext(context) {
   return (url) => {
-    return sendPhotoToTelegram(url, context.SHARE_CONTEXT.currentBotToken, context);
+    return sendPhotoToTelegram(url, context.SHARE_CONTEXT.currentBotToken, context.CURRENT_CHAT_CONTEXT);
   };
 }
 

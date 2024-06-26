@@ -4,9 +4,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1719143941;
+  BUILD_TIMESTAMP = 1719391762;
   // 当前版本 commit id
-  BUILD_VERSION = "c883bab";
+  BUILD_VERSION = "1c9a78a";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -102,10 +102,58 @@ var Environment = class {
   ENABLE_SHOWINFO = false;
   // 消息中是否显示token信息
   ENABLE_SHOWTOKENINFO = false;
+  // 是否隐藏中间步骤
+  HIDE_MIDDLE_MESSAGE = false;
   CHAT_MESSAGE_TRIGGER = { ":n": "/new", ":g3": "/gpt3", ":g4": "/gpt4", ":c": "" };
   // 额外信息
   EXTRA_TINFO = "";
-  MODES = "";
+  MODES = {
+    default: {
+      text: [
+        {
+          TYPE: "text:text",
+          // PROVIDER_SOURCE: 'default',
+          AI_PROVIDER: "openai"
+          // MODEL: ENV.CHAT_MODEL,
+        }
+      ],
+      audio: [
+        {
+          TYPE: "audio:text",
+          // PROVIDER_SOURCE: 'default',
+          AI_PROVIDER: "openai"
+        },
+        {
+          TYPE: "text:text",
+          // PROVIDER_SOURCE: 'default',
+          AI_PROVIDER: "openai"
+        }
+      ],
+      image: [
+        {
+          TYPE: "image:text",
+          // PROVIDER_SOURCE: 'default',
+          AI_PROVIDER: "openai",
+          MODEL: "gpt-4o"
+        }
+      ]
+    },
+    "dall-e": {
+      text: [
+        {
+          TYPE: "text:text"
+          // PROVIDER_SOURCE: 'default',
+          // AI_PROVIDER: 'openai',
+        },
+        {
+          TYPE: "text:image"
+          // PROVIDER_SOURCE: 'default',
+          // AI_PROVIDER: 'openai',
+          // MODEL: ENV.DALL_E_MODEL,
+        }
+      ]
+    }
+  };
   CURRENT_MODE = "default";
   PROVIDER_SOURCES = {};
   // 是否读取图片
@@ -205,7 +253,7 @@ function initEnv(env, i18n2) {
             ENV[key] = env[key].split(",");
           } else {
             try {
-              ENV[key] = JSON.parse(env[key]);
+              ENV[key] = { ...ENV[key], ...JSON.parse(env[key]) };
             } catch (e) {
               console.error(e);
             }
@@ -325,54 +373,7 @@ var Context = class {
       ...ENV.PROVIDER_SOURCES || {}
       // TEST: { PROXY_URL: 'https://xxxxxx', API_KEY: 'xxxxxx' },
     },
-    MODES: {
-      default: {
-        text: [
-          {
-            TYPE: "text:text",
-            // PROVIDER_SOURCE: 'default',
-            AI_PROVIDER: "openai"
-            // MODEL: ENV.CHAT_MODEL,
-          }
-        ],
-        audio: [
-          {
-            TYPE: "audio:text",
-            // PROVIDER_SOURCE: 'default',
-            AI_PROVIDER: "openai"
-          },
-          {
-            TYPE: "text:text",
-            // PROVIDER_SOURCE: 'default',
-            AI_PROVIDER: "openai"
-          }
-        ],
-        image: [
-          {
-            TYPE: "image:text",
-            // PROVIDER_SOURCE: 'default',
-            AI_PROVIDER: "openai",
-            MODEL: "gpt-4o"
-          }
-        ]
-      },
-      "dall-e": {
-        text: [
-          {
-            TYPE: "text:text"
-            // PROVIDER_SOURCE: 'default',
-            // AI_PROVIDER: 'openai',
-          },
-          {
-            TYPE: "text:image"
-            // PROVIDER_SOURCE: 'default',
-            // AI_PROVIDER: 'openai',
-            // MODEL: ENV.DALL_E_MODEL,
-          }
-        ]
-      },
-      ...ENV.MODES || {}
-    },
+    MODES: ENV.MODES,
     CURRENT_MODE: ENV.CURRENT_MODE || "default",
     get CUSTOM_TINFO() {
       let AI_PROVIDER = this.AI_PROVIDER;
@@ -932,13 +933,13 @@ function delay(ms = 1e3) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 function queryProcessInfo(context, PROCESS) {
+  const provider_up = PROCESS.AI_PROVIDER.toUpperCase();
   const PROCESS_INFO = {
     TYPE: PROCESS.TYPE,
     PROVIDER_SOURCE: PROCESS.PROVIDER_SOURCE || "default",
     AI_PROVIDER: PROCESS.AI_PROVIDER || context.USER_CONFIG.AI_PROVIDER,
-    MODEL: PROCESS.MODEL
+    MODEL: PROCESS.MODEL || context.USER_CONFIG[`${provider_up}_CHAT_MODEL`] || context.USER_CONFIG[`CHAT_MODEL`]
   };
-  const provider_up = PROCESS_INFO.AI_PROVIDER.toUpperCase();
   PROCESS_INFO.PROXY_URL = context.USER_CONFIG.PROVIDER_SOURCES?.[PROCESS.PROVIDER_SOURCE]?.["PROXY_URL"] || context.USER_CONFIG?.[`${provider_up}_API_BASE`];
   PROCESS_INFO.API_KEY = context.USER_CONFIG.PROVIDER_SOURCES?.[PROCESS.PROVIDER_SOURCE]?.["API_KEY"] || context.USER_CONFIG?.[`${provider_up}_API_KEY`];
   if (!PROCESS_INFO.MODEL) {
@@ -974,7 +975,7 @@ async function sendMessage(message, token, context) {
     text: message
   };
   for (const key of Object.keys(context)) {
-    if (context[key] !== void 0 && context[key] !== null && key !== "MIDDLE_INFO") {
+    if (context[key] !== void 0 && context[key] !== null && ["MIDDLE_INFO", "PROCESS_INFO"].indexOf(key) < 0) {
       body[key] = context[key];
     }
   }
@@ -1000,16 +1001,22 @@ async function sendMessageToTelegram(message, token, context) {
   };
   let origin_msg = message;
   let info = "";
-  let MIDDLE_TEXT = "";
+  const step = context.PROCESS_INFO?.STEP.split("/") || [0, 0];
   const escapeContent = (parse_mode = chatContext?.parse_mode) => {
-    if (parse_mode === "MarkdownV2" && chatContext?.MIDDLE_INFO?.TEMP_INFO) {
-      info = context.MIDDLE_INFO.TEMP_INFO.trim();
+    info = context.MIDDLE_INFO?.TEMP_INFO.trim() || "";
+    if (step[0] < step[1] && !ENV.HIDE_MIDDLE_MESSAGE) {
+      chatContext.parse_mode = null;
+      message = info + "  \n" + escapeText(origin_msg, "llm");
+      chatContext.entities = [
+        { type: "code", offset: 0, length: message.length },
+        { type: "blockquote", offset: 0, length: message.length }
+      ];
+    } else if (parse_mode === "MarkdownV2" && chatContext?.MIDDLE_INFO?.TEMP_INFO) {
       message = ">`" + info + "  `\n" + escapeText(origin_msg, "llm");
     } else if (parse_mode === "MarkdownV2") {
       chatContext.parse_mode = null;
     } else {
-      info = chatContext?.MIDDLE_INFO?.TEMP_INFO ? chatContext.MIDDLE_INFO.TEMP_INFO + "\n" : "";
-      message = info ? info + "\n" + origin_msg : origin_msg;
+      message = info ? info + "\n\n" + origin_msg : origin_msg;
     }
     if (parse_mode !== "MarkdownV2" && context?.MIDDLE_INFO?.TEMP_INFO) {
       chatContext.entities = [
@@ -1045,17 +1052,16 @@ async function sendMessageToTelegram(message, token, context) {
   let msgIndex = 0;
   for (let i = 0; i < message.length; i += limit) {
     chatContext.message_id = context.message_id[msgIndex];
-    const msg = message.slice(i, Math.min(i + limit, message.length));
     msgIndex += 1;
-    const offsetValue = msgIndex == 1 ? info.length + 1 : 0;
-    const lengthValue = msgIndex == 1 ? msg.length - info.length - 1 : msg.length;
-    chatContext.entities.slice(1).forEach((e) => {
-      e.offset = offsetValue;
-      e.length = lengthValue;
-    });
     if (msgIndex > 1 && context.message_id[msgIndex] && i + limit < message.length) {
       continue;
     }
+    if (msgIndex == 1 && context.message_id.length > 1 && !ENV.ENABLE_SHOWINFO && !ENV.ENABLE_SHOWTOKENINFO) {
+      continue;
+    }
+    const msg = message.slice(i, Math.min(i + limit, message.length));
+    chatContext.entities[1].length = msg.length;
+    chatContext.entities[0].length = msgIndex == 1 ? info.length : 0;
     let resp = await sendMessage(msg, token, chatContext);
     if (resp.status == 429) {
       return resp;
@@ -1102,20 +1108,21 @@ async function sendPhotoToTelegram(photo, token, context) {
     body = {
       photo
     };
-    for (const key of Object.keys(context.CURRENT_CHAT_CONTEXT)) {
-      if (context[key] !== void 0 && context[key] !== null && key !== "MIDDLE_INFO.TEMP_INFO") {
+    for (const key of Object.keys(context)) {
+      if (context[key] !== void 0 && context[key] !== null && ["MIDDLE_INFO", "PROCESS"].indexOf(key) < 0) {
         body[key] = context[key];
       }
     }
     body.parse_mode = "MarkdownV2";
-    body.caption = context.CURRENT_CHAT_CONTEXT.PROCESS_INFO["MODEL"] + "\n" + context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEXT + ` [\u539F\u59CB\u56FE\u7247](${photo})`;
+    let info = ">" + context?.PROCESS_INFO?.["MODEL"] + "\n" + context.MIDDLE_INFO.TEXT + "\n";
+    body.caption = escapeText(info, "info") + `[\u539F\u59CB\u56FE\u7247](${photo})`;
     body = JSON.stringify(body);
     headers["Content-Type"] = "application/json";
   } else {
     body = new FormData();
     body.append("photo", photo, "photo.png");
-    for (const key of Object.keys(context.CURRENT_CHAT_CONTEXT)) {
-      if (context[key] !== void 0 && context[key] !== null) {
+    for (const key of Object.keys(context)) {
+      if (context[key] !== void 0 && context[key] !== null && ["MIDDLE_INFO", "PROCESS"].indexOf(key) < 0) {
         body.append(key, `${context[key]}`);
       }
     }
@@ -1127,16 +1134,17 @@ async function sendPhotoToTelegram(photo, token, context) {
   };
   const resp = await fetchWithRetry(url, option);
   if (resp.status === 400) {
+    console.log(await resp.text());
     body = JSON.parse(body);
-    body.parse_mode = null;
+    delete body.parse_mode;
     option.body = JSON.stringify(body);
-    return await fetchWithRetry(url, option);
+    return fetchWithRetry(url, option);
   }
   return resp;
 }
 function sendPhotoToTelegramWithContext(context) {
   return (url) => {
-    return sendPhotoToTelegram(url, context.SHARE_CONTEXT.currentBotToken, context);
+    return sendPhotoToTelegram(url, context.SHARE_CONTEXT.currentBotToken, context.CURRENT_CHAT_CONTEXT);
   };
 }
 async function sendChatActionToTelegram(action, token, chatId) {
@@ -1442,7 +1450,7 @@ function partition(str, delimiter) {
 
 // src/openai.js
 function openAIKeyFromContext(context) {
-  const API_KEY = context.CURRENT_CHAT_CONTEXT.PROCESS_INFO["API_KEY"];
+  const API_KEY = context.CURRENT_CHAT_CONTEXT?.PROCESS_INFO?.["API_KEY"] || context.USER_CONFIG.OPENAI_API_KEY;
   if (API_KEY) {
     return API_KEY;
   }
@@ -1514,14 +1522,22 @@ async function requestCompletionsFromOpenAICompatible(url, header, body, context
   const { signal } = controller;
   const timeout = 1e3 * 60 * 5;
   setTimeout(() => controller.abort(), timeout);
+  let firstTimeoutId;
+  const timeoutPromise = new Promise((_, reject) => {
+    firstTimeoutId = setTimeout(() => {
+      controller.abort();
+      reject(new Error("No response in 10s"));
+    }, 10 * 1e3);
+  });
   let startTime = performance.now();
-  console.log("[START] Chat with openai");
-  const resp = await fetch(url, {
+  console.log("[START] Chat via OpenAILike");
+  const resp = await Promise.race([timeoutPromise, fetch(url, {
     method: "POST",
     headers: header,
     body: JSON.stringify(body),
     signal
-  });
+  })]);
+  clearTimeout(firstTimeoutId);
   if (onStream && resp.ok && isEventStreamResponse(resp)) {
     const stream = new Stream(resp, controller);
     let contentFull = "";
@@ -1557,11 +1573,11 @@ ERROR: ${e.message}`;
     contentFull += lastChunk;
     if (ENV.GPT3_TOKENS_COUNT && usage) {
       onResult?.({ usage });
-      context.CURRENT_CHAT_CONTEXT.promptToken = usage?.prompt_tokens ?? 0;
-      context.CURRENT_CHAT_CONTEXT.completionToken = usage?.completion_tokens ?? 0;
+      context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.promptToken = usage?.prompt_tokens ?? 0;
+      context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.completionToken = usage?.completion_tokens ?? 0;
     }
     let endTime = performance.now();
-    console.log(`[DONE] Chat with openai: ${((endTime - startTime) / 1e3).toFixed(2)}s`);
+    console.log(`[DONE] Chat via OpenAILike: ${((endTime - startTime) / 1e3).toFixed(2)}s`);
     await msgPromise;
     console.log(`MiddleMsgTime: ${((performance.now() - startTime) / 1e3).toFixed(2)}s`);
     return contentFull;
@@ -1584,7 +1600,7 @@ ERROR: ${e.message}`;
   }
 }
 async function requestImageFromOpenAI(prompt, context) {
-  let url = `${context.CURRENT_CHAT_CONTEXT.PROCESS_INFO["PROXY_URL"]}/images/generations`;
+  let url = `${context.CURRENT_CHAT_CONTEXT?.PROCESS_INFO?.["PROXY_URL"] || context.USER_CONFIG.OPENAI_API_BASE}/images/generations`;
   const header = {
     "Content-Type": "application/json",
     "Authorization": `Bearer ${openAIKeyFromContext(context)}`
@@ -1593,14 +1609,14 @@ async function requestImageFromOpenAI(prompt, context) {
     prompt,
     n: 1,
     size: context.USER_CONFIG.DALL_E_IMAGE_SIZE,
-    model: context.CURRENT_CHAT_CONTEXT.PROCESS_INFO["MODEL"] || context.USER_CONFIG.DALL_E_MODEL
+    model: context.CURRENT_CHAT_CONTEXT?.PROCESS_INFO?.["MODEL"] || context.USER_CONFIG.DALL_E_MODEL
   };
   if (body.model === "dall-e-3") {
     body.quality = context.USER_CONFIG.DALL_E_IMAGE_QUALITY;
     body.style = context.USER_CONFIG.DALL_E_IMAGE_STYLE;
   }
   {
-    const provider = context.CURRENT_CHAT_CONTEXT.PROCESS_INFO["PROVIDER"] || context.USER_CONFIG.AI_IMAGE_PROVIDER;
+    const provider = context.CURRENT_CHAT_CONTEXT?.PROCESS_INFO?.["PROVIDER"] || context.USER_CONFIG.AI_IMAGE_PROVIDER;
     let isAzureModel = false;
     switch (provider) {
       case "azure":
@@ -1926,7 +1942,7 @@ function loadChatLLM(context) {
   }
 }
 function loadImageGen(context) {
-  switch (context.CURRENT_CHAT_CONTEXT.PROCESS_INFO["PROVIDER"] || context.USER_CONFIG.AI_IMAGE_PROVIDER) {
+  switch (context.CURRENT_CHAT_CONTEXT?.PROCESS_INFO?.["PROVIDER"] || context.USER_CONFIG.AI_IMAGE_PROVIDER) {
     case "openai":
       return requestImageFromOpenAI;
     case "azure":
@@ -1986,7 +2002,7 @@ async function chatWithLLM(text, context, modifier) {
       finalResponse = await sendMessageToTelegramWithContext2(context)(msg);
     }
     if (finalResponse.status !== 200) {
-      console.log(`[FAILED] Final Msg: ${await secondResponse.text()}`);
+      console.log(`[FAILED] Final Msg: ${await finalResponse.text()}`);
     } else {
       const time = ((performance.now() - start) / 1e3).toFixed(2);
       console.log(`[DONE] Final Msg: ${time}s`);
@@ -1997,7 +2013,6 @@ async function chatWithLLM(text, context, modifier) {
     if (!context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO) {
       context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO = {};
     }
-    context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO = context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO || "";
     if (context.CURRENT_CHAT_CONTEXT.reply_markup) {
       delete context.CURRENT_CHAT_CONTEXT.reply_markup;
     }
@@ -2010,36 +2025,33 @@ async function chatWithLLM(text, context, modifier) {
         context.CURRENT_CHAT_CONTEXT.reply_markup = null;
       }
       if (ENV.ENABLE_SHOWINFO) {
-        if (context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO) {
-          context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO += "---\n";
-        }
         context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO += context.CURRENT_CHAT_CONTEXT.PROCESS_INFO["MODEL"];
       }
     } catch (e) {
       console.error(e);
     }
     const originalInfo = context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO;
+    const steps = context.CURRENT_CHAT_CONTEXT.PROCESS_INFO.STEP.split("/");
+    const isLastStep = steps[0] == steps[1];
     setTimeout(() => sendChatActionToTelegramWithContext(context)("typing").catch(console.error), 0);
     let onStream = null;
-    let extraInfo = "";
     const generateInfo = async (text2) => {
+      let extraInfo = "";
       if (ENV.ENABLE_SHOWINFO) {
         const time = ((performance.now() - llmStart) / 1e3).toFixed(2);
         extraInfo = ` ${time}s`;
-      } else
-        extraInfo = "";
-      if (context.CURRENT_CHAT_CONTEXT?.MIDDLE_INFO?.FILE_URL) {
-        context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO = context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO + `${context.USER_CONFIG.OPENAI_VISION_MODEL}` + extraInfo + "  ";
-      } else {
-        if (ENV.ENABLE_SHOWTOKENINFO && context.CURRENT_CHAT_CONTEXT?.promptToken && context.CURRENT_CHAT_CONTEXT?.completionToken) {
-          extraInfo += "  \nToken: " + context.CURRENT_CHAT_CONTEXT.promptToken + " | " + context.CURRENT_CHAT_CONTEXT.completionToken + "  ";
-        }
-        context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO = originalInfo + extraInfo;
       }
+      if (ENV.ENABLE_SHOWTOKENINFO && context.CURRENT_CHAT_CONTEXT?.MIDDLE_INFO.promptToken && context.CURRENT_CHAT_CONTEXT?.MIDDLE_INFO.completionToken) {
+        extraInfo += "  \nToken: " + context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.promptToken + " | " + context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.completionToken + "  ";
+      }
+      context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO = originalInfo + extraInfo;
       return null;
     };
     if (ENV.STREAM_MODE) {
       onStream = async (text2) => {
+        if (ENV.HIDE_MIDDLE_MESSAGE && !isLastStep) {
+          return;
+        }
         try {
           await generateInfo(text2);
           const resp = await sendMessageToTelegramWithContext2(context)(text2);
@@ -2056,7 +2068,7 @@ async function chatWithLLM(text, context, modifier) {
     if (llm === null) {
       return sendMessageToTelegramWithContext2(context)(`LLM is not enable`);
     }
-    console.log(`[START] Chat with LLM`);
+    console.log(`[START] Chat via ${llm.name}`);
     const llmStart = performance.now();
     const answer = await requestCompletionsFromLLM(text, context, llm, modifier, onStream);
     console.log(`[DONE] Chat with LLM: ${((performance.now() - llmStart) / 1e3).toFixed(2)}s`);
@@ -2074,12 +2086,15 @@ async function chatWithLLM(text, context, modifier) {
         console.error(e);
       }
     }
-    await generateInfo(answer);
-    await sendFinalMsg(answer);
+    if (!ENV.HIDE_MIDDLE_MESSAGE || isLastStep) {
+      await generateInfo(answer);
+      await sendFinalMsg(answer);
+    }
     context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEXT = answer;
     return null;
   } catch (e) {
     let errMsg = `Error: ${e.message}`;
+    console.error(errMsg);
     if (errMsg.length > 2048) {
       errMsg = errMsg.substring(0, 2048);
     }
@@ -2281,6 +2296,7 @@ async function commandGenerateImg(message, command, subcommand, context) {
     }
     return sendPhotoToTelegramWithContext(context)(img);
   } catch (e) {
+    console.error(e.message);
     return sendMessageToTelegramWithContext2(context)(`ERROR: ${e.message}`);
   }
 }
@@ -2891,25 +2907,28 @@ async function msgHandleFile(message, fileType, context) {
           context
         ).then((r) => r.json());
         if (stt_data.error) {
-          errorMsg = `[FILE][FAILED] Speech to text: ${stt_data.error.message}`;
+          errorMsg = `[FILE][FAILED] STT: ${stt_data.error.message}`;
           console.log(`${errorMsg}`);
           break;
         }
         const time = ((performance.now() - start) / 1e3).toFixed(2);
-        console.log(`[FILE][DONE] Speech to text: ${time}s`);
+        console.log(`[FILE][DONE] STT: ${time}s`);
         console.log("Transcription:\n" + stt_data.text);
-        const model_time_msg = ENV.ENABLE_SHOWINFO ? `${context.CURRENT_CHAT_CONTEXT.PROCESS_INFO["MODEL"]} ${time}s   ` : "";
-        context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO = (context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO?.TEMP_INFO || "") + model_time_msg;
         context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEXT = stt_data.text;
-        const msgResp = await sendMessageToTelegramWithContext2(context)(
-          stt_data.text
-        ).then((r) => r.json());
-        if (!msgResp.ok) {
-          errorMsg = `[FILE][FAILED] Send transcription failed: ${msgResp.message}`;
-          console.log(`${errorMsg}`);
-          break;
+        const steps = context.CURRENT_CHAT_CONTEXT.PROCESS_INFO.STEP.split("/");
+        const isLastStep = steps[0] == steps[1];
+        if (!ENV.HIDE_MIDDLE_MESSAGE || isLastStep) {
+          const model_time_msg = ENV.ENABLE_SHOWINFO ? `${context.CURRENT_CHAT_CONTEXT.PROCESS_INFO["MODEL"]} ${time}s   ` : "";
+          context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO += model_time_msg;
+          const msgResp = await sendMessageToTelegramWithContext2(context)(
+            stt_data.text
+          ).then((r) => r.json());
+          if (!msgResp.ok) {
+            errorMsg = `[FILE][FAILED] Send transcription failed: ${msgResp.message}`;
+            console.log(`${errorMsg}`);
+            break;
+          }
         }
-        context.CURRENT_CHAT_CONTEXT.message_id = msgResp.result.message_id;
         console.log("[FILE][DONE]: " + fileType);
         return null;
       }
@@ -2918,7 +2937,7 @@ async function msgHandleFile(message, fileType, context) {
     console.error(e);
   }
   if (errorMsg) {
-    return sendMessageToTelegramWithContext2(context, errorMsg);
+    return sendMessageToTelegramWithContext2(context)(errorMsg);
   }
   return new Response("Handle file msg failed", { status: 200 });
 }
@@ -2959,15 +2978,23 @@ async function msgChatWithLLM(message, context) {
       if (!PROCESS.TYPE) {
         PROCESS.TYPE = `${msgType2}:text`;
       }
+      if (context.CURRENT_CHAT_CONTEXT.message_id && !ENV.HIDE_MIDDLE_MESSAGE) {
+        context.CURRENT_CHAT_CONTEXT.message_id = null;
+      }
       const PROCESS_INFO = queryProcessInfo(context, PROCESS);
+      PROCESS_INFO.STEP = `${i + 1}/${HANDLE_PROCESS.length}`;
       if (PROCESS_INFO instanceof Response) {
         return PROCESS_INFO;
       }
       context.CURRENT_CHAT_CONTEXT.PROCESS_INFO = PROCESS_INFO;
+      if (!context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO) {
+        context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO = {};
+      }
+      context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO = HANDLE_PROCESS.length == 1 || ENV.HIDE_MIDDLE_MESSAGE ? "" : `[step ${PROCESS_INFO.STEP}]
+`;
       switch (PROCESS.TYPE) {
         case "text:text":
           result = await chatWithLLM(text, context, null);
-          context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO += "\n" + context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEXT + "\n";
           break;
         case "text:image":
           const gen = loadImageGen(context);
@@ -2982,18 +3009,19 @@ async function msgChatWithLLM(message, context) {
             context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILE = result;
           const time = ((performance.now() - startTime) / 1e3).toFixed(2);
           context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO = (context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO || "") + context.CURRENT_CHAT_CONTEXT.PROCESS_INFO["MODEL"] + ` ${time}s  `;
-          await sendPhotoToTelegramWithContext(context)(result);
+          const response = await sendPhotoToTelegramWithContext(context)(result);
+          if (response.status != 200) {
+            console.error(await response.text());
+          }
           break;
         case "audio:text":
           result = await msgHandleFile(message, fileType, context);
-          context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO += (ENV.ENABLE_SHOWINFO ? "\n" : "\nTranscription: \n") + context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEXT + "\n";
           context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILE = null;
           context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILEURL = null;
           break;
         case "image:text":
           await msgHandleFile(message, fileType, context);
           result = await chatWithLLM(message.text, context, null);
-          context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO += "\n" + context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEXT + "\n";
           context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILE = null;
           context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILEURL = null;
           break;

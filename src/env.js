@@ -115,11 +115,59 @@ class Environment {
   ENABLE_SHOWINFO = false;
   // 消息中是否显示token信息
   ENABLE_SHOWTOKENINFO = false;
+  // 是否隐藏中间步骤
+  HIDE_MIDDLE_MESSAGE = false;
   CHAT_MESSAGE_TRIGGER = { ':n': '/new', ':g3': '/gpt3', ':g4': '/gpt4', ':c':'' }
   // 额外信息
   EXTRA_TINFO = '';
 
-  MODES = '';
+  MODES = {
+    default: {
+      text: [
+        {
+          TYPE: 'text:text',
+          // PROVIDER_SOURCE: 'default',
+          AI_PROVIDER: 'openai',
+          // MODEL: ENV.CHAT_MODEL,
+        },
+      ],
+      audio: [
+        {
+          TYPE: 'audio:text',
+          // PROVIDER_SOURCE: 'default',
+          AI_PROVIDER: 'openai',
+        },
+        {
+          TYPE: 'text:text',
+          // PROVIDER_SOURCE: 'default',
+          AI_PROVIDER: 'openai',
+        },
+      ],
+      image: [
+        {
+          TYPE: 'image:text',
+          // PROVIDER_SOURCE: 'default',
+          AI_PROVIDER: 'openai',
+          MODEL: 'gpt-4o',
+        },
+      ],
+    },
+    'dall-e': {
+      text: [
+        {
+          TYPE: 'text:text',
+          // PROVIDER_SOURCE: 'default',
+          // AI_PROVIDER: 'openai',
+        },
+        {
+          TYPE: 'text:image',
+          // PROVIDER_SOURCE: 'default',
+          // AI_PROVIDER: 'openai',
+          // MODEL: ENV.DALL_E_MODEL,
+        },
+      ]
+    }
+  };
   CURRENT_MODE = 'default';
 
   PROVIDER_SOURCES = {};
@@ -243,7 +291,7 @@ export function initEnv(env, i18n) {
             ENV[key] = env[key].split(',');
           } else {
             try {
-              ENV[key] = JSON.parse(env[key]);
+              ENV[key] = { ...ENV[key], ...JSON.parse(env[key]) };
             } catch (e) {
               console.error(e);
             }

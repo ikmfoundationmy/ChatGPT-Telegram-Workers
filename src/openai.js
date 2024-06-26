@@ -10,7 +10,7 @@ import {Stream} from './vendors/stream.js';
  * @return {string|null}
  */
 function openAIKeyFromContext(context) {
-  const API_KEY = context.CURRENT_CHAT_CONTEXT.PROCESS_INFO['API_KEY'];
+  const API_KEY = context.CURRENT_CHAT_CONTEXT?.PROCESS_INFO?.['API_KEY'] || context.USER_CONFIG.OPENAI_API_KEY;
 
   if (API_KEY) {
     return API_KEY;
@@ -135,17 +135,29 @@ export async function requestCompletionsFromAzureOpenAI(message, history, contex
 */
 export async function requestCompletionsFromOpenAICompatible(url, header, body, context, onStream, onResult = null) {
   const controller = new AbortController();
-  const {signal} = controller;
+  const { signal } = controller;
   const timeout = 1000 * 60 * 5;
   setTimeout(() => controller.abort(), timeout);
+
+  // 超10s无响应中断请求
+  let firstTimeoutId;
+  const timeoutPromise = new Promise((_, reject) => {
+    firstTimeoutId = setTimeout(() => {
+      controller.abort();
+      reject(new Error('No response in 10s'));
+    }, 10 * 1000);
+  });
+  
   let startTime = performance.now();
-  console.log('[START] Chat with openai');
-  const resp = await fetch(url, {
+  console.log('[START] Chat via OpenAILike');
+  const resp = await Promise.race([timeoutPromise, fetch(url, {
     method: 'POST',
     headers: header,
     body: JSON.stringify(body),
     signal,
-  });
+  })]);
+
+  clearTimeout(firstTimeoutId); 
 
   if (onStream && resp.ok && isEventStreamResponse(resp)) {
     const stream = new Stream(resp, controller);
@@ -178,12 +190,12 @@ export async function requestCompletionsFromOpenAICompatible(url, header, body, 
     contentFull += lastChunk;
     if (ENV.GPT3_TOKENS_COUNT && usage) {
       onResult?.({usage});
-      context.CURRENT_CHAT_CONTEXT.promptToken = usage?.prompt_tokens ?? 0;
-      context.CURRENT_CHAT_CONTEXT.completionToken = usage?.completion_tokens ?? 0;
+      context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.promptToken = usage?.prompt_tokens ?? 0;
+      context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.completionToken = usage?.completion_tokens ?? 0;
     }
 
     let endTime = performance.now();
-    console.log(`[DONE] Chat with openai: ${((endTime - startTime) / 1000).toFixed(2)}s`);
+    console.log(`[DONE] Chat via OpenAILike: ${((endTime - startTime) / 1000).toFixed(2)}s`);
     await msgPromise;
     console.log(`MiddleMsgTime: ${((performance.now() - startTime) / 1000).toFixed(2)}s`);
     return contentFull;
@@ -219,7 +231,7 @@ export async function requestCompletionsFromOpenAICompatible(url, header, body, 
  * @return {Promise<string>}
  */
 export async function requestImageFromOpenAI(prompt, context) {
-  let url = `${context.CURRENT_CHAT_CONTEXT.PROCESS_INFO['PROXY_URL']}/images/generations`;
+  let url = `${(context.CURRENT_CHAT_CONTEXT?.PROCESS_INFO?.['PROXY_URL']) || context.USER_CONFIG.OPENAI_API_BASE}/images/generations`;
   const header = {
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${openAIKeyFromContext(context)}`,
@@ -228,14 +240,14 @@ export async function requestImageFromOpenAI(prompt, context) {
     prompt: prompt,
     n: 1,
     size: context.USER_CONFIG.DALL_E_IMAGE_SIZE,
-    model: context.CURRENT_CHAT_CONTEXT.PROCESS_INFO['MODEL'] || context.USER_CONFIG.DALL_E_MODEL,
+    model: context.CURRENT_CHAT_CONTEXT?.PROCESS_INFO?.['MODEL'] || context.USER_CONFIG.DALL_E_MODEL,
   };
   if (body.model === 'dall-e-3') {
     body.quality = context.USER_CONFIG.DALL_E_IMAGE_QUALITY;
     body.style = context.USER_CONFIG.DALL_E_IMAGE_STYLE;
   }
   {
-    const provider = context.CURRENT_CHAT_CONTEXT.PROCESS_INFO['PROVIDER'] || context.USER_CONFIG.AI_IMAGE_PROVIDER;
+    const provider = context.CURRENT_CHAT_CONTEXT?.PROCESS_INFO?.['PROVIDER'] || context.USER_CONFIG.AI_IMAGE_PROVIDER;
     let isAzureModel = false;
     switch (provider) {
       case 'azure':
