@@ -1,4 +1,4 @@
-import worker from '../../../main.js'
+import worker from 'chatgpt-telegram-workers'
 import { RedisCache } from '../utils/redis.js'
 
 export const config = {

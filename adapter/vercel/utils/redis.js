@@ -1,5 +1,4 @@
 /* eslint-disable require-jsdoc */
-import { fetchWithRetry } from "../../../src/utils";
 export class RedisCache {
   constructor (baseUrl, token) {
     this.baseUrl = baseUrl
@@ -18,7 +17,7 @@ export class RedisCache {
       ...(body && { body: body }),
     }
 
-    const response = await fetchWithRetry(`${this.baseUrl}/${endpoint}`, options)
+    const response = await fetch(`${this.baseUrl}/${endpoint}`, options)
     if (!response.ok) {
       throw new Error(`Failed to fetch from Redis: ${response.error}`)
     }
