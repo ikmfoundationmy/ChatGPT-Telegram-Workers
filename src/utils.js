@@ -310,13 +310,15 @@ export function delay(ms = 1000) {
  * @return {object}
  */
 export function queryProcessInfo(context, PROCESS) {
-  const provider_up = PROCESS.AI_PROVIDER.toUpperCase();
   const PROCESS_INFO = {
     TYPE: PROCESS.TYPE,
     PROVIDER_SOURCE: PROCESS.PROVIDER_SOURCE || 'default',
     AI_PROVIDER: PROCESS.AI_PROVIDER || context.USER_CONFIG.AI_PROVIDER,
-    MODEL: PROCESS.MODEL || context.USER_CONFIG[`${provider_up}_CHAT_MODEL`] || context.USER_CONFIG[`CHAT_MODEL`]
+    MODEL: PROCESS.MODEL
   };
+
+  const provider_up = PROCESS_INFO.AI_PROVIDER.toUpperCase();
+
 
   PROCESS_INFO.PROXY_URL =
     context.USER_CONFIG.PROVIDER_SOURCES?.[PROCESS.PROVIDER_SOURCE]?.[
@@ -331,7 +333,7 @@ export function queryProcessInfo(context, PROCESS) {
   if (!PROCESS_INFO.MODEL) {
     switch (PROCESS.TYPE) {
       case 'text:text':
-        PROCESS_INFO.MODEL = context.USER_CONFIG[`CHAT_MODEL`];
+        PROCESS_INFO.MODEL = context.USER_CONFIG[`${provider_up}_CHAT_MODEL`] || context.USER_CONFIG.CHAT_MODEL;
         break;
       case 'text:image':
         PROCESS_INFO.MODEL = context.USER_CONFIG.DALL_E_MODEL;

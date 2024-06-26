@@ -4,9 +4,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1719391762;
+  BUILD_TIMESTAMP = 1719406152;
   // 当前版本 commit id
-  BUILD_VERSION = "1c9a78a";
+  BUILD_VERSION = "b8ef6f4";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -933,19 +933,19 @@ function delay(ms = 1e3) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 function queryProcessInfo(context, PROCESS) {
-  const provider_up = PROCESS.AI_PROVIDER.toUpperCase();
   const PROCESS_INFO = {
     TYPE: PROCESS.TYPE,
     PROVIDER_SOURCE: PROCESS.PROVIDER_SOURCE || "default",
     AI_PROVIDER: PROCESS.AI_PROVIDER || context.USER_CONFIG.AI_PROVIDER,
-    MODEL: PROCESS.MODEL || context.USER_CONFIG[`${provider_up}_CHAT_MODEL`] || context.USER_CONFIG[`CHAT_MODEL`]
+    MODEL: PROCESS.MODEL
   };
+  const provider_up = PROCESS_INFO.AI_PROVIDER.toUpperCase();
   PROCESS_INFO.PROXY_URL = context.USER_CONFIG.PROVIDER_SOURCES?.[PROCESS.PROVIDER_SOURCE]?.["PROXY_URL"] || context.USER_CONFIG?.[`${provider_up}_API_BASE`];
   PROCESS_INFO.API_KEY = context.USER_CONFIG.PROVIDER_SOURCES?.[PROCESS.PROVIDER_SOURCE]?.["API_KEY"] || context.USER_CONFIG?.[`${provider_up}_API_KEY`];
   if (!PROCESS_INFO.MODEL) {
     switch (PROCESS.TYPE) {
       case "text:text":
-        PROCESS_INFO.MODEL = context.USER_CONFIG[`CHAT_MODEL`];
+        PROCESS_INFO.MODEL = context.USER_CONFIG[`${provider_up}_CHAT_MODEL`] || context.USER_CONFIG.CHAT_MODEL;
         break;
       case "text:image":
         PROCESS_INFO.MODEL = context.USER_CONFIG.DALL_E_MODEL;
