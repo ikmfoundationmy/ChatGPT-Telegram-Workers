@@ -144,8 +144,8 @@ export async function requestCompletionsFromOpenAICompatible(url, header, body, 
   const timeoutPromise = new Promise((_, reject) => {
     firstTimeoutId = setTimeout(() => {
       controller.abort();
-      reject(new Error('No response in 10s'));
-    }, 10 * 1000);
+      reject(new Error(`No response in ${ENV.OPENAI_CHAT_TIMEOUT}s`));
+    }, ENV.OPENAI_CHAT_TIMEOUT * 1000);
   });
   
   let startTime = performance.now();

@@ -107,12 +107,12 @@ class Environment {
   SHOW_REPLY_BUTTON = false;
   // 额外引用消息开关
   EXTRA_MESSAGE_CONTEXT = false;
-  // 忽略文本开关
-  IGNORE_TEXT_ENABLE = false;
   // 默认忽略#开头的消息
   IGNORE_TEXT = '#';
   // 消息中是否显示提供商, 模型等额外信息
   ENABLE_SHOWINFO = false;
+  // 对话首次长时间无响应时间(针对OPENAI)
+  OPENAI_CHAT_TIMEOUT = 15;
   // 消息中是否显示token信息
   ENABLE_SHOWTOKENINFO = false;
   // 是否隐藏中间步骤

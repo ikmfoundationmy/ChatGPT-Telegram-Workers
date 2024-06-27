@@ -9,17 +9,31 @@ import './type.js';
  * @param {Array<string>} keys - The keys to merge.
  */
 function mergeObject(target, source, keys) {
-  for (const key of Object.keys(target)) {
-    if (source?.[key]) {
-      if (keys !== null && !keys.includes(key)) {
-        continue;
-      }
-      if (typeof source[key] === typeof target[key]) {
+  if (Object.keys(target).length === 0) {
+    if (Object.keys(source).length === 0) return;
+    for (const key of Object.keys(source)) {
+      if (typeof source[key] === 'object') {
+        target[key] = Object.entries(source[key]).reduce((acc, [k, v]) => {
+          if (keys.includes(k)) acc[k] = v;
+          return acc;
+        }, {});
+      } else if (keys.includes(key)) {
         target[key] = source[key];
       }
     }
+    return;
+  }
+  for (const key of Object.keys(target)) {
+    if (!source?.[key]) continue;
+    if (keys !== null && !keys.includes(key)) continue;
+    if (typeof source[key] === typeof target[key]) {
+      target[key] = source[key];
+    }
   }
 }
+
+
+
 
 /**
  * 上下文信息
@@ -213,7 +227,7 @@ export class Context {
       keys = keys.filter((key) => key !== userDefine);
       mergeObject(this.USER_CONFIG, userConfig, keys);
       if (userConfig?.[userDefine]) {
-        mergeObject(this.USER_DEFINE, userConfig[userDefine], this.USER_DEFINE.VALID_KEYS);
+        mergeObject(this.USER_DEFINE.ROLE, userConfig[userDefine].ROLE, this.USER_DEFINE.VALID_KEYS);
         delete userConfig[userDefine];
       }
     } catch (e) {

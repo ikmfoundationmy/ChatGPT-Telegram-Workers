@@ -4,9 +4,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1719406152;
+  BUILD_TIMESTAMP = 1719503050;
   // 当前版本 commit id
-  BUILD_VERSION = "b8ef6f4";
+  BUILD_VERSION = "2c7f8ef";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -94,12 +94,12 @@ var Environment = class {
   SHOW_REPLY_BUTTON = false;
   // 额外引用消息开关
   EXTRA_MESSAGE_CONTEXT = false;
-  // 忽略文本开关
-  IGNORE_TEXT_ENABLE = false;
   // 默认忽略#开头的消息
   IGNORE_TEXT = "#";
   // 消息中是否显示提供商, 模型等额外信息
   ENABLE_SHOWINFO = false;
+  // 对话首次长时间无响应时间(针对OPENAI)
+  OPENAI_CHAT_TIMEOUT = 15;
   // 消息中是否显示token信息
   ENABLE_SHOWTOKENINFO = false;
   // 是否隐藏中间步骤
@@ -287,14 +287,29 @@ function initEnv(env, i18n2) {
 
 // src/context.js
 function mergeObject(target, source, keys) {
-  for (const key of Object.keys(target)) {
-    if (source?.[key]) {
-      if (keys !== null && !keys.includes(key)) {
-        continue;
-      }
-      if (typeof source[key] === typeof target[key]) {
+  if (Object.keys(target).length === 0) {
+    if (Object.keys(source).length === 0)
+      return;
+    for (const key of Object.keys(source)) {
+      if (typeof source[key] === "object") {
+        target[key] = Object.entries(source[key]).reduce((acc, [k, v]) => {
+          if (keys.includes(k))
+            acc[k] = v;
+          return acc;
+        }, {});
+      } else if (keys.includes(key)) {
         target[key] = source[key];
       }
+    }
+    return;
+  }
+  for (const key of Object.keys(target)) {
+    if (!source?.[key])
+      continue;
+    if (keys !== null && !keys.includes(key))
+      continue;
+    if (typeof source[key] === typeof target[key]) {
+      target[key] = source[key];
     }
   }
 }
@@ -489,7 +504,7 @@ CHAT_MODEL:${CHAT_MODEL}`;
       keys = keys.filter((key) => key !== userDefine);
       mergeObject(this.USER_CONFIG, userConfig, keys);
       if (userConfig?.[userDefine]) {
-        mergeObject(this.USER_DEFINE, userConfig[userDefine], this.USER_DEFINE.VALID_KEYS);
+        mergeObject(this.USER_DEFINE.ROLE, userConfig[userDefine].ROLE, this.USER_DEFINE.VALID_KEYS);
         delete userConfig[userDefine];
       }
     } catch (e) {
@@ -1526,8 +1541,8 @@ async function requestCompletionsFromOpenAICompatible(url, header, body, context
   const timeoutPromise = new Promise((_, reject) => {
     firstTimeoutId = setTimeout(() => {
       controller.abort();
-      reject(new Error("No response in 10s"));
-    }, 10 * 1e3);
+      reject(new Error(`No response in ${ENV.OPENAI_CHAT_TIMEOUT}s`));
+    }, ENV.OPENAI_CHAT_TIMEOUT * 1e3);
   });
   let startTime = performance.now();
   console.log("[START] Chat via OpenAILike");
@@ -2799,7 +2814,7 @@ async function msgHandleGroupMessage(message, context) {
   return new Response("Not set bot name", { status: 200 });
 }
 async function msgIgnoreSpecificMessage(message, context) {
-  if (ENV.IGNORE_TEXT_ENABLE && message.text && message.text.startsWith(ENV.IGNORE_TEXT)) {
+  if (ENV.IGNORE_TEXT && message?.text.startsWith(ENV.IGNORE_TEXT)) {
     return new Response("ignore specific text", { status: 200 });
   }
   return null;
@@ -3412,6 +3427,7 @@ var zh_hant_default = {
       "img": "\u751F\u6210\u5716\u7247\uFF0C\u5B8C\u6574\u547D\u4EE4\u683C\u5F0F\u70BA`/img \u5716\u7247\u63CF\u8FF0`\uFF0C\u4F8B\u5982`/img \u6D77\u7058\u6708\u5149`",
       "version": "\u7372\u53D6\u7576\u524D\u7248\u672C\u865F\u78BA\u8A8D\u662F\u5426\u9700\u8981\u66F4\u65B0",
       "setenv": "\u8A2D\u7F6E\u7528\u6236\u914D\u7F6E\uFF0C\u5B8C\u6574\u547D\u4EE4\u683C\u5F0F\u70BA/setenv KEY=VALUE",
+      "setenvs": '\u6279\u91CF\u8A2D\u7F6E\u7528\u6237\u914D\u7F6E, \u547D\u4EE4\u5B8C\u6574\u683C\u5F0F\u70BA /setenvs {"KEY1": "VALUE1", "KEY2": "VALUE2"}',
       "delenv": "\u522A\u9664\u7528\u6236\u914D\u7F6E\uFF0C\u5B8C\u6574\u547D\u4EE4\u683C\u5F0F\u70BA/delenv KEY",
       "clearenv": "\u6E05\u9664\u6240\u6709\u7528\u6236\u914D\u7F6E",
       "usage": "\u7372\u53D6\u6A5F\u5668\u4EBA\u7576\u524D\u7684\u4F7F\u7528\u60C5\u6CC1\u7D71\u8A08",
@@ -3497,6 +3513,7 @@ var en_default = {
       "img": "Generate an image, the complete command format is `/img image description`, for example `/img beach at moonlight`",
       "version": "Get the current version number to determine whether to update",
       "setenv": "Set user configuration, the complete command format is /setenv KEY=VALUE",
+      "setenvs": 'Batch set user configurations, the full format of the command is /setenvs {"KEY1": "VALUE1", "KEY2": "VALUE2"}',
       "delenv": "Delete user configuration, the complete command format is /delenv KEY",
       "clearenv": "Clear all user configuration",
       "usage": "Get the current usage statistics of the robot",
