@@ -4,9 +4,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1719503050;
+  BUILD_TIMESTAMP = 1719582069;
   // 当前版本 commit id
-  BUILD_VERSION = "2c7f8ef";
+  BUILD_VERSION = "321c7a8";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -886,14 +886,6 @@ function isJsonResponse(resp) {
 function isEventStreamResponse(resp) {
   return resp.headers.get("content-type").indexOf("text/event-stream") !== -1;
 }
-function escapeText(text, type = "info") {
-  const regex = /[\[\]\/\{\}\(\)\#\+\-\=\|\.\\\!]/g;
-  if (type === "info") {
-    return text.replace(regex, "\\$&");
-  } else {
-    return text.replace(/\n[\-\*\+]\s/g, "\n\u2022 ").replace(/(?<!\\)[\+\=\{\}\.\|\!\_\*\[\]\(\)\~\#\-]/g, "\\$&").replace(/\>(?!\s)/g, "\\>").replace(/\\\*\\\*/g, "*").replace(/(\!)?\\\[(.+)?\\\]\\\((.+)?\\\)/g, "[$2]($3)");
-  }
-}
 function fetchWithRetryFunc() {
   const status429RetryTime = {};
   const MAX_RETRIES = 3;
@@ -984,6 +976,37 @@ function queryProcessInfo(context, PROCESS) {
   return PROCESS_INFO;
 }
 
+// src/md2tgmd.js
+function escapeshape(text) {
+  return "\u258E*" + text.trim().split(" ").slice(1).join(" ") + "*\n\n";
+}
+function splitAndKeepWithIndex(text, regex) {
+  const parts = text.split(regex);
+  const indices = parts.reduce((acc, part, index) => {
+    if (regex.test(part)) {
+      acc.push(index);
+    }
+    return acc;
+  }, []);
+  return { parts, indices };
+}
+function CompleteCodeBlock(text) {
+  const codeMatches = text.match(/^(\s)*```/gm);
+  const isNeedAdd = (codeMatches ? codeMatches.length : 0) % 2 == 1;
+  return isNeedAdd ? text + "\n```" : text;
+}
+function escape(text, flag = 0) {
+  text = CompleteCodeBlock(text);
+  const codeBlockReg = /(^```[\s\S]+?```)/gm;
+  const result = splitAndKeepWithIndex(text, codeBlockReg);
+  result.parts.forEach((v, i) => {
+    if (!result.indices.includes(i)) {
+      result.parts[i] = v.replace(/\\\[/g, "@->@").replace(/\\([\[\]\(\)\{\}\+\-\.\>\*\#\|\~\`])/g, "$1").replace(/\*{2}(.+?)\*{2}/g, "@@@$1@@@").replace(/(\n{1,2})\*\s/g, "$1\u2022 ").replace(/\*/g, "\\*").replace(/@{3}(.+?)@{3}/g, "*$1*").replace(/!?\[(.*?)\]\((.*?)\)/g, "@@@$1@@@^^^$2^^^").replace(/@{3}(.*?)@{3}\^{3}(.*?)\^{3}/g, "[$1]($2)").replace(/(^#+\s.+?\n+)/g, escapeshape).replace(/(\n{1,2})(\s*\d{1,2}\.\s)/g, "$1$2").replace(/(\n{1,2})(\s*)-\s/g, "$1$2\u2022 ").replace(/`(.+?)`/g, "@@$1@@").replace(/[\^_\-#~=|\(\)\[\]{}\.!\+\>\`]/g, "\\$&").replace(/@{2}([\s\S]+?)@{2}/g, "`$1`");
+    }
+  });
+  return result.parts.join("");
+}
+
 // src/telegram.js
 async function sendMessage(message, token, context) {
   const body = {
@@ -1021,17 +1044,17 @@ async function sendMessageToTelegram(message, token, context) {
     info = context.MIDDLE_INFO?.TEMP_INFO.trim() || "";
     if (step[0] < step[1] && !ENV.HIDE_MIDDLE_MESSAGE) {
       chatContext.parse_mode = null;
-      message = info + "  \n" + escapeText(origin_msg, "llm");
+      message = info + " \n\n" + escape(origin_msg);
       chatContext.entities = [
         { type: "code", offset: 0, length: message.length },
         { type: "blockquote", offset: 0, length: message.length }
       ];
     } else if (parse_mode === "MarkdownV2" && chatContext?.MIDDLE_INFO?.TEMP_INFO) {
-      message = ">`" + info + "  `\n" + escapeText(origin_msg, "llm");
+      message = ">`" + info + "` \n\n\n" + escape(origin_msg);
     } else if (parse_mode === "MarkdownV2") {
       chatContext.parse_mode = null;
     } else {
-      message = info ? info + "\n\n" + origin_msg : origin_msg;
+      message = info ? info + " \n\n" + origin_msg : origin_msg;
     }
     if (parse_mode !== "MarkdownV2" && context?.MIDDLE_INFO?.TEMP_INFO) {
       chatContext.entities = [
@@ -1130,7 +1153,7 @@ async function sendPhotoToTelegram(photo, token, context) {
     }
     body.parse_mode = "MarkdownV2";
     let info = ">" + context?.PROCESS_INFO?.["MODEL"] + "\n" + context.MIDDLE_INFO.TEXT + "\n";
-    body.caption = escapeText(info, "info") + `[\u539F\u59CB\u56FE\u7247](${photo})`;
+    body.caption = escape(info) + `[\u539F\u59CB\u56FE\u7247](${photo})`;
     body = JSON.stringify(body);
     headers["Content-Type"] = "application/json";
   } else {
@@ -2814,7 +2837,7 @@ async function msgHandleGroupMessage(message, context) {
   return new Response("Not set bot name", { status: 200 });
 }
 async function msgIgnoreSpecificMessage(message, context) {
-  if (ENV.IGNORE_TEXT && message?.text.startsWith(ENV.IGNORE_TEXT)) {
+  if (ENV.IGNORE_TEXT && message?.text?.startsWith(ENV.IGNORE_TEXT)) {
     return new Response("ignore specific text", { status: 200 });
   }
   return null;

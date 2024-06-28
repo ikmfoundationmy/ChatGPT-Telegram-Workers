@@ -1,7 +1,8 @@
 // eslint-disable-next-line no-unused-vars
 import {Context} from './context.js';
 import {DATABASE, ENV} from './env.js';
-import { fetchWithRetry, escapeText } from "./utils.js";
+import { fetchWithRetry } from "./utils.js";
+import { escape } from "./md2tgmd.js";
 
 /**
  *
@@ -57,17 +58,17 @@ export async function sendMessageToTelegram(message, token, context) {
     info = context.MIDDLE_INFO?.TEMP_INFO.trim() || '';
     if (step[0] < step[1] && !ENV.HIDE_MIDDLE_MESSAGE) {
       chatContext.parse_mode = null;
-      message = info + '  \n' + escapeText(origin_msg, 'llm');
+      message = info + ' \n\n' + escape(origin_msg);
       chatContext.entities = [
         { type: 'code', offset: 0, length: message.length },
         { type: 'blockquote', offset: 0, length: message.length },
       ]
     } else if (parse_mode === 'MarkdownV2' && chatContext?.MIDDLE_INFO?.TEMP_INFO) {
-      message = '>`' + info + '  `\n' + escapeText(origin_msg, 'llm');
+      message = '>`' + info + '` \n\n\n' + escape(origin_msg);
     } else if (parse_mode === 'MarkdownV2') {
       chatContext.parse_mode = null;
     } else {
-      message = (info) ? (info + '\n\n' + origin_msg) : origin_msg;
+      message = (info) ? (info + ' \n\n' + origin_msg) : origin_msg;
     }
     if (parse_mode !== 'MarkdownV2' && context?.MIDDLE_INFO?.TEMP_INFO) {
       chatContext.entities = [
@@ -195,10 +196,10 @@ export async function sendPhotoToTelegram(photo, token, context) {
       }
     }
     // let info = '>' + (context.MIDDLE_INFO.TEMP_INFO).replace('\n', '\n>');
-    // info = escapeText(info, 'info');
+    // info = escape(info, 'info');
     body.parse_mode = 'MarkdownV2';
     let info = '>' + context?.PROCESS_INFO?.['MODEL'] + '\n' + context.MIDDLE_INFO.TEXT + '\n' ;
-    body.caption = escapeText(info, 'info') + `[原始图片](${photo})`;
+    body.caption = escape(info) + `[原始图片](${photo})`;
     body = JSON.stringify(body);
     headers['Content-Type'] = 'application/json';
   } else {
