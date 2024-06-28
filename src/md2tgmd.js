@@ -16,7 +16,7 @@ function splitAndKeepWithIndex(text, regex) {
 }
   
 function CompleteCodeBlock(text) {
-    const codeMatches = text.match(/^(\s)*```/gm);
+    const codeMatches = text.match(/(\s)```/g);
     const isNeedAdd = (codeMatches ? codeMatches.length : 0) % 2 == 1;
     return isNeedAdd ? text + '\n```' : text;
 }
@@ -24,14 +24,14 @@ function CompleteCodeBlock(text) {
 export function escape(text, flag = 0) {
     // 检查代码块是否完整
     text = CompleteCodeBlock(text);
-    const codeBlockReg = /(^```[\s\S]+?```)/gm;
+    const codeBlockReg = /(^\s*```[\s\S]+?```)/gm;
     // 代码块的位置
     const result = splitAndKeepWithIndex(text, codeBlockReg);
 
     result.parts.forEach((v,i) => {
         if (!result.indices.includes(i)) {
             result.parts[i] = v.replace(/\\\[/g, '@->@')
-                .replace(/\\([\[\]\(\)\{\}\+\-\.\>\*\#\|\~\`])/g, '$1')
+                .replace(/\\([\[\]\(\)\{\}\+\-\.\>\*\#\|\~\=\`])/g, '$1')
                 .replace(/\*{2}(.+?)\*{2}/g, '@@@$1@@@')
                 .replace(/(\n{1,2})\*\s/g, '$1• ')
                 .replace(/\*/g,'\\*')

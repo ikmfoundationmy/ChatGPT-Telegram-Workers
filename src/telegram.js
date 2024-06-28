@@ -66,7 +66,8 @@ export async function sendMessageToTelegram(message, token, context) {
     } else if (parse_mode === 'MarkdownV2' && chatContext?.MIDDLE_INFO?.TEMP_INFO) {
       message = '>`' + info + '` \n\n\n' + escape(origin_msg);
     } else if (parse_mode === 'MarkdownV2') {
-      chatContext.parse_mode = null;
+      // chatContext.parse_mode = null;
+      message = escape(origin_msg);
     } else {
       message = (info) ? (info + ' \n\n' + origin_msg) : origin_msg;
     }
