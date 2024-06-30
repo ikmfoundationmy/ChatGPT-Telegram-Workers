@@ -330,6 +330,7 @@ export async function chatWithLLM(text, context, modifier) {
     // 缓存LLM回答结果给后续步骤使用
     if (!ENV.HIDE_MIDDLE_MESSAGE || isLastStep) {
       await generateInfo(answer);
+      // console.log(answer)
       await sendFinalMsg(answer);
     }
     context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEXT = answer;

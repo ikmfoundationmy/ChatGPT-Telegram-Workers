@@ -84,6 +84,7 @@ export async function sendMessageToTelegram(message, token, context) {
     if (resp.status === 200) {
       return resp;
     } else {
+      // console.log(await resp.text())
       chatContext.parse_mode = null;
       context.parse_mode = null;
       escapeContent();

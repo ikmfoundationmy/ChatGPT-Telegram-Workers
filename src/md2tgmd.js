@@ -1,52 +1,63 @@
-// Inspired by: https://github.com/yym68686/md2tgmd
-function escapeshape(text) {
-    return '▎*' + text.trim().split(' ').slice(1).join(' ') + '*\n\n';
+const codeBlockReg = /^(\s*```[\s\S]+?^\s*```\s*$)/gm;
+const escapeChars = /([\_\*\[\]\(\)\~\`\>\#\+\-\=\|\{\}\.\!])/g;
+
+function CompleteCodeBlock(text) {
+  const codeMatches = text.match(/^\s*```/gm);
+  return codeMatches && codeMatches.length % 2 === 1 ? text + '\n```' : text;
 }
 
 function splitAndKeepWithIndex(text, regex) {
-    const parts = text.split(regex);
-    const indices = parts.reduce((acc, part, index) => {
-      if (regex.test(part)) {
-        acc.push(index);
+  const parts = text.split(regex);
+  let blankLength = 0; // 多个代码块一般冗余空白符长度相当
+  let blankReg;
+  const indices = [];
+  for (let i = 0; i < parts.length; i++) {
+    if (regex.test(parts[i])) {
+      // 去除代码块中多余空白符
+      parts[i] = parts[i].replace(/^\n+/gm, '');
+      if (blankLength === 0) blankLength = parts[i].length - parts[i].trimStart().length;
+      if (blankLength > 0) {
+        if (!blankReg) blankReg = new RegExp(`^\\s{${blankLength}}`, 'gm');
+        parts[i] = parts[i].replace(blankReg, '');
       }
-      return acc;
-    }, []);
-  
-    return { parts, indices };
-}
-  
-function CompleteCodeBlock(text) {
-    const codeMatches = text.match(/(\s)```/g);
-    const isNeedAdd = (codeMatches ? codeMatches.length : 0) % 2 == 1;
-    return isNeedAdd ? text + '\n```' : text;
+      indices.push(i);
+    }
+  }
+  return { parts, indices };
 }
 
-export function escape(text, flag = 0) {
-    // 检查代码块是否完整
-    text = CompleteCodeBlock(text);
-    const codeBlockReg = /(^\s*```[\s\S]+?```)/gm;
-    // 代码块的位置
-    const result = splitAndKeepWithIndex(text, codeBlockReg);
+export function escape(text) {
+  // const codeBlockReg = /^(\s*```[\s\S]+?^\s*```\s*$)/gm;
+  // 检查代码块是否完整
+  text = CompleteCodeBlock(text);
+  const result = splitAndKeepWithIndex(text, codeBlockReg);
+  for (let i = 0; i < result.parts.length; i++) {
+    if (!result.indices.includes(i)) {
+      result.parts[i] = result.parts[i]
+        .replace(escapeChars, '\\$1')
+        // force all characters that need to be escaped to be escaped once.
+        .replace(/\\\*([^(\\\*)].+?[^\\\n])\\\*/g, '*$1*') // bold
+        // \\\*(.+?[^\\])\\\*(.*)$
+        // \\\*([^(\\\*)])(.+?[^\\])\\\*(\s*)$
+        .replace(/\\_\\_(.+?[^\\])\\_\\_/g, '__$1__') // underline
+        .replace(/\\_(.+?[^\\])\\_/g, '_$1_') // italic
+        .replace(/\\~(.+?[^\\])\\~/g, '~$1~') // strikethrough
+        .replace(/\\\|\\\|(.+?[^\\])\\\|\\\|/g, '||$1||') // spoiler
+        .replace(/\\\[([^\]]+?)\\\]\\\((.+?)\\\)/g, '[$1]($2)') // url
+        .replace(/\\\`(.+?[^\\])\\\`/g, '`$1`') // inline code
+        // .replace(/`\\``/g, '```') // code block
+        .replace(/\\\\([\_\*\[\]\(\)\~\`\>\#\+\-\=\|\{\}\.\!])/g, '\\$1') // restore duplicate escapes
+        .replace(/^(\s*)\\(>.+\s*)$/gm, '$1$2') // >
+        // .replace(/([^\\])\\([^\_\*\[\]\(\)\~\`\>\#\+\-\=\|\{\}\.\!])/g, '$1\\\\$2') // escape
+        .replace(/^(\\#\s)(.+)/gm, '$1*$2*'); // #
+    } else {
+      result.parts[i] = result.parts[i]
+        .replace(/(\`)/g, '\\$1') // backtick
+        // .replace(/([^\\])\\([^\_\*\[\]\(\)\~\`\>\#\+\-\=\|\{\}\.\!])/g, '$1\\\\$2') // escape
+        .replace(/\\`\\`\\`/g, '```'); // code block
+    }
+    result.parts[i] = result.parts[i].replace(/([^\\])\\([^\_\*\[\]\(\)\~\`\>\#\+\-\=\|\{\}\.\!])/g, '$1\\\\$2');
+  }
 
-    result.parts.forEach((v,i) => {
-        if (!result.indices.includes(i)) {
-            result.parts[i] = v.replace(/\\\[/g, '@->@')
-                .replace(/\\([\[\]\(\)\{\}\+\-\.\>\*\#\|\~\=\`])/g, '$1')
-                .replace(/\*{2}(.+?)\*{2}/g, '@@@$1@@@')
-                .replace(/(\n{1,2})\*\s/g, '$1• ')
-                .replace(/\*/g,'\\*')
-                .replace(/@{3}(.+?)@{3}/g, '*$1*')
-                .replace(/!?\[(.*?)\]\((.*?)\)/g, '@@@$1@@@^^^$2^^^')
-                .replace(/@{3}(.*?)@{3}\^{3}(.*?)\^{3}/g, '[$1]($2)')
-                .replace(/(^#+\s.+?\n+)/g, escapeshape)
-                .replace(/(\n{1,2})(\s*\d{1,2}\.\s)/g, '$1$2')
-                .replace(/(\n{1,2})(\s*)-\s/g, '$1$2• ')
-                .replace(/`(.+?)`/g, '@@$1@@')
-                .replace(/[\^_\-#~=|\(\)\[\]{}\.!\+\>\`]/g, '\\$&')
-                .replace(/@{2}([\s\S]+?)@{2}/g, '`$1`')
-            
-        }
-    });
-    
-    return result.parts.join('');
+  return result.parts.join('');
 }
