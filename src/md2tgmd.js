@@ -49,7 +49,7 @@ export function escape(text) {
         .replace(/\\\\([\_\*\[\]\(\)\~\`\>\#\+\-\=\|\{\}\.\!])/g, '\\$1') // restore duplicate escapes
         .replace(/^(\s*)\\(>.+\s*)$/gm, '$1$2') // >
         // .replace(/([^\\])\\([^\_\*\[\]\(\)\~\`\>\#\+\-\=\|\{\}\.\!])/g, '$1\\\\$2') // escape
-        .replace(/^(\\#\s)(.+)/gm, '$1*$2*'); // #
+        .replace(/^((\\#){1,3}\s)(.+)/gm, '$1*$3*'); // #
     } else {
       result.parts[i] = result.parts[i]
         .replace(/(\`)/g, '\\$1') // backtick

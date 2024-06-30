@@ -280,7 +280,7 @@ export async function chatWithLLM(text, context, modifier) {
       }
   
       if (ENV.ENABLE_SHOWTOKENINFO && context.CURRENT_CHAT_CONTEXT?.MIDDLE_INFO.promptToken && context.CURRENT_CHAT_CONTEXT?.MIDDLE_INFO.completionToken) {
-        extraInfo += '  \nToken: ' + context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.promptToken + ' | ' + context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.completionToken + '  ';
+        extraInfo += ' \nToken: ' + context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.promptToken + ' | ' + context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.completionToken + ' ';
       }
       context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO =  originalInfo + extraInfo;
       return null;

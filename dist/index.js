@@ -4,9 +4,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1719582069;
+  BUILD_TIMESTAMP = 1719739478;
   // 当前版本 commit id
-  BUILD_VERSION = "321c7a8";
+  BUILD_VERSION = "97a8fe4";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -977,33 +977,43 @@ function queryProcessInfo(context, PROCESS) {
 }
 
 // src/md2tgmd.js
-function escapeshape(text) {
-  return "\u258E*" + text.trim().split(" ").slice(1).join(" ") + "*\n\n";
+var codeBlockReg = /^(\s*```[\s\S]+?^\s*```\s*$)/gm;
+var escapeChars = /([\_\*\[\]\(\)\~\`\>\#\+\-\=\|\{\}\.\!])/g;
+function CompleteCodeBlock(text) {
+  const codeMatches = text.match(/^\s*```/gm);
+  return codeMatches && codeMatches.length % 2 === 1 ? text + "\n```" : text;
 }
 function splitAndKeepWithIndex(text, regex) {
   const parts = text.split(regex);
-  const indices = parts.reduce((acc, part, index) => {
-    if (regex.test(part)) {
-      acc.push(index);
+  let blankLength = 0;
+  let blankReg;
+  const indices = [];
+  for (let i = 0; i < parts.length; i++) {
+    if (regex.test(parts[i])) {
+      parts[i] = parts[i].replace(/^\n+/gm, "");
+      if (blankLength === 0)
+        blankLength = parts[i].length - parts[i].trimStart().length;
+      if (blankLength > 0) {
+        if (!blankReg)
+          blankReg = new RegExp(`^\\s{${blankLength}}`, "gm");
+        parts[i] = parts[i].replace(blankReg, "");
+      }
+      indices.push(i);
     }
-    return acc;
-  }, []);
+  }
   return { parts, indices };
 }
-function CompleteCodeBlock(text) {
-  const codeMatches = text.match(/^(\s)*```/gm);
-  const isNeedAdd = (codeMatches ? codeMatches.length : 0) % 2 == 1;
-  return isNeedAdd ? text + "\n```" : text;
-}
-function escape(text, flag = 0) {
+function escape(text) {
   text = CompleteCodeBlock(text);
-  const codeBlockReg = /(^```[\s\S]+?```)/gm;
   const result = splitAndKeepWithIndex(text, codeBlockReg);
-  result.parts.forEach((v, i) => {
+  for (let i = 0; i < result.parts.length; i++) {
     if (!result.indices.includes(i)) {
-      result.parts[i] = v.replace(/\\\[/g, "@->@").replace(/\\([\[\]\(\)\{\}\+\-\.\>\*\#\|\~\`])/g, "$1").replace(/\*{2}(.+?)\*{2}/g, "@@@$1@@@").replace(/(\n{1,2})\*\s/g, "$1\u2022 ").replace(/\*/g, "\\*").replace(/@{3}(.+?)@{3}/g, "*$1*").replace(/!?\[(.*?)\]\((.*?)\)/g, "@@@$1@@@^^^$2^^^").replace(/@{3}(.*?)@{3}\^{3}(.*?)\^{3}/g, "[$1]($2)").replace(/(^#+\s.+?\n+)/g, escapeshape).replace(/(\n{1,2})(\s*\d{1,2}\.\s)/g, "$1$2").replace(/(\n{1,2})(\s*)-\s/g, "$1$2\u2022 ").replace(/`(.+?)`/g, "@@$1@@").replace(/[\^_\-#~=|\(\)\[\]{}\.!\+\>\`]/g, "\\$&").replace(/@{2}([\s\S]+?)@{2}/g, "`$1`");
+      result.parts[i] = result.parts[i].replace(escapeChars, "\\$1").replace(/\\\*([^(\\\*)].+?[^\\\n])\\\*/g, "*$1*").replace(/\\_\\_(.+?[^\\])\\_\\_/g, "__$1__").replace(/\\_(.+?[^\\])\\_/g, "_$1_").replace(/\\~(.+?[^\\])\\~/g, "~$1~").replace(/\\\|\\\|(.+?[^\\])\\\|\\\|/g, "||$1||").replace(/\\\[([^\]]+?)\\\]\\\((.+?)\\\)/g, "[$1]($2)").replace(/\\\`(.+?[^\\])\\\`/g, "`$1`").replace(/\\\\([\_\*\[\]\(\)\~\`\>\#\+\-\=\|\{\}\.\!])/g, "\\$1").replace(/^(\s*)\\(>.+\s*)$/gm, "$1$2").replace(/^((\\#){1,3}\s)(.+)/gm, "$1*$3*");
+    } else {
+      result.parts[i] = result.parts[i].replace(/(\`)/g, "\\$1").replace(/\\`\\`\\`/g, "```");
     }
-  });
+    result.parts[i] = result.parts[i].replace(/([^\\])\\([^\_\*\[\]\(\)\~\`\>\#\+\-\=\|\{\}\.\!])/g, "$1\\\\$2");
+  }
   return result.parts.join("");
 }
 
@@ -1052,7 +1062,7 @@ async function sendMessageToTelegram(message, token, context) {
     } else if (parse_mode === "MarkdownV2" && chatContext?.MIDDLE_INFO?.TEMP_INFO) {
       message = ">`" + info + "` \n\n\n" + escape(origin_msg);
     } else if (parse_mode === "MarkdownV2") {
-      chatContext.parse_mode = null;
+      message = escape(origin_msg);
     } else {
       message = info ? info + " \n\n" + origin_msg : origin_msg;
     }
@@ -2080,7 +2090,7 @@ async function chatWithLLM(text, context, modifier) {
         extraInfo = ` ${time}s`;
       }
       if (ENV.ENABLE_SHOWTOKENINFO && context.CURRENT_CHAT_CONTEXT?.MIDDLE_INFO.promptToken && context.CURRENT_CHAT_CONTEXT?.MIDDLE_INFO.completionToken) {
-        extraInfo += "  \nToken: " + context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.promptToken + " | " + context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.completionToken + "  ";
+        extraInfo += " \nToken: " + context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.promptToken + " | " + context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.completionToken + " ";
       }
       context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO = originalInfo + extraInfo;
       return null;
