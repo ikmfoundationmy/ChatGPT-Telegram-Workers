@@ -1008,7 +1008,7 @@ function escape(text) {
   const result = splitAndKeepWithIndex(text, codeBlockReg);
   for (let i = 0; i < result.parts.length; i++) {
     if (!result.indices.includes(i)) {
-      result.parts[i] = result.parts[i].replace(escapeChars, "\\$1").replace(/\\\*([^(\\\*)].+?[^\\\n])\\\*/g, "*$1*").replace(/\\_\\_(.+?[^\\])\\_\\_/g, "__$1__").replace(/\\_(.+?[^\\])\\_/g, "_$1_").replace(/\\~(.+?[^\\])\\~/g, "~$1~").replace(/\\\|\\\|(.+?[^\\])\\\|\\\|/g, "||$1||").replace(/\\\[([^\]]+?)\\\]\\\((.+?)\\\)/g, "[$1]($2)").replace(/\\\`(.+?[^\\])\\\`/g, "`$1`").replace(/\\\\([\_\*\[\]\(\)\~\`\>\#\+\-\=\|\{\}\.\!])/g, "\\$1").replace(/^(\s*)\\(>.+\s*)$/gm, "$1$2").replace(/^((\\#){1,3}\s)(.+)/gm, "$1*$3*");
+      result.parts[i] = result.parts[i].replace(escapeChars, "\\$1").replace(/\\\*\\\*(.+?[^\\])\\\*\\\*/g, "*$1*").replace(/\\_\\_(.+?[^\\])\\_\\_/g, "__$1__").replace(/\\_(.+?[^\\])\\_/g, "_$1_").replace(/\\~(.+?[^\\])\\~/g, "~$1~").replace(/\\\|\\\|(.+?[^\\])\\\|\\\|/g, "||$1||").replace(/\\\[([^\]]+?)\\\]\\\((.+?)\\\)/g, "[$1]($2)").replace(/\\\`(.+?[^\\])\\\`/g, "`$1`").replace(/\\\\([\_\*\[\]\(\)\~\`\>\#\+\-\=\|\{\}\.\!])/g, "\\$1").replace(/^(\s*)\\(>.+\s*)$/gm, "$1$2").replace(/^((\\#){1,3}\s)(.+)/gm, "$1*$3*");
     } else {
       result.parts[i] = result.parts[i].replace(/(\`)/g, "\\$1").replace(/\\`\\`\\`/g, "```");
     }
@@ -1054,7 +1054,7 @@ async function sendMessageToTelegram(message, token, context) {
     info = context.MIDDLE_INFO?.TEMP_INFO.trim() || "";
     if (step[0] < step[1] && !ENV.HIDE_MIDDLE_MESSAGE) {
       chatContext.parse_mode = null;
-      message = info + " \n\n" + escape(origin_msg);
+      message = info + " \n\n" + origin_msg;
       chatContext.entities = [
         { type: "code", offset: 0, length: message.length },
         { type: "blockquote", offset: 0, length: message.length }

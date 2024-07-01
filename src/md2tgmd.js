@@ -36,7 +36,7 @@ export function escape(text) {
       result.parts[i] = result.parts[i]
         .replace(escapeChars, '\\$1')
         // force all characters that need to be escaped to be escaped once.
-        .replace(/\\\*([^(\\\*)].+?[^\\\n])\\\*/g, '*$1*') // bold
+        .replace(/\\\*\\\*(.+?[^\\])\\\*\\\*/g, '*$1*') // bold
         // \\\*(.+?[^\\])\\\*(.*)$
         // \\\*([^(\\\*)])(.+?[^\\])\\\*(\s*)$
         .replace(/\\_\\_(.+?[^\\])\\_\\_/g, '__$1__') // underline

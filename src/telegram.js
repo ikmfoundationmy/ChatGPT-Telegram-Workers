@@ -58,7 +58,7 @@ export async function sendMessageToTelegram(message, token, context) {
     info = context.MIDDLE_INFO?.TEMP_INFO.trim() || '';
     if (step[0] < step[1] && !ENV.HIDE_MIDDLE_MESSAGE) {
       chatContext.parse_mode = null;
-      message = info + ' \n\n' + escape(origin_msg);
+      message = info + ' \n\n' + origin_msg;
       chatContext.entities = [
         { type: 'code', offset: 0, length: message.length },
         { type: 'blockquote', offset: 0, length: message.length },
