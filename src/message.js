@@ -466,7 +466,7 @@ async function msgChatWithLLM(message, context) {
   }
 
   try {
-    const HANDLE_PROCESS = context.USER_CONFIG.MODES?.[MODE]?.[msgType] || context.USER_CONFIG.MODES.default?.[msgType];
+    const HANDLE_PROCESS = context.USER_CONFIG.MODES?.[MODE]?.[msgType] || ENV.MODES.default?.[msgType];
     let text = (message.text || '').trim();
     if (ENV.EXTRA_MESSAGE_CONTEXT && context.SHARE_CONTEXT?.extraMessageContext?.text) {
       text = context.SHARE_CONTEXT.extraMessageContext.text + '\n' + text;

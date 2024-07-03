@@ -126,38 +126,6 @@ export class Context {
 
     CURRENT_MODE: ENV.CURRENT_MODE || 'default',
 
-    get CUSTOM_TINFO() {
-      let AI_PROVIDER = this.AI_PROVIDER;
-      if (this.AI_PROVIDER === "auto") {
-        AI_PROVIDER = "openai";
-      }
-      let CHAT_MODEL = "";
-      switch (AI_PROVIDER) {
-        case "openai":
-        case "azure":
-        default:
-          CHAT_MODEL = this.CHAT_MODEL;
-          break;
-        case "workers":
-          CHAT_MODEL = this.WORKERS_CHAT_MODEL;
-          break;
-        case "gemini":
-          CHAT_MODEL = this.GOOGLE_CHAT_MODEL;
-          break;
-        case "mistral":
-          CHAT_MODEL = this.MISTRAL_CHAT_MODEL;
-          break;
-      }
-
-      let info = `TAG: ${this.EXTRA_TINFO || 'default'}\n` + `CHAT_MODEL:${CHAT_MODEL}`;
-      const PROCESS = this.MODES[this.CURRENT_MODE];
-      for (const [k, v] of Object.entries(PROCESS)) {
-        info += `\n- ${k}\n` + ' '.repeat(4) + v.map(i => Object.values(i).join(' ') || `${k}:text`).join('\n' + ' '.repeat(4));
-      }
-      
-      return info;
-    },
-    set CUSTOM_TINFO(info) {},
     // mistral api key
     MISTRAL_API_KEY: ENV.MISTRAL_API_KEY,
     // mistral api base

@@ -319,7 +319,6 @@ export function queryProcessInfo(context, PROCESS) {
 
   const provider_up = PROCESS_INFO.AI_PROVIDER.toUpperCase();
 
-
   PROCESS_INFO.PROXY_URL =
     context.USER_CONFIG.PROVIDER_SOURCES?.[PROCESS.PROVIDER_SOURCE]?.[
       'PROXY_URL'
@@ -355,4 +354,42 @@ export function queryProcessInfo(context, PROCESS) {
     }
   }
   return PROCESS_INFO;
+}
+
+
+/**
+ * 提取模型等信息
+ * @param {string} config
+ * @return {string} info
+ */
+export function CUSTOM_TINFO(config) {
+  let AI_PROVIDER = config.AI_PROVIDER;
+  if (config.AI_PROVIDER === 'auto') {
+    AI_PROVIDER = 'openai';
+  }
+  let CHAT_MODEL = '';
+  switch (AI_PROVIDER) {
+    case 'openai':
+    case 'azure':
+    default:
+      CHAT_MODEL = config.CHAT_MODEL;
+      break;
+    case 'workers':
+      CHAT_MODEL = config.WORKERS_CHAT_MODEL;
+      break;
+    case 'gemini':
+      CHAT_MODEL = config.GOOGLE_CHAT_MODEL;
+      break;
+    case 'mistral':
+      CHAT_MODEL = config.MISTRAL_CHAT_MODEL;
+      break;
+  }
+  let info = `TAG: ${config.EXTRA_TINFO || 'default'}
+CHAT_MODEL:${CHAT_MODEL}`;
+  const PROCESS = config.MODES[config.CURRENT_MODE];
+  for (const [k, v] of Object.entries(PROCESS)) {
+    info +=
+      `- ${k}` + ' '.repeat(4) + v.map((i) => Object.values(i).join(' ') || `${k}:text`).join('\n' + ' '.repeat(4));
+  }
+  return info;
 }

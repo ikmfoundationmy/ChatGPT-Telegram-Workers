@@ -99,6 +99,12 @@ export async function sendMessageToTelegram(message, token, context) {
   }
   const limit = 4096;
   chatContext.parse_mode = null;
+  if (!chatContext.entities) {
+    chatContext.entities = [
+      { type: 'code', offset: 0, length: info.length },
+      { type: 'blockquote', offset: 0, length: info.length },
+    ]
+  }
   escapeContent();
   if (!Array.isArray(context.message_id)){
     context.message_id = [context.message_id];

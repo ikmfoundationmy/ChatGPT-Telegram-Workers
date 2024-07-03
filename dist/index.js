@@ -4,9 +4,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1719739478;
+  BUILD_TIMESTAMP = 1719970894;
   // 当前版本 commit id
-  BUILD_VERSION = "97a8fe4";
+  BUILD_VERSION = "9ae0120";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -390,40 +390,6 @@ var Context = class {
     },
     MODES: ENV.MODES,
     CURRENT_MODE: ENV.CURRENT_MODE || "default",
-    get CUSTOM_TINFO() {
-      let AI_PROVIDER = this.AI_PROVIDER;
-      if (this.AI_PROVIDER === "auto") {
-        AI_PROVIDER = "openai";
-      }
-      let CHAT_MODEL = "";
-      switch (AI_PROVIDER) {
-        case "openai":
-        case "azure":
-        default:
-          CHAT_MODEL = this.CHAT_MODEL;
-          break;
-        case "workers":
-          CHAT_MODEL = this.WORKERS_CHAT_MODEL;
-          break;
-        case "gemini":
-          CHAT_MODEL = this.GOOGLE_CHAT_MODEL;
-          break;
-        case "mistral":
-          CHAT_MODEL = this.MISTRAL_CHAT_MODEL;
-          break;
-      }
-      let info = `TAG: ${this.EXTRA_TINFO || "default"}
-CHAT_MODEL:${CHAT_MODEL}`;
-      const PROCESS = this.MODES[this.CURRENT_MODE];
-      for (const [k, v] of Object.entries(PROCESS)) {
-        info += `
-- ${k}
-` + " ".repeat(4) + v.map((i) => Object.values(i).join(" ") || `${k}:text`).join("\n" + " ".repeat(4));
-      }
-      return info;
-    },
-    set CUSTOM_TINFO(info) {
-    },
     // mistral api key
     MISTRAL_API_KEY: ENV.MISTRAL_API_KEY,
     // mistral api base
@@ -975,6 +941,36 @@ function queryProcessInfo(context, PROCESS) {
   }
   return PROCESS_INFO;
 }
+function CUSTOM_TINFO(config) {
+  let AI_PROVIDER = config.AI_PROVIDER;
+  if (config.AI_PROVIDER === "auto") {
+    AI_PROVIDER = "openai";
+  }
+  let CHAT_MODEL = "";
+  switch (AI_PROVIDER) {
+    case "openai":
+    case "azure":
+    default:
+      CHAT_MODEL = config.CHAT_MODEL;
+      break;
+    case "workers":
+      CHAT_MODEL = config.WORKERS_CHAT_MODEL;
+      break;
+    case "gemini":
+      CHAT_MODEL = config.GOOGLE_CHAT_MODEL;
+      break;
+    case "mistral":
+      CHAT_MODEL = config.MISTRAL_CHAT_MODEL;
+      break;
+  }
+  let info = `TAG: ${config.EXTRA_TINFO || "default"}
+CHAT_MODEL:${CHAT_MODEL}`;
+  const PROCESS = config.MODES[config.CURRENT_MODE];
+  for (const [k, v] of Object.entries(PROCESS)) {
+    info += `- ${k}` + " ".repeat(4) + v.map((i) => Object.values(i).join(" ") || `${k}:text`).join("\n" + " ".repeat(4));
+  }
+  return info;
+}
 
 // src/md2tgmd.js
 var codeBlockReg = /^(\s*```[\s\S]+?^\s*```\s*$)/gm;
@@ -1093,6 +1089,12 @@ async function sendMessageToTelegram(message, token, context) {
   }
   const limit = 4096;
   chatContext.parse_mode = null;
+  if (!chatContext.entities) {
+    chatContext.entities = [
+      { type: "code", offset: 0, length: info.length },
+      { type: "blockquote", offset: 0, length: info.length }
+    ];
+  }
   escapeContent();
   if (!Array.isArray(context.message_id)) {
     context.message_id = [context.message_id];
@@ -2396,8 +2398,8 @@ async function commandUpdateUserConfig(message, command, subcommand, context) {
   if (kv === -1) {
     return sendMessageToTelegramWithContext2(context)(ENV.I18N.command.setenv.help);
   }
-  const key = subcommand.slice(0, kv);
-  const value = subcommand.slice(kv + 1);
+  const key = subcommand.slice(0, kv).trim();
+  const value = subcommand.slice(kv + 1).trim();
   if (ENV.LOCK_USER_CONFIG_KEYS.includes(key)) {
     const msg = ENV.I18N.command.setenv.update_config_error(new Error(`Key ${key} is locked`));
     return sendMessageToTelegramWithContext2(context)(msg);
@@ -2522,8 +2524,9 @@ async function commandUsage(message, command, subcommand, context) {
 }
 async function commandSystem(message, command, subcommand, context) {
   let msg = "<pre>GLOBAL_CHAT_MODEL: " + ENV.CHAT_MODEL + "\n";
-  msg += "AI_PROVIDER: " + context.USER_CONFIG.AI_PROVIDER + "\nVISION_MODEL: " + context.USER_CONFIG.OPENAI_VISION_MODEL + "\nSTT_MODEL: " + context.USER_CONFIG.OPENAI_STT_MODEL + "\nDALL_E_MODEL: " + context.USER_CONFIG.DALL_E_MODEL + " " + context.USER_CONFIG.DALL_E_IMAGE_SIZE + " " + context.USER_CONFIG.DALL_E_IMAGE_QUALITY + " " + context.USER_CONFIG.DALL_E_IMAGE_STYLE + "\n---\n" + context.USER_CONFIG.CUSTOM_TINFO + "\n";
-  if (ENV.DEV_MODE) {
+  if (!ENV.DEV_MODE) {
+    msg += "AI_PROVIDER: " + context.USER_CONFIG.AI_PROVIDER + "\nVISION_MODEL: " + context.USER_CONFIG.OPENAI_VISION_MODEL + "\nSTT_MODEL: " + context.USER_CONFIG.OPENAI_STT_MODEL + "\nDALL_E_MODEL: " + context.USER_CONFIG.DALL_E_MODEL + " " + context.USER_CONFIG.DALL_E_IMAGE_SIZE + " " + context.USER_CONFIG.DALL_E_IMAGE_QUALITY + " " + context.USER_CONFIG.DALL_E_IMAGE_STYLE + "\n---\n" + CUSTOM_TINFO(context.USER_CONFIG) + "\n";
+  } else {
     const shareCtx = { ...context.SHARE_CONTEXT };
     shareCtx.currentBotToken = "******";
     context.USER_CONFIG.OPENAI_API_KEY = "******";
@@ -2532,6 +2535,10 @@ async function commandSystem(message, command, subcommand, context) {
     context.USER_CONFIG.AZURE_DALLE_API = "******";
     context.USER_CONFIG.GOOGLE_API_KEY = "******";
     context.USER_CONFIG.MISTRAL_API_KEY = "******";
+    Object.values(context.USER_CONFIG.PROVIDER_SOURCES).map((source) => {
+      Object.keys(source).map((k) => source[k] = "******");
+      return null;
+    });
     msg = `<pre>
 USER_CONFIG: ${JSON.stringify(context.USER_CONFIG, null, 2)}
 `;
@@ -3010,7 +3017,7 @@ async function msgChatWithLLM(message, context) {
     msgType2 = "image";
   }
   try {
-    const HANDLE_PROCESS = context.USER_CONFIG.MODES?.[MODE]?.[msgType2] || context.USER_CONFIG.MODES.default?.[msgType2];
+    const HANDLE_PROCESS = context.USER_CONFIG.MODES?.[MODE]?.[msgType2] || ENV.MODES.default?.[msgType2];
     let text = (message.text || "").trim();
     if (ENV.EXTRA_MESSAGE_CONTEXT && context.SHARE_CONTEXT?.extraMessageContext?.text) {
       text = context.SHARE_CONTEXT.extraMessageContext.text + "\n" + text;

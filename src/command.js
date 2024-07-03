@@ -1,7 +1,7 @@
 /* eslint-disable no-unused-vars */
 import {Context} from './context.js';
 import {CONST, CUSTOM_COMMAND, DATABASE, ENV} from './env.js';
-import {mergeConfig, fetchWithRetry} from './utils.js';
+import {mergeConfig, fetchWithRetry, CUSTOM_TINFO} from './utils.js';
 import {
   getChatRoleWithContext,
   sendChatActionToTelegramWithContext,
@@ -322,8 +322,8 @@ async function commandUpdateUserConfig(message, command, subcommand, context) {
   if (kv === -1) {
     return sendMessageToTelegramWithContext(context)(ENV.I18N.command.setenv.help);
   }
-  const key = subcommand.slice(0, kv);
-  const value = subcommand.slice(kv + 1);
+  const key = subcommand.slice(0, kv).trim();
+  const value = subcommand.slice(kv + 1).trim();
   if (ENV.LOCK_USER_CONFIG_KEYS.includes(key)) {
     const msg = ENV.I18N.command.setenv.update_config_error(new Error(`Key ${key} is locked`));
     return sendMessageToTelegramWithContext(context)(msg);
@@ -518,6 +518,7 @@ async function commandUsage(message, command, subcommand, context) {
  */
 async function commandSystem(message, command, subcommand, context) {
   let msg = '<pre>GLOBAL_CHAT_MODEL: ' + ENV.CHAT_MODEL + '\n';
+  if (!ENV.DEV_MODE) {
   msg +=
     'AI_PROVIDER: ' +
     context.USER_CONFIG.AI_PROVIDER +
@@ -538,10 +539,9 @@ async function commandSystem(message, command, subcommand, context) {
     context.USER_CONFIG.DALL_E_IMAGE_STYLE +
     '\n' +
     '---\n' +
-    context.USER_CONFIG.CUSTOM_TINFO +
+    CUSTOM_TINFO(context.USER_CONFIG) +
     '\n';
-
-  if (ENV.DEV_MODE) {
+  } else {
     const shareCtx = { ...context.SHARE_CONTEXT };
     shareCtx.currentBotToken = "******";
     context.USER_CONFIG.OPENAI_API_KEY = "******";
@@ -550,6 +550,10 @@ async function commandSystem(message, command, subcommand, context) {
     context.USER_CONFIG.AZURE_DALLE_API = "******";
     context.USER_CONFIG.GOOGLE_API_KEY = "******";
     context.USER_CONFIG.MISTRAL_API_KEY = "******";
+    Object.values(context.USER_CONFIG.PROVIDER_SOURCES).map((source) => {
+      Object.keys(source).map((k) => (source[k] = '******'));
+      return null;
+    });  
     msg = `<pre>\nUSER_CONFIG: ${JSON.stringify(context.USER_CONFIG, null, 2)}
 `;
     msg += `CHAT_CONTEXT: ${JSON.stringify(context.CURRENT_CHAT_CONTEXT, null, 2)}
