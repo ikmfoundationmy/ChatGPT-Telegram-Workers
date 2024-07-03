@@ -36,15 +36,15 @@ export function escape(text) {
       result.parts[i] = result.parts[i]
         .replace(escapeChars, '\\$1')
         // force all characters that need to be escaped to be escaped once.
-        .replace(/\\\*\\\*(.+?[^\\])\\\*\\\*/g, '*$1*') // bold
+        .replace(/\\\*\\\*(.*?[^\\])\\\*\\\*/g, '*$1*') // bold
         // \\\*(.+?[^\\])\\\*(.*)$
         // \\\*([^(\\\*)])(.+?[^\\])\\\*(\s*)$
-        .replace(/\\_\\_(.+?[^\\])\\_\\_/g, '__$1__') // underline
-        .replace(/\\_(.+?[^\\])\\_/g, '_$1_') // italic
-        .replace(/\\~(.+?[^\\])\\~/g, '~$1~') // strikethrough
-        .replace(/\\\|\\\|(.+?[^\\])\\\|\\\|/g, '||$1||') // spoiler
+        .replace(/\\_\\_(.*?[^\\])\\_\\_/g, '__$1__') // underline
+        .replace(/\\_(.*?[^\\])\\_/g, '_$1_') // italic
+        .replace(/\\~(.*?[^\\])\\~/g, '~$1~') // strikethrough
+        .replace(/\\\|\\\|(.*?[^\\])\\\|\\\|/g, '||$1||') // spoiler
         .replace(/\\\[([^\]]+?)\\\]\\\((.+?)\\\)/g, '[$1]($2)') // url
-        .replace(/\\\`(.+?[^\\])\\\`/g, '`$1`') // inline code
+        .replace(/\\\`(.*?[^\\])\\\`/g, '`$1`') // inline code
         // .replace(/`\\``/g, '```') // code block
         .replace(/\\\\([\_\*\[\]\(\)\~\`\>\#\+\-\=\|\{\}\.\!])/g, '\\$1') // restore duplicate escapes
         .replace(/^(\s*)\\(>.+\s*)$/gm, '$1$2') // >

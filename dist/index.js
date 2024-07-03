@@ -1004,7 +1004,7 @@ function escape(text) {
   const result = splitAndKeepWithIndex(text, codeBlockReg);
   for (let i = 0; i < result.parts.length; i++) {
     if (!result.indices.includes(i)) {
-      result.parts[i] = result.parts[i].replace(escapeChars, "\\$1").replace(/\\\*\\\*(.+?[^\\])\\\*\\\*/g, "*$1*").replace(/\\_\\_(.+?[^\\])\\_\\_/g, "__$1__").replace(/\\_(.+?[^\\])\\_/g, "_$1_").replace(/\\~(.+?[^\\])\\~/g, "~$1~").replace(/\\\|\\\|(.+?[^\\])\\\|\\\|/g, "||$1||").replace(/\\\[([^\]]+?)\\\]\\\((.+?)\\\)/g, "[$1]($2)").replace(/\\\`(.+?[^\\])\\\`/g, "`$1`").replace(/\\\\([\_\*\[\]\(\)\~\`\>\#\+\-\=\|\{\}\.\!])/g, "\\$1").replace(/^(\s*)\\(>.+\s*)$/gm, "$1$2").replace(/^((\\#){1,3}\s)(.+)/gm, "$1*$3*");
+      result.parts[i] = result.parts[i].replace(escapeChars, "\\$1").replace(/\\\*\\\*(.*?[^\\])\\\*\\\*/g, "*$1*").replace(/\\_\\_(.*?[^\\])\\_\\_/g, "__$1__").replace(/\\_(.*?[^\\])\\_/g, "_$1_").replace(/\\~(.*?[^\\])\\~/g, "~$1~").replace(/\\\|\\\|(.*?[^\\])\\\|\\\|/g, "||$1||").replace(/\\\[([^\]]+?)\\\]\\\((.+?)\\\)/g, "[$1]($2)").replace(/\\\`(.*?[^\\])\\\`/g, "`$1`").replace(/\\\\([\_\*\[\]\(\)\~\`\>\#\+\-\=\|\{\}\.\!])/g, "\\$1").replace(/^(\s*)\\(>.+\s*)$/gm, "$1$2").replace(/^((\\#){1,3}\s)(.+)/gm, "$1*$3*");
     } else {
       result.parts[i] = result.parts[i].replace(/(\`)/g, "\\$1").replace(/\\`\\`\\`/g, "```");
     }
