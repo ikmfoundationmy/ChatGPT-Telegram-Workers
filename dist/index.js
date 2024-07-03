@@ -4,9 +4,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1719970894;
+  BUILD_TIMESTAMP = 1720029609;
   // 当前版本 commit id
-  BUILD_VERSION = "9ae0120";
+  BUILD_VERSION = "bf8881d";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -963,54 +963,68 @@ function CUSTOM_TINFO(config) {
       CHAT_MODEL = config.MISTRAL_CHAT_MODEL;
       break;
   }
-  let info = `TAG: ${config.EXTRA_TINFO || "default"}
+  let info = `MODE: ${config.CURRENT_MODE}
 CHAT_MODEL:${CHAT_MODEL}`;
-  const PROCESS = config.MODES[config.CURRENT_MODE];
+  const PROCESS = config.MODES[config.CURRENT_MODE] || ENV.MODES[config.CURRENT_MODE] || [];
   for (const [k, v] of Object.entries(PROCESS)) {
-    info += `- ${k}` + " ".repeat(4) + v.map((i) => Object.values(i).join(" ") || `${k}:text`).join("\n" + " ".repeat(4));
+    info += `
+- ${k}` + " ".repeat(4) + v.map((i) => Object.values(i).join(" ") || `${k}:text`).join("\n" + " ".repeat(4));
   }
   return info;
 }
 
 // src/md2tgmd.js
-var codeBlockReg = /^(\s*```[\s\S]+?^\s*```\s*$)/gm;
 var escapeChars = /([\_\*\[\]\(\)\~\`\>\#\+\-\=\|\{\}\.\!])/g;
-function CompleteCodeBlock(text) {
-  const codeMatches = text.match(/^\s*```/gm);
-  return codeMatches && codeMatches.length % 2 === 1 ? text + "\n```" : text;
-}
-function splitAndKeepWithIndex(text, regex) {
-  const parts = text.split(regex);
-  let blankLength = 0;
-  let blankReg;
-  const indices = [];
-  for (let i = 0; i < parts.length; i++) {
-    if (regex.test(parts[i])) {
-      parts[i] = parts[i].replace(/^\n+/gm, "");
-      if (blankLength === 0)
-        blankLength = parts[i].length - parts[i].trimStart().length;
-      if (blankLength > 0) {
-        if (!blankReg)
-          blankReg = new RegExp(`^\\s{${blankLength}}`, "gm");
-        parts[i] = parts[i].replace(blankReg, "");
-      }
-      indices.push(i);
-    }
-  }
-  return { parts, indices };
-}
+var codeBlank = 0;
 function escape(text) {
-  text = CompleteCodeBlock(text);
-  const result = splitAndKeepWithIndex(text, codeBlockReg);
-  for (let i = 0; i < result.parts.length; i++) {
-    if (!result.indices.includes(i)) {
-      result.parts[i] = result.parts[i].replace(escapeChars, "\\$1").replace(/\\\*\\\*(.*?[^\\])\\\*\\\*/g, "*$1*").replace(/\\_\\_(.*?[^\\])\\_\\_/g, "__$1__").replace(/\\_(.*?[^\\])\\_/g, "_$1_").replace(/\\~(.*?[^\\])\\~/g, "~$1~").replace(/\\\|\\\|(.*?[^\\])\\\|\\\|/g, "||$1||").replace(/\\\[([^\]]+?)\\\]\\\((.+?)\\\)/g, "[$1]($2)").replace(/\\\`(.*?[^\\])\\\`/g, "`$1`").replace(/\\\\([\_\*\[\]\(\)\~\`\>\#\+\-\=\|\{\}\.\!])/g, "\\$1").replace(/^(\s*)\\(>.+\s*)$/gm, "$1$2").replace(/^((\\#){1,3}\s)(.+)/gm, "$1*$3*");
-    } else {
-      result.parts[i] = result.parts[i].replace(/(\`)/g, "\\$1").replace(/\\`\\`\\`/g, "```");
+  const lines = text.split("\n");
+  const stack = [];
+  const result = [];
+  let linetrim = "";
+  for (const [i, line] of lines.entries()) {
+    linetrim = line.trim();
+    let startIndex;
+    if (/^```.+/.test(linetrim)) {
+      stack.push(i);
+    } else if (linetrim === "```") {
+      if (stack.length) {
+        startIndex = stack.pop();
+        if (!stack.length) {
+          const content = lines.slice(startIndex, i + 1).join("\n");
+          result.push(handleEscape(content, "code"));
+          continue;
+        }
+      } else {
+        stack.push(i);
+      }
     }
-    result.parts[i] = result.parts[i].replace(/([^\\])\\([^\_\*\[\]\(\)\~\`\>\#\+\-\=\|\{\}\.\!])/g, "$1\\\\$2");
+    if (!stack.length) {
+      result.push(handleEscape(line));
+    }
   }
-  return result.parts.join("");
+  if (stack.length) {
+    const last = lines.slice(stack[0]).join("\n") + "\n```";
+    result.push(handleEscape(last, "code"));
+  }
+  return result.join("\n");
+}
+function handleEscape(text, type = "text") {
+  if (!text.trim()) {
+    return text;
+  }
+  if (type === "text") {
+    text = text.replace(escapeChars, "\\$1").replace(/\\\*\\\*(.*?[^\\])\\\*\\\*/g, "*$1*").replace(/\\_\\_(.*?[^\\])\\_\\_/g, "__$1__").replace(/\\_(.*?[^\\])\\_/g, "_$1_").replace(/\\~(.*?[^\\])\\~/g, "~$1~").replace(/\\\|\\\|(.*?[^\\])\\\|\\\|/g, "||$1||").replace(/\\\[([^\]]+?)\\\]\\\((.+?)\\\)/g, "[$1]($2)").replace(/\\\`(.*?[^\\])\\\`/g, "`$1`").replace(/\\\\([\_\*\[\]\(\)\~\`\>\#\+\-\=\|\{\}\.\!])/g, "\\$1").replace(/^(\s*)\\(>.+\s*)$/gm, "$1$2").replace(/^((\\#){1,3}\s)(.+)/gm, "$1*$3*");
+  } else {
+    if (codeBlank === 0)
+      codeBlank = text.length - text.trimStart().length;
+    if (codeBlank > 0) {
+      const blankReg = new RegExp(`^\\s{${blankLength}}`, "gm");
+      text = text.replace(blankReg, "");
+    }
+    text = text.trimEnd().replace(/(\`)/g, "\\$1").replace(/^\\`\\`\\`([\s\S]+)\\`\\`\\`$/g, "```$1```");
+  }
+  text = text.replace(/([^\\])\\([^\_\*\[\]\(\)\~\`\>\#\+\-\=\|\{\}\.\!])/g, "$1\\\\$2");
+  return text;
 }
 
 // src/telegram.js

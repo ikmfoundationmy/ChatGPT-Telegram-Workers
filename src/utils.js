@@ -384,12 +384,11 @@ export function CUSTOM_TINFO(config) {
       CHAT_MODEL = config.MISTRAL_CHAT_MODEL;
       break;
   }
-  let info = `TAG: ${config.EXTRA_TINFO || 'default'}
-CHAT_MODEL:${CHAT_MODEL}`;
-  const PROCESS = config.MODES[config.CURRENT_MODE];
+  let info = `MODE: ${config.CURRENT_MODE}\nCHAT_MODEL:${CHAT_MODEL}`;
+  const PROCESS = config.MODES[config.CURRENT_MODE] || ENV.MODES[config.CURRENT_MODE] || [];
   for (const [k, v] of Object.entries(PROCESS)) {
     info +=
-      `- ${k}` + ' '.repeat(4) + v.map((i) => Object.values(i).join(' ') || `${k}:text`).join('\n' + ' '.repeat(4));
+      `\n- ${k}` + ' '.repeat(4) + v.map((i) => Object.values(i).join(' ') || `${k}:text`).join('\n' + ' '.repeat(4));
   }
   return info;
 }
