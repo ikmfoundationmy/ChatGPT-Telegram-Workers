@@ -150,7 +150,7 @@ async function msgFilterNonTextMessage(message, context) {
  */
 async function msgHandlePrivateMessage(message, context) {
   if (message.voice || message.audio || message.photo || message.document) {
-    return;
+    return null;
   }
   if (!message.text) {
     return new Response('Non text message',{'status':200});
@@ -445,8 +445,8 @@ async function msgChatWithLLM(message, context) {
   // 消息类型优先级: 图片-音频-文本
   const acceptType = ['photo', 'image', 'voice', 'audio', 'text']
   let msgType = acceptType.find((key) => key in message);
-  let fileType = msgType;
-  if (!fileType && message?.document) {
+  let fileType = message?.document || msgType;
+  if (message?.document) {
     if (message.document.mime_type.match(/image/)) {
       msgType = 'image';
     } else if (message.document.mime_type.match(/audio/)) msgType = 'audio';
@@ -526,17 +526,12 @@ async function msgChatWithLLM(message, context) {
           break;
         case 'audio:text':
           result = await msgHandleFile(message, fileType, context);
-          // context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO +=
-          //   (ENV.ENABLE_SHOWINFO ? '\n' : '\nTranscription: \n') +
-          //   context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEXT +
-          //   '\n';
           context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILE = null;
           context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILEURL = null;
           break;
         case 'image:text':
           await msgHandleFile(message, fileType, context);
           result = await chatWithLLM(message.text, context, null);
-          // context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO += '\n' + context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEXT + '\n';
           context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILE = null;
           context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILEURL = null;
           break;

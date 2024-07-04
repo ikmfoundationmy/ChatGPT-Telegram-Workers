@@ -11,7 +11,7 @@
   "author": "TBXark",
   "license": "ISC",
   "dependencies": {
-    "cloudflare-worker-adapter": "github:TBXark/cloudflare-worker-adapter",
+    "cloudflare-worker-adapter": "github:adolphnov/cloudflare-worker-adapter",
     "https-proxy-agent": "^5.0.1"
   }
 }

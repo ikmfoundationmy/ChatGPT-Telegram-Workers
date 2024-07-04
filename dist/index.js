@@ -4,9 +4,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1720095153;
+  BUILD_TIMESTAMP = 1720103018;
   // 当前版本 commit id
-  BUILD_VERSION = "fd542df";
+  BUILD_VERSION = "411d66f";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -2785,7 +2785,7 @@ async function msgFilterWhiteList(message, context) {
 }
 async function msgHandlePrivateMessage(message, context) {
   if (message.voice || message.audio || message.photo || message.document) {
-    return;
+    return null;
   }
   if (!message.text) {
     return new Response("Non text message", { "status": 200 });
@@ -3014,8 +3014,8 @@ async function msgHandleFile(message, fileType, context) {
 async function msgChatWithLLM(message, context) {
   const acceptType = ["photo", "image", "voice", "audio", "text"];
   let msgType2 = acceptType.find((key) => key in message);
-  let fileType = msgType2;
-  if (!fileType && message?.document) {
+  let fileType = message?.document || msgType2;
+  if (message?.document) {
     if (message.document.mime_type.match(/image/)) {
       msgType2 = "image";
     } else if (message.document.mime_type.match(/audio/))
