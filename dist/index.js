@@ -4,9 +4,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1720029609;
+  BUILD_TIMESTAMP = 1720095153;
   // 当前版本 commit id
-  BUILD_VERSION = "bf8881d";
+  BUILD_VERSION = "fd542df";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -968,7 +968,8 @@ CHAT_MODEL:${CHAT_MODEL}`;
   const PROCESS = config.MODES[config.CURRENT_MODE] || ENV.MODES[config.CURRENT_MODE] || [];
   for (const [k, v] of Object.entries(PROCESS)) {
     info += `
-- ${k}` + " ".repeat(4) + v.map((i) => Object.values(i).join(" ") || `${k}:text`).join("\n" + " ".repeat(4));
+- ${k}
+` + " ".repeat(4) + v.map((i) => Object.values(i).join(" ") || `${k}:text`).join("\n" + " ".repeat(4));
   }
   return info;
 }
@@ -3012,7 +3013,8 @@ async function msgHandleFile(message, fileType, context) {
 }
 async function msgChatWithLLM(message, context) {
   const acceptType = ["photo", "image", "voice", "audio", "text"];
-  let fileType = acceptType.find((key) => key in message);
+  let msgType2 = acceptType.find((key) => key in message);
+  let fileType = msgType2;
   if (!fileType && message?.document) {
     if (message.document.mime_type.match(/image/)) {
       msgType2 = "image";
@@ -3024,7 +3026,6 @@ async function msgChatWithLLM(message, context) {
   }
   console.log("[FILE]: " + fileType);
   const MODE = context.USER_CONFIG.CURRENT_MODE;
-  let msgType2 = fileType;
   if (msgType2 == "voice") {
     msgType2 = "audio";
   } else if (msgType2 == "photo") {

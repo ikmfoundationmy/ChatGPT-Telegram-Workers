@@ -388,7 +388,7 @@ export function CUSTOM_TINFO(config) {
   const PROCESS = config.MODES[config.CURRENT_MODE] || ENV.MODES[config.CURRENT_MODE] || [];
   for (const [k, v] of Object.entries(PROCESS)) {
     info +=
-      `\n- ${k}` + ' '.repeat(4) + v.map((i) => Object.values(i).join(' ') || `${k}:text`).join('\n' + ' '.repeat(4));
+      `\n- ${k}\n` + ' '.repeat(4) + v.map((i) => Object.values(i).join(' ') || `${k}:text`).join('\n' + ' '.repeat(4));
   }
   return info;
 }

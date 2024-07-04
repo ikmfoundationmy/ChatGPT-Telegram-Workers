@@ -444,7 +444,8 @@ async function msgHandleFile(message, fileType, context) {
 async function msgChatWithLLM(message, context) {
   // 消息类型优先级: 图片-音频-文本
   const acceptType = ['photo', 'image', 'voice', 'audio', 'text']
-  let fileType = acceptType.find((key) => key in message);
+  let msgType = acceptType.find((key) => key in message);
+  let fileType = msgType;
   if (!fileType && message?.document) {
     if (message.document.mime_type.match(/image/)) {
       msgType = 'image';
@@ -455,16 +456,15 @@ async function msgChatWithLLM(message, context) {
   }
   console.log('[FILE]: ' + fileType);
 
-  // 与LLM交互
   const MODE = context.USER_CONFIG.CURRENT_MODE;
 
-  let msgType = fileType;
   if (msgType == 'voice') {
     msgType = 'audio';
   } else if (msgType == 'photo') {
     msgType = 'image';
   }
 
+  // 与LLM交互
   try {
     const HANDLE_PROCESS = context.USER_CONFIG.MODES?.[MODE]?.[msgType] || ENV.MODES.default?.[msgType];
     let text = (message.text || '').trim();
@@ -476,7 +476,6 @@ async function msgChatWithLLM(message, context) {
     }
 
     let result;
-
     for (const [i, PROCESS] of HANDLE_PROCESS.entries()) {
       if (result && result instanceof Response) {
         return result;
