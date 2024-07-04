@@ -72,7 +72,7 @@ function handleEscape(text, type = 'text') {
   } else {
     if (codeBlank === 0) codeBlank = text.length - text.trimStart().length;
     if (codeBlank > 0) {
-      const blankReg = new RegExp(`^\\s{${blankLength}}`, 'gm');
+      const blankReg = new RegExp(`^\\s{${codeBlank}}`, 'gm');
       text = text.replace(blankReg, '');
     }
     text = text

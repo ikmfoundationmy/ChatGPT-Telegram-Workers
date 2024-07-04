@@ -1018,7 +1018,7 @@ function handleEscape(text, type = "text") {
     if (codeBlank === 0)
       codeBlank = text.length - text.trimStart().length;
     if (codeBlank > 0) {
-      const blankReg = new RegExp(`^\\s{${blankLength}}`, "gm");
+      const blankReg = new RegExp(`^\\s{${codeBlank}}`, "gm");
       text = text.replace(blankReg, "");
     }
     text = text.trimEnd().replace(/(\`)/g, "\\$1").replace(/^\\`\\`\\`([\s\S]+)\\`\\`\\`$/g, "```$1```");
