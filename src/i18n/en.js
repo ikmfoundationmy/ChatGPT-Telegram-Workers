@@ -35,6 +35,11 @@ export default {
       'redo': 'Redo the last conversation, /redo with modified content or directly /redo',
       'echo': 'Echo the message',
       'bill': 'View current bill',
+      'chatlist': 'Query dialog list',
+      'history': 'Query history',
+      'setid': 'Set the conversation ID, the complete command format is `/setid id`',
+      'setalias': 'Set conversation alias format is `/setalias conversation_number alias`',
+      'refreshchatlist': 'Update the list of cached conversations',
     },
     role: {
       'not_defined_any_role': 'No roles have been defined yet',

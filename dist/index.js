@@ -4,9 +4,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1720103018;
+  BUILD_TIMESTAMP = 1720274175;
   // 当前版本 commit id
-  BUILD_VERSION = "411d66f";
+  BUILD_VERSION = "8cf8334";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -156,6 +156,9 @@ var Environment = class {
   };
   CURRENT_MODE = "default";
   PROVIDER_SOURCES = {};
+  REVERSE_MODE = false;
+  REVERSE_TOKEN = "";
+  REVERSE_PERFIX = "";
   // 是否读取图片
   LOAD_IMAGE_FILE = false;
   // -- 模式开关 --
@@ -395,7 +398,10 @@ var Context = class {
     // mistral api base
     MISTRAL_COMPLETIONS_API: ENV.MISTRAL_COMPLETIONS_API,
     // mistral api model
-    MISTRAL_CHAT_MODEL: ENV.MISTRAL_CHAT_MODEL
+    MISTRAL_CHAT_MODEL: ENV.MISTRAL_CHAT_MODEL,
+    REVERSE_MODE: ENV.REVERSE_MODE,
+    REVERSE_TOKEN: ENV.REVERSE_TOKEN,
+    REVERSE_PERFIX: ENV.REVERSE_PERFIX
   };
   USER_DEFINE = {
     VALID_KEYS: ["OPENAI_API_EXTRA_PARAMS", "SYSTEM_INIT_MESSAGE"],
@@ -439,8 +445,11 @@ var Context = class {
     // 发言人 id
     role: null,
     // 角色
-    extraMessageContext: null
+    extraMessageContext: null,
     // 额外消息上下文
+    reverseHistoryKey: null,
+    // reverse openai hstory conversation and parent id;
+    reverseChatKey: null
   };
   /**
    * @inner
@@ -494,9 +503,7 @@ var Context = class {
    */
   initTelegramContext(request) {
     const { pathname } = new URL(request.url);
-    const token = pathname.match(
-      /^\/telegram\/(\d+:[A-Za-z0-9_-]{35})\/webhook/
-    )[1];
+    const token = pathname.match(/^\/telegram\/(\d+:[A-Za-z0-9_-]{35})\/webhook/)[1];
     const telegramIndex = ENV.TELEGRAM_AVAILABLE_TOKENS.indexOf(token);
     if (telegramIndex === -1) {
       throw new Error("Token not allowed");
@@ -544,6 +551,8 @@ var Context = class {
     this.SHARE_CONTEXT.chatType = message.chat?.type;
     this.SHARE_CONTEXT.chatId = message.chat.id;
     this.SHARE_CONTEXT.speakerId = message.from.id || message.chat.id;
+    this.SHARE_CONTEXT.reverseHistoryKey = message?.from?.id ? `reverseHistory:${message.from.id || message.chat.id}` : "";
+    this.SHARE_CONTEXT.reverseChatKey = message?.from?.id ? `reverseChatId:${message.from.id || message.chat.id}` : "";
   }
   /**
    * @param {TelegramMessage} message
@@ -973,9 +982,15 @@ CHAT_MODEL:${CHAT_MODEL}`;
   }
   return info;
 }
+function UUIDv4() {
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function(c) {
+    let r = Math.random() * 16 | 0, v = c === "x" ? r : r & 3 | 8;
+    return v.toString(16);
+  });
+}
 
 // src/md2tgmd.js
-var escapeChars = /([\_\*\[\]\(\)\~\`\>\#\+\-\=\|\{\}\.\!])/g;
+var escapeChars = /([\_\*\[\]\(\)\\\~\`\>\#\+\-\=\|\{\}\.\!])/g;
 var codeBlank = 0;
 function escape(text) {
   const lines = text.split("\n");
@@ -1022,9 +1037,8 @@ function handleEscape(text, type = "text") {
       const blankReg = new RegExp(`^\\s{${codeBlank}}`, "gm");
       text = text.replace(blankReg, "");
     }
-    text = text.trimEnd().replace(/(\`)/g, "\\$1").replace(/^\\`\\`\\`([\s\S]+)\\`\\`\\`$/g, "```$1```");
+    text = text.trimEnd().replace(/([\\\`])/g, "\\$1").replace(/^\\`\\`\\`([\s\S]+)\\`\\`\\`$/g, "```$1```");
   }
-  text = text.replace(/([^\\])\\([^\_\*\[\]\(\)\~\`\>\#\+\-\=\|\{\}\.\!])/g, "$1\\\\$2");
   return text;
 }
 
@@ -1062,7 +1076,7 @@ async function sendMessageToTelegram(message, token, context) {
   let info = "";
   const step = context.PROCESS_INFO?.STEP.split("/") || [0, 0];
   const escapeContent = (parse_mode = chatContext?.parse_mode) => {
-    info = context.MIDDLE_INFO?.TEMP_INFO.trim() || "";
+    info = context.MIDDLE_INFO?.TEMP_INFO?.trim() || "";
     if (step[0] < step[1] && !ENV.HIDE_MIDDLE_MESSAGE) {
       chatContext.parse_mode = null;
       message = info + " \n\n" + origin_msg;
@@ -1338,6 +1352,19 @@ async function getFileInfo(file_id, token) {
 async function getFile(fullPath) {
   return fetchWithRetry(fullPath);
 }
+async function sendLoadingMessageToTelegramWithContext(context) {
+  try {
+    if (!context.CURRENT_CHAT_CONTEXT.message_id) {
+      const msg = await sendMessageToTelegramWithContext2(context)(
+        ENV.I18N.message.loading
+      ).then((r) => r.json());
+      context.CURRENT_CHAT_CONTEXT.message_id = msg.result.message_id;
+      context.CURRENT_CHAT_CONTEXT.reply_markup = null;
+    }
+  } catch (e) {
+    console.error(e);
+  }
+}
 
 // src/vendors/stream.js
 var Stream = class {
@@ -1568,6 +1595,52 @@ async function requestCompletionsFromOpenAI(message, history, context, onStream)
     setTimeout(() => updateBotUsage(result?.usage, context).catch(console.error), 0);
   });
 }
+async function requestCompletionsFromReverseOpenAI(message, reverseContext, context, onStream) {
+  const url = `${context.USER_CONFIG.REVERSE_PERFIX}/backend-api/conversation`;
+  let model = context.USER_CONFIG.CHAT_MODEL;
+  let content = { parts: [`${message}`], content_type: "text" };
+  const body = {
+    conversation_mode: { kind: "primary_assistant" },
+    force_paragen: false,
+    messages: [{ metadata: {}, id: reverseContext.id, author: { role: "user" }, content }],
+    timezone_offset_min: "-480",
+    ...reverseContext.conversation_id !== ":new:" && { conversation_id: reverseContext.conversation_id },
+    parent_message_id: reverseContext.parent_message_id,
+    action: "next",
+    force_rate_limit: false,
+    suggestions: [],
+    history_and_training_disabled: false,
+    model,
+    arkose_token: null
+  };
+  const header = {
+    "Content-Type": "application/json",
+    "Accept": "text/event-stream",
+    "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 15_6_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.6.1 Mobile/15E148 Safari/604.1",
+    "Authorization": `Bearer ${context.USER_CONFIG.REVERSE_TOKEN}`
+  };
+  return requestCompletionsFromOpenAICompatible(url, header, body, context, onStream);
+}
+async function requestReverseChatListOrHistory(context, type = "list", num = 30) {
+  let url = "";
+  if (!context.USER_CONFIG.REVERSE_PERFIX || !context.USER_CONFIG.REVERSE_TOKEN) {
+    throw new Error("REVERSE \u5173\u952E\u53D8\u91CF\u672A\u8BBE\u7F6E");
+  }
+  if (type === "list") {
+    url = `${context.USER_CONFIG.REVERSE_PERFIX}/backend-api/conversations?offset=0&limit=${num}&order=updated`;
+  } else
+    url = `${context.USER_CONFIG.REVERSE_PERFIX}/backend-api/conversation/${context.REVERSE_CONTEXT.conversation_id}`;
+  const headers = {
+    "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 15_6_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.6.1 Mobile/15E148 Safari/604.1",
+    Authorization: `Bearer ${context.USER_CONFIG.REVERSE_TOKEN}`,
+    "Accept-Language": "en-US"
+  };
+  const result = await fetchWithRetry(url, { headers });
+  if (result.status !== 200) {
+    throw new Error(await result.text());
+  }
+  return result.json();
+}
 async function requestCompletionsFromAzureOpenAI(message, history, context, onStream) {
   const url = context.CURRENT_CHAT_CONTEXT.PROCESS_INFO["PROXY_URL"];
   const body = {
@@ -1603,7 +1676,8 @@ async function requestCompletionsFromOpenAICompatible(url, header, body, context
     signal
   })]);
   clearTimeout(firstTimeoutId);
-  if (onStream && resp.ok && isEventStreamResponse(resp)) {
+  const immediatePromise = Promise.resolve("immediate");
+  if (onStream && resp.ok && isEventStreamResponse(resp) && !context.USER_CONFIG.REVERSE_MODE) {
     const stream = new Stream(resp, controller);
     let contentFull = "";
     let lengthDelta = 0;
@@ -1611,7 +1685,6 @@ async function requestCompletionsFromOpenAICompatible(url, header, body, context
     let msgPromise = null;
     let lastChunk = null;
     let usage = null;
-    const immediatePromise = Promise.resolve("immediate");
     try {
       for await (const data of stream) {
         const c = data?.choices?.[0]?.delta?.content || "";
@@ -1636,7 +1709,7 @@ ERROR: ${e.message}`;
       console.log(`errorEnd`);
     }
     contentFull += lastChunk;
-    if (ENV.GPT3_TOKENS_COUNT && usage) {
+    if (ENV.GPT3_TOKENS_COUNT && usage && !context.USER_CONFIG.REVERSE_MODE) {
       onResult?.({ usage });
       context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.promptToken = usage?.prompt_tokens ?? 0;
       context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.completionToken = usage?.completion_tokens ?? 0;
@@ -1646,6 +1719,54 @@ ERROR: ${e.message}`;
     await msgPromise;
     console.log(`MiddleMsgTime: ${((performance.now() - startTime) / 1e3).toFixed(2)}s`);
     return contentFull;
+  } else if (context.USER_CONFIG.REVERSE_MODE) {
+    const stream = new Stream(resp, controller);
+    let updateStep = 5;
+    let content = "";
+    let lastChunk = null;
+    let msgPromise = null;
+    let conversation_id = "";
+    let id = "";
+    let model = "";
+    let title = "";
+    try {
+      for await (const data of stream) {
+        content = data?.message?.content?.parts?.[0] || content;
+        if (!conversation_id)
+          conversation_id = data?.conversation_id;
+        if (!id)
+          id = data?.message?.id;
+        if (!model)
+          model = data?.model || data?.message?.metadata?.model_slug;
+        if (!title)
+          title = data?.title;
+        if (lastChunk && content.length > updateStep) {
+          updateStep += 10;
+          if (!msgPromise || await Promise.race([msgPromise, immediatePromise]) !== "immediate") {
+            msgPromise = onStream(`${lastChunk}
+
+${ENV.I18N.message.loading}...`);
+          }
+        }
+        lastChunk = content;
+      }
+      context.REVERSE_CONTEXT.conversation_id = conversation_id;
+      context.REVERSE_CONTEXT.parent_message_id = id;
+      if (title)
+        context.REVERSE_CONTEXT.title = title;
+    } catch (e) {
+      console.error(e.message);
+      content = `Error: ${e.message}`;
+    }
+    let endTime = performance.now();
+    const LLMTime = `${((endTime - startTime) / 1e3).toFixed(2)}s`;
+    if (ENV.ENABLE_SHOWINFO) {
+      context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO = `${model || context.USER_CONFIG.CHAT_MODEL} ${LLMTime} `;
+    }
+    console.log(`[DONE] Chat via OpenAILike: ${LLMTime}`);
+    await msgPromise;
+    console.log(`MiddleMsgTime: ${((performance.now() - startTime) / 1e3).toFixed(2)}s`);
+    return lastChunk;
   }
   if (!isJsonResponse(resp)) {
     throw new Error(resp.statusText);
@@ -1976,6 +2097,8 @@ async function loadHistory(key, context) {
   return { real: history, original };
 }
 function loadChatLLM(context) {
+  if (context.USER_CONFIG.REVERSE_MODE)
+    return requestCompletionsFromReverseOpenAI;
   switch (context.CURRENT_CHAT_CONTEXT.PROCESS_INFO["AI_PROVIDER"]) {
     case "openai":
       return requestCompletionsFromOpenAI;
@@ -2048,55 +2171,74 @@ async function requestCompletionsFromLLM(text, context, llm, modifier, onStream)
   }
   return answer;
 }
+async function requestCompletionsFromReverseLLM(text, context, llm, modifier, onStream) {
+  const CHAT_ID = context.REVERSE_CONTEXT.conversation_id;
+  if (!CHAT_ID) {
+    throw new Error("\u672A\u8BBE\u7F6E\u6D88\u606FID \u5982\u9700\u65B0\u5EFA\u5BF9\u8BDD \u8BF7\u6267\u884C `/new`\u547D\u4EE4");
+  }
+  const reverseContext = { ...context.REVERSE_CONTEXT, id: UUIDv4() };
+  if (CHAT_ID === ":new:") {
+    reverseContext.parent_message_id = UUIDv4();
+  } else {
+    if (CHAT_ID && !reverseContext.parent_message_id) {
+      try {
+        const detail2 = await requestReverseChatListOrHistory(context, "detail");
+        reverseContext.parent_message_id = detail2?.current_node;
+      } catch (e) {
+        throw new Error(e.message);
+      }
+      if (!reverseContext.parent_message_id) {
+        console.error(JSON.stringify(detail));
+        throw new Error(`Can't get parent message id.`);
+      }
+    }
+  }
+  let history = JSON.parse(await DATABASE.get(context.SHARE_CONTEXT.reverseHistoryKey) || "{}");
+  const answer = await llm(text, reverseContext, context, onStream);
+  const { conversation_id, parent_message_id, title } = context.REVERSE_CONTEXT;
+  if (!history[conversation_id]) {
+    history[conversation_id] = {};
+  }
+  history[conversation_id].parent_message_id = parent_message_id;
+  if (title)
+    history[conversation_id].title = title;
+  await DATABASE.put(context.SHARE_CONTEXT.reverseChatKey, {
+    conversation_id,
+    parent_message_id
+  });
+  await DATABASE.put(context.SHARE_CONTEXT.reverseHistoryKey, history);
+  return answer;
+}
 async function chatWithLLM(text, context, modifier) {
-  text = (context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO?.TEXT || "") + text;
+  text = (context.CURRENT_CHAT_CONTEXT?.MIDDLE_INFO?.TEXT || "") + text;
   const sendFinalMsg = async (msg) => {
-    console.log(`[START] Final Msg`);
-    const start = performance.now();
     let finalResponse = await sendMessageToTelegramWithContext2(context)(msg);
     if (finalResponse.status === 429) {
       let retryTime = 1e3 * (finalResponse.headers.get("Retry-After") ?? 10);
-      const msgIntervalId = setInterval(() => {
-        console.log(`Wait ${retryTime / 1e3}s for final msg`);
-        retryTime -= 5e3;
-        if (retryTime <= 0) {
-          clearInterval(msgIntervalId);
-        }
-      }, 5e3);
+      console.log(`Wait ${retryTime / 1e3}s for final msg`);
       await delay(retryTime);
       finalResponse = await sendMessageToTelegramWithContext2(context)(msg);
     }
     if (finalResponse.status !== 200) {
       console.log(`[FAILED] Final Msg: ${await finalResponse.text()}`);
     } else {
-      const time = ((performance.now() - start) / 1e3).toFixed(2);
-      console.log(`[DONE] Final Msg: ${time}s`);
+      console.log(`[DONE] Final Msg`);
     }
     return finalResponse;
   };
   try {
-    if (!context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO) {
+    if (!context.CURRENT_CHAT_CONTEXT?.MIDDLE_INFO) {
       context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO = {};
     }
     if (context.CURRENT_CHAT_CONTEXT.reply_markup) {
       delete context.CURRENT_CHAT_CONTEXT.reply_markup;
     }
-    try {
-      if (!context.CURRENT_CHAT_CONTEXT.message_id) {
-        const msg = await sendMessageToTelegramWithContext2(context)(
-          ENV.I18N.message.loading
-        ).then((r) => r.json());
-        context.CURRENT_CHAT_CONTEXT.message_id = msg.result.message_id;
-        context.CURRENT_CHAT_CONTEXT.reply_markup = null;
-      }
-      if (ENV.ENABLE_SHOWINFO) {
-        context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO += context.CURRENT_CHAT_CONTEXT.PROCESS_INFO["MODEL"];
-      }
-    } catch (e) {
-      console.error(e);
+    await sendLoadingMessageToTelegramWithContext(context);
+    if (ENV.ENABLE_SHOWINFO && !context.USER_CONFIG.REVERSE_MODE) {
+      context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO += context.CURRENT_CHAT_CONTEXT.PROCESS_INFO["MODEL"];
     }
-    const originalInfo = context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO;
-    const steps = context.CURRENT_CHAT_CONTEXT.PROCESS_INFO.STEP.split("/");
+    let originalInfo = context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO?.TEMP_INFO || "";
+    const steps = context.CURRENT_CHAT_CONTEXT?.PROCESS_INFO?.STEP?.split("/") || [1, 1];
     const isLastStep = steps[0] == steps[1];
     setTimeout(() => sendChatActionToTelegramWithContext(context)("typing").catch(console.error), 0);
     let onStream = null;
@@ -2106,7 +2248,7 @@ async function chatWithLLM(text, context, modifier) {
         const time = ((performance.now() - llmStart) / 1e3).toFixed(2);
         extraInfo = ` ${time}s`;
       }
-      if (ENV.ENABLE_SHOWTOKENINFO && context.CURRENT_CHAT_CONTEXT?.MIDDLE_INFO.promptToken && context.CURRENT_CHAT_CONTEXT?.MIDDLE_INFO.completionToken) {
+      if (ENV.ENABLE_SHOWTOKENINFO && context.CURRENT_CHAT_CONTEXT?.MIDDLE_INFO.promptToken && context.CURRENT_CHAT_CONTEXT?.MIDDLE_INFO.completionToken && !context.USER_CONFIG.REVERSE_MODE) {
         extraInfo += " \nToken: " + context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.promptToken + " | " + context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.completionToken + " ";
       }
       context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO = originalInfo + extraInfo;
@@ -2118,7 +2260,7 @@ async function chatWithLLM(text, context, modifier) {
           return;
         }
         try {
-          await generateInfo(text2);
+          await generateInfo();
           const resp = await sendMessageToTelegramWithContext2(context)(text2);
           if (!context.CURRENT_CHAT_CONTEXT.message_id && resp.ok) {
             context.CURRENT_CHAT_CONTEXT.message_id = (await resp.json()).result.message_id;
@@ -2135,7 +2277,7 @@ async function chatWithLLM(text, context, modifier) {
     }
     console.log(`[START] Chat via ${llm.name}`);
     const llmStart = performance.now();
-    const answer = await requestCompletionsFromLLM(text, context, llm, modifier, onStream);
+    const answer = await (context.USER_CONFIG.REVERSE_MODE ? requestCompletionsFromReverseLLM : requestCompletionsFromLLM)(text, context, llm, modifier, onStream);
     console.log(`[DONE] Chat with LLM: ${((performance.now() - llmStart) / 1e3).toFixed(2)}s`);
     if (ENV.SHOW_REPLY_BUTTON && context.CURRENT_CHAT_CONTEXT.message_id) {
       try {
@@ -2152,7 +2294,8 @@ async function chatWithLLM(text, context, modifier) {
       }
     }
     if (!ENV.HIDE_MIDDLE_MESSAGE || isLastStep) {
-      await generateInfo(answer);
+      if (!context.USER_CONFIG.REVERSE_MODE)
+        await generateInfo(answer);
       await sendFinalMsg(answer);
     }
     context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEXT = answer;
@@ -2198,6 +2341,18 @@ var commandSortList = [
   "/system",
   "/help",
   "/mode"
+];
+var commandSortListNew = [
+  "/new",
+  "/setenv",
+  "/delenv",
+  "/chatlist",
+  "/history",
+  "/setid",
+  "/setalias",
+  "/refreshchatlist",
+  "/system",
+  "/help"
 ];
 var commandHandlers = {
   "/help": {
@@ -2268,6 +2423,57 @@ var commandHandlers = {
     scopes: [],
     fn: commandUpdateUserConfig,
     needAuth: commandAuthCheck.shareModeGroup
+  }
+};
+var commandHandlersNew = {
+  "/new": {
+    scopes: ["all_private_chats"],
+    fn: commandReverseNewChat,
+    needAuth: commandAuthCheck.default
+  },
+  "/setenv": {
+    scopes: [],
+    fn: commandUpdateUserConfig,
+    needAuth: commandAuthCheck.shareModeGroup
+  },
+  "/delenv": {
+    scopes: [],
+    fn: commandDeleteUserConfig,
+    needAuth: commandAuthCheck.shareModeGroup
+  },
+  "/chatlist": {
+    scopes: ["all_private_chats"],
+    fn: commandGetChatList,
+    needAuth: commandAuthCheck.default
+  },
+  "/history": {
+    scopes: ["all_private_chats"],
+    fn: commandReverseHistory,
+    needAuth: commandAuthCheck.default
+  },
+  "/system": {
+    scopes: ["all_private_chats"],
+    fn: commandSystemNew,
+    needAuth: commandAuthCheck.default
+  },
+  "/setid": {
+    scopes: ["all_private_chats"],
+    fn: commandSetId,
+    needAuth: commandAuthCheck.default
+  },
+  "/help": {
+    scopes: ["all_private_chats"],
+    fn: commandGetHelp
+  },
+  "/setalias": {
+    scopes: ["all_private_chats"],
+    needAuth: commandAuthCheck.default,
+    fn: commandSetChatAlias
+  },
+  "/refreshchatlist": {
+    scopes: ["all_private_chats"],
+    fn: commandRefreshChatList,
+    needAuth: commandAuthCheck.default
   }
 };
 async function commandUpdateRole(message, command, subcommand, context) {
@@ -2366,8 +2572,8 @@ async function commandGenerateImg(message, command, subcommand, context) {
   }
 }
 async function commandGetHelp(message, command, subcommand, context) {
-  const helpMsg = ENV.I18N.command.help.summary + "<pre>" + Object.keys(commandHandlers).map((key) => `${key}\uFF1A${ENV.I18N.command.help[key.substring(1)]}`).join("\n") + "</pre>";
-  context.CURRENT_CHAT_CONTEXT.parse_mode = "HTML";
+  const helpMsg = ENV.I18N.command.help.summary + "```markdown\n" + Object.keys(context.USER_CONFIG.REVERSE_MODE ? commandHandlersNew : commandHandlers).map((key) => `${key}\uFF1A${ENV.I18N.command.help[key.substring(1)]}`).join("\n") + "\n```";
+  context.CURRENT_CHAT_CONTEXT.parse_mode = "MarkdownV2";
   return sendMessageToTelegramWithContext2(context)(helpMsg);
 }
 async function commandCreateNewChatContext(message, command, subcommand, context) {
@@ -2538,7 +2744,7 @@ async function commandUsage(message, command, subcommand, context) {
   return sendMessageToTelegramWithContext2(context)(text);
 }
 async function commandSystem(message, command, subcommand, context) {
-  let msg = "<pre>GLOBAL_CHAT_MODEL: " + ENV.CHAT_MODEL + "\n";
+  let msg = "<pre>CHAT_MODEL: " + context.USER_CONFIG.CHAT_MODEL + "\n";
   if (!ENV.DEV_MODE) {
     msg += "AI_PROVIDER: " + context.USER_CONFIG.AI_PROVIDER + "\nVISION_MODEL: " + context.USER_CONFIG.OPENAI_VISION_MODEL + "\nSTT_MODEL: " + context.USER_CONFIG.OPENAI_STT_MODEL + "\nDALL_E_MODEL: " + context.USER_CONFIG.DALL_E_MODEL + " " + context.USER_CONFIG.DALL_E_IMAGE_SIZE + " " + context.USER_CONFIG.DALL_E_IMAGE_QUALITY + " " + context.USER_CONFIG.DALL_E_IMAGE_STYLE + "\n---\n" + CUSTOM_TINFO(context.USER_CONFIG) + "\n";
   } else {
@@ -2550,6 +2756,8 @@ async function commandSystem(message, command, subcommand, context) {
     context.USER_CONFIG.AZURE_DALLE_API = "******";
     context.USER_CONFIG.GOOGLE_API_KEY = "******";
     context.USER_CONFIG.MISTRAL_API_KEY = "******";
+    delete context.USER_CONFIG.REVERSE_PERFIX;
+    delete context.USER_CONFIG.REVERSE_TOKEN;
     Object.values(context.USER_CONFIG.PROVIDER_SOURCES).map((source) => {
       Object.keys(source).map((k) => source[k] = "******");
       return null;
@@ -2618,12 +2826,13 @@ async function handleCommandMessage(message, context) {
   if (customKey) {
     message.text = message.text.replace(customKey, CUSTOM_COMMAND[customKey]);
   }
+  const commandSelect = context.USER_CONFIG.REVERSE_MODE ? commandHandlersNew : commandHandlers;
   const msgRegExp = /^.*?[!！]/;
   const commandMsg = msgRegExp.exec(message.text)?.[0].slice(0, -1) || message.text;
   const otherMsg = message.text.substring(commandMsg.length + 1);
-  for (const key in commandHandlers) {
+  for (const key in commandSelect) {
     if (commandMsg === key || commandMsg.startsWith(key + " ") || commandMsg.startsWith(key + `@${context.SHARE_CONTEXT.currentBotName}`)) {
-      const command = commandHandlers[key];
+      const command = commandSelect[key];
       try {
         if (command.needAuth) {
           const roleList = command.needAuth(context.SHARE_CONTEXT.chatType);
@@ -2654,6 +2863,9 @@ async function handleCommandMessage(message, context) {
       }
     }
   }
+  if (context.USER_CONFIG.REVERSE_MODE && message.text.startsWith("/")) {
+    return sendMessageToTelegramWithContext2(context)(`Tip: Don't process command-like text.`);
+  }
   return null;
 }
 async function bindCommandForTelegram(token) {
@@ -2662,16 +2874,17 @@ async function bindCommandForTelegram(token) {
     all_group_chats: [],
     all_chat_administrators: []
   };
-  const commands = commandSortList;
+  const commands = ENV.REVERSE_MODE ? commandSortListNew : commandSortList;
   if (!ENV.ENABLE_USAGE_STATISTICS) {
     commands.splice(commands.indexOf("/usage"), 1);
   }
+  const commandHandlersSelect = ENV.REVERSE_MODE ? commandHandlersNew : commandHandlers;
   for (const key of commands) {
     if (ENV.HIDE_COMMAND_BUTTONS.includes(key)) {
       continue;
     }
-    if (Object.prototype.hasOwnProperty.call(commandHandlers, key) && commandHandlers[key].scopes) {
-      for (const scope of commandHandlers[key].scopes) {
+    if (Object.prototype.hasOwnProperty.call(commandHandlersSelect, key) && commandHandlersSelect[key].scopes) {
+      for (const scope of commandHandlersSelect[key].scopes) {
         if (!scopeCommandMap[scope]) {
           scopeCommandMap[scope] = [];
         }
@@ -2681,7 +2894,7 @@ async function bindCommandForTelegram(token) {
   }
   const result = {};
   for (const scope in scopeCommandMap) {
-    result[scope] = await fetchWithRetry(
+    result[scope] = await fetch(
       `https://api.telegram.org/bot${token}/setMyCommands`,
       {
         method: "POST",
@@ -2710,6 +2923,199 @@ function commandsDocument() {
     };
   });
 }
+async function commandGetChatList(message, command, subcommand, context) {
+  try {
+    let reverseChatInfo = JSON.parse(await DATABASE.get(context.SHARE_CONTEXT.reverseHistoryKey) || "{}");
+    if (Object.keys(reverseChatInfo).length === 0) {
+      await commandRefreshChatList(message, command, subcommand, context);
+      reverseChatInfo = JSON.parse(await DATABASE.get(context.SHARE_CONTEXT.reverseHistoryKey) || "{}");
+    }
+    if (reverseChatInfo instanceof Response) {
+      return reverseChatInfo;
+    }
+    let currentConversation = context.REVERSE_CONTEXT.conversation_id;
+    context.CURRENT_CHAT_CONTEXT.parse_mode = "MarkdownV2";
+    let formatData = Object.entries(reverseChatInfo).map(
+      ([k, { title, alias }], i) => `${i}. ${title || "\u6807\u9898\u4E3A\u7A7A"}
+` + (alias ? `- alias: ${alias}
+` : "") + `${k}`
+    );
+    const current_alias = reverseChatInfo?.[currentConversation]?.alias || "";
+    const current_title = reverseChatInfo?.[currentConversation]?.title || "";
+    formatData = "```\n\u5F53\u524D\u5BF9\u8BDD:\n" + (current_title ? `title: ${current_title}
+` : "") + `id: ${currentConversation || null}
+` + (current_alias ? `alias: ${current_alias}
+
+` : "\n") + formatData.join("\n\n") + "\n```";
+    return sendMessageToTelegramWithContext2(context)(formatData);
+  } catch (e) {
+    return sendMessageToTelegramWithContext2(context)(e.message);
+  }
+}
+async function commandRefreshChatList(message, command, subcommand, context) {
+  try {
+    let reverseChatInfo = {};
+    const chatListData = await requestReverseChatListOrHistory(context, "list", 25);
+    chatListData?.items?.forEach(({ id, title, update_time, create_time }) => {
+      reverseChatInfo[id] = {
+        ...reverseChatInfo[id] || {},
+        title,
+        // parent_message_id: '',
+        // id: i.id,
+        // alias: '',
+        update_time,
+        create_time
+        // is_archived: i.is_archived,
+      };
+    });
+    if (!Object.keys(reverseChatInfo).length) {
+      throw new Error(`\u672A\u67E5\u8BE2\u5230\u4EFB\u4F55\u5BF9\u8BDD\u8BB0\u5F55`);
+    }
+    await DATABASE.put(context.SHARE_CONTEXT.reverseHistoryKey, JSON.stringify(reverseChatInfo));
+    return sendMessageToTelegramWithContext2(context)(ENV.I18N.command.setenv.update_config_success);
+  } catch (e) {
+    return sendMessageToTelegramWithContext2(context)(e.message);
+  }
+}
+async function commandReverseHistory(message, command, subcommand, context) {
+  try {
+    let toDateTime = function(timestamp) {
+      const date = new Date(timestamp);
+      const options = { timeZone: "Asia/Shanghai", hour12: false };
+      return date.toLocaleString("zh-CN", options);
+    };
+    const currentConversation = context.REVERSE_CONTEXT.conversation_id;
+    if (!currentConversation || currentConversation === ":new:") {
+      return sendMessageToTelegramWithContext2(context)("\u5F53\u524D\u4E3A\u65B0\u5BF9\u8BDD\u6216ID\u4E3A\u7A7A");
+    }
+    const detail2 = await requestReverseChatListOrHistory(context, "detail");
+    const parent_message_id = detail2?.current_node || "";
+    const reverseChatInfo = JSON.parse(await DATABASE.get(context.SHARE_CONTEXT.reverseHistoryKey) || "{}");
+    if (parent_message_id && parent_message_id !== context.REVERSE_CONTEXT.parent_message_id) {
+      reverseChatInfo[currentConversation].parent_message_id = parent_message_id;
+      context.REVERSE_CONTEXT.parent_message_id = parent_message_id;
+      await DATABASE.put(context.SHARE_CONTEXT.reverseChatKey, context.REVERSE_CONTEXT);
+      await DATABASE.put(context.SHARE_CONTEXT.reverseHistoryKey, reverseChatInfo);
+    } else if (!parent_message_id)
+      return sendMessageToTelegramWithContext2(context)("Data don't obtain parent message id");
+    let filterData = Object.values(detail2.mapping).filter(({ message: message2 }) => message2?.author?.name !== "browser" && ["text", "model_editable_context"].includes(message2?.content?.content_type) && (message2?.content?.parts?.[0] || message2?.content?.model_set_context)).map(({ id, parent_id, message: { author: { role }, content, create_time } }) => ({
+      id,
+      role,
+      content: content?.parts?.join("") || content?.model_set_context,
+      content_type: content?.content_type,
+      parent_id,
+      // children: i.children,
+      create_time: create_time * 1e3
+    })).sort((a, b) => a.create_time - b.create_time).map(({ id, role, content, content_type, parent_id, create_time }) => {
+      role = role === "user" ? "you" : "gpt";
+      content = content_type === "text" ? `${content}
+` : `\`\`\`code
+${content}
+\`\`\`
+`;
+      return `${role} (${toDateTime(create_time)}) 
+${content}`;
+    }).slice(-10).join("-".repeat(36) + "\n");
+    filterData = "```markdown\nLatest 10 messages:\n\n" + filterData + "```\n";
+    return sendMessageToTelegramWithContext2(context)(filterData);
+  } catch (e) {
+    return sendMessageToTelegramWithContext2(context)(ENV.I18N.command.setenv.update_config_error(e));
+  }
+}
+async function commandReverseNewChat(message, command, subcommand, context) {
+  try {
+    context.REVERSE_CONTEXT = { conversation_id: ":new:", parent_message_id: "" };
+    await DATABASE.put(context.SHARE_CONTEXT.reverseChatKey, context.REVERSE_CONTEXT);
+    return sendMessageToTelegramWithContext2(context)(ENV.I18N.command.setenv.update_config_success);
+  } catch (e) {
+    return sendMessageToTelegramWithContext2(context)(ENV.I18N.command.setenv.update_config_error(e));
+  }
+}
+async function commandSetId(message, command, subcommand, context) {
+  try {
+    subcommand = subcommand.trim();
+    const idIndexreg = /^\d+$/;
+    const idAliasReg = /^\S+$/;
+    const idReg = /^\w{8}-\w{4}-\w{4}-\w{4}-\w{12}$/;
+    let reverseChatInfo = JSON.parse(await DATABASE.get(context.SHARE_CONTEXT.reverseHistoryKey) || "{}");
+    let message2 = "";
+    if (idIndexreg.test(subcommand)) {
+      if (Object.keys(reverseChatInfo).length === 0) {
+        reverseChatInfo = await commandRefreshChatList(message2, command, subcommand, context);
+      }
+      if (Object.keys(reverseChatInfo).length === 0) {
+        message2 = "\u65E0\u4EFB\u4F55\u5BF9\u8BDD\u8BB0\u5F55";
+      } else if (subcommand > Object.keys(reverseChatInfo).length - 1 || subcommand < 0) {
+        message2 = `Error: Index need smaller than ${Object.keys(reverseChatInfo).length}`;
+      }
+      const dataList = Object.entries(reverseChatInfo);
+      context.REVERSE_CONTEXT = {
+        conversation_id: dataList[subcommand][0],
+        parent_message_id: dataList[subcommand][1].parent_message_id
+      };
+    } else if (idReg.test(subcommand)) {
+      context.REVERSE_CONTEXT = {
+        conversation_id: subcommand,
+        parent_id: reverseChatInfo[subcommand].parent_message_id
+      };
+    } else if (idAliasReg.test(subcommand)) {
+      const conversation_id = Object.keys(reverseChatInfo).find((key) => reverseChatInfo[key].alias === subcommand);
+      if (conversation_id) {
+        context.REVERSE_CONTEXT = {
+          conversation_id,
+          parent_message_id: reverseChatInfo[conversation_id].parent_message_id
+        };
+      } else
+        message2 = `Error: alias \`${subcommand} not found\``;
+    } else
+      message2 = "id\u683C\u5F0F\u9519\u8BEF \u683C\u5F0F\u4E3A `/setid (id/\u5E8F\u53F7/\u522B\u540D)`";
+    if (message2) {
+      return sendMessageToTelegramWithContext2(context)(message2);
+    } else {
+      await DATABASE.put(context.SHARE_CONTEXT.reverseChatKey, context.REVERSE_CONTEXT);
+      return sendMessageToTelegramWithContext2(context)(ENV.I18N.command.setenv.update_config_success);
+    }
+  } catch (e) {
+    return sendMessageToTelegramWithContext2(context)(ENV.I18N.command.setenv.update_config_error(e));
+  }
+}
+async function commandSetChatAlias(message, command, subcommand, context) {
+  try {
+    const idAndAliasregex = /^\s*(\d+)\s*(\S+)$/;
+    const result = subcommand.match(idAndAliasregex);
+    if (result?.[1] && result?.[2]) {
+      let reverseChatInfo = JSON.parse(await DATABASE.get(context.SHARE_CONTEXT.reverseHistoryKey) || "{}");
+      if (Object.keys(reverseChatInfo).length === 0) {
+        reverseChatInfo = await commandRefreshChatList(message, command, subcommand, context);
+      }
+      if (result[1] > Object.keys(reverseChatInfo).length) {
+        throw new Error(`Error: index need smaller than ${Object.keys(reverseChatInfo).length}`);
+      }
+      const dataList = Object.entries(reverseChatInfo);
+      dataList[result[1]][1].alias = result[2];
+      await DATABASE.put(context.SHARE_CONTEXT.reverseHistoryKey, JSON.stringify(Object.fromEntries(dataList)));
+    } else
+      return sendMessageToTelegramWithContext2(context)("\u8BF7\u4EE5 `/setalias index alias` \u8BBE\u7F6E\u5BF9\u8BDDAlias");
+    return sendMessageToTelegramWithContext2(context)(ENV.I18N.command.setenv.update_config_success);
+  } catch (e) {
+    return sendMessageToTelegramWithContext2(context)(ENV.I18N.command.setenv.update_config_error(e));
+  }
+}
+async function commandSystemNew(message, command, subcommand, context) {
+  try {
+    let msg = `\`\`\`markdown
+REVERSE_PERFIX: ${context.USER_CONFIG.REVERSE_PERFIX}
+REVERSE_TOKEN: ${context.USER_CONFIG.REVERSE_TOKEN ? "******" : "null"}
+CHAT_MODEL: ${context.USER_CONFIG.CHAT_MODEL}
+
+REVERSE_CHAT: ${JSON.stringify(context.REVERSE_CONTEXT, null, 2)}
+\`\`\``;
+    context.CURRENT_CHAT_CONTEXT.parse_mode = "MarkdownV2";
+    return sendMessageToTelegramWithContext2(context)(msg);
+  } catch (e) {
+    return sendMessageToTelegramWithContext2(context)(ENV.I18N.command.setenv.update_config_error(e));
+  }
+}
 
 // src/message.js
 async function msgInitChatContext(message, context) {
@@ -2719,6 +3125,16 @@ async function msgInitChatContext(message, context) {
     return new Response(errorToString(e), { status: 200 });
   }
   return null;
+}
+async function msgInitReverContext(message, context) {
+  try {
+    if (context.USER_CONFIG.REVERSE_MODE) {
+      context.REVERSE_CONTEXT = JSON.parse(await DATABASE.get(context.SHARE_CONTEXT.reverseChatKey) || "{}");
+    }
+    return null;
+  } catch (e) {
+    return new Response(errorToString(e), { status: 200 });
+  }
 }
 async function msgSaveLastMessage(message, context) {
   if (ENV.DEBUG_MODE) {
@@ -2737,6 +3153,7 @@ async function msgIgnoreOldMessage(message, context) {
       console.error(e);
     }
     if (idList.includes(message.message_id)) {
+      console.log("ignore old msg");
       return new Response(JSON.stringify({
         ok: true
       }), { status: 200 });
@@ -2783,7 +3200,16 @@ async function msgFilterWhiteList(message, context) {
     ENV.I18N.message.not_supported_chat_type(context.SHARE_CONTEXT.chatType)
   );
 }
+async function msgFilterNonTextMessage(message, context) {
+  if (!message.text && !context.CURRENT_CHAT_CONTEXT?.MIDDLE_INFO?.FILEURL) {
+    return sendMessageToTelegramWithContext2(context)(ENV.I18N.message.not_supported_chat_type_message);
+  }
+  return null;
+}
 async function msgHandlePrivateMessage(message, context) {
+  if (context.USER_CONFIG.REVERSE_MODE) {
+    return null;
+  }
   if (message.voice || message.audio || message.photo || message.document) {
     return null;
   }
@@ -3012,6 +3438,8 @@ async function msgHandleFile(message, fileType, context) {
   return new Response("Handle file msg failed", { status: 200 });
 }
 async function msgChatWithLLM(message, context) {
+  if (context.USER_CONFIG.REVERSE_MODE)
+    return chatWithLLM(message.text, context, null);
   const acceptType = ["photo", "image", "voice", "audio", "text"];
   let msgType2 = acceptType.find((key) => key in message);
   let fileType = message?.document || msgType2;
@@ -3108,27 +3536,26 @@ async function msgChatWithLLM(message, context) {
   return new Response("success", { status: 200 });
 }
 async function msgProcessByChatType(message, context) {
-  const handlerMap = {
-    "private": [
-      msgFilterWhiteList,
-      msgHandlePrivateMessage,
-      // msgFilterNonTextMessage,
-      msgHandleCommand,
-      msgHandleRole
-    ],
-    "group": [
-      msgFilterWhiteList,
-      msgHandleGroupMessage,
-      msgHandleCommand,
-      msgHandleRole
-    ],
-    "supergroup": [
-      msgFilterWhiteList,
-      msgHandleGroupMessage,
-      msgHandleCommand,
-      msgHandleRole
-    ]
-  };
+  let handlerMap;
+  if (context.USER_CONFIG.REVERSE_MODE) {
+    handlerMap = {
+      "private": [msgFilterWhiteList, msgFilterNonTextMessage, msgHandleCommand],
+      "group": [msgFilterWhiteList, msgHandleGroupMessage, msgHandleCommand],
+      "supergroup": [msgFilterWhiteList, msgHandleGroupMessage, msgHandleCommand]
+    };
+  } else {
+    handlerMap = {
+      "private": [
+        msgFilterWhiteList,
+        msgHandlePrivateMessage,
+        // msgFilterNonTextMessage,
+        msgHandleCommand,
+        msgHandleRole
+      ],
+      "group": [msgFilterWhiteList, msgHandleGroupMessage, msgHandleCommand, msgHandleRole],
+      "supergroup": [msgFilterWhiteList, msgHandleGroupMessage, msgHandleCommand, msgHandleRole]
+    };
+  }
   if (!Object.prototype.hasOwnProperty.call(handlerMap, context.SHARE_CONTEXT.chatType)) {
     return sendMessageToTelegramWithContext2(context)(
       ENV.I18N.message.not_supported_chat_type(context.SHARE_CONTEXT.chatType)
@@ -3173,14 +3600,16 @@ async function handleMessage(request) {
   const handlers = [
     msgIgnoreSpecificMessage,
     // 忽略特定文本
-    msgInitChatContext,
-    // 初始化聊天上下文: 生成chat_id, reply_to_message_id(群组消息), SHARE_CONTEXT
-    msgSaveLastMessage,
-    // 保存最后一条消息
     msgCheckEnvIsReady,
     // 检查环境是否准备好: API_KEY, DATABASE
+    msgInitChatContext,
+    // 初始化聊天上下文: 生成chat_id, reply_to_message_id(群组消息), SHARE_CONTEXT
     msgIgnoreOldMessage,
     // 忽略旧消息
+    msgInitReverContext,
+    // 初始化REVERSE_MODE上下文 生成 conversation_id, parent_message_id
+    msgSaveLastMessage,
+    // 保存最后一条消息
     msgProcessByChatType,
     // 根据类型对消息进一步处理
     msgChatWithLLM
@@ -3401,7 +3830,12 @@ var zh_hans_default = {
       "redo": "\u91CD\u505A\u4E0A\u4E00\u6B21\u7684\u5BF9\u8BDD, /redo \u52A0\u4FEE\u6539\u8FC7\u7684\u5185\u5BB9 \u6216\u8005 \u76F4\u63A5 /redo",
       "echo": "\u56DE\u663E\u6D88\u606F",
       "bill": "\u67E5\u770B\u5F53\u524D\u8D26\u5355",
-      "mode": "\u8BBE\u7F6E\u5F53\u524D\u6A21\u5F0F \u547D\u4EE4\u5B8C\u6574\u683C\u5F0F\u4E3A /mode NAME, \u5F53NAME=all\u65F6, \u67E5\u770B\u6240\u6709mode"
+      "mode": "\u8BBE\u7F6E\u5F53\u524D\u6A21\u5F0F \u547D\u4EE4\u5B8C\u6574\u683C\u5F0F\u4E3A /mode NAME, \u5F53NAME=all\u65F6, \u67E5\u770B\u6240\u6709mode",
+      "chatlist": "\u67E5\u8BE2\u5BF9\u8BDD\u5217\u8868",
+      "history": "\u67E5\u8BE2\u5386\u53F2\u8BB0\u5F55",
+      "setid": "\u8BBE\u7F6E\u5BF9\u8BDDID \u683C\u5F0F\u4E3A `/setid id`",
+      "setalias": "\u8BBE\u7F6E\u5BF9\u8BDD\u522B\u540D \u683C\u5F0F\u4E3A `/setalias \u5BF9\u8BDD\u5E8F\u5217\u53F7(\u6570\u5B57) \u522B\u540D`",
+      "refreshchatlist": "\u66F4\u65B0\u7F13\u5B58\u7684\u5BF9\u8BDD\u5217\u8868"
     },
     role: {
       "not_defined_any_role": "\u8FD8\u672A\u5B9A\u4E49\u4EFB\u4F55\u89D2\u8272",
@@ -3490,7 +3924,13 @@ var zh_hant_default = {
       "role": "\u8A2D\u7F6E\u9810\u8A2D\u8EAB\u4EFD",
       "redo": "\u91CD\u505A\u4E0A\u4E00\u6B21\u7684\u5C0D\u8A71 /redo \u52A0\u4FEE\u6539\u904E\u7684\u5167\u5BB9 \u6216\u8005 \u76F4\u63A5 /redo",
       "echo": "\u56DE\u663E\u6D88\u606F",
-      "bill": "\u67E5\u770B\u7576\u524D\u7684\u8CEC\u55AE"
+      "bill": "\u67E5\u770B\u7576\u524D\u7684\u8CEC\u55AE",
+      "mode": "\u8A2D\u7F6E\u7576\u524D\u6A21\u5F0F \u547D\u4EE4\u5B8C\u6574\u683C\u5F0F\u70BA `/mode NAME`\uFF0C\u7576 NAME=all \u6642\uFF0C\u67E5\u770B\u6240\u6709\u6A21\u5F0F",
+      "chatlist": "\u67E5\u8A62\u5C0D\u8A71\u5217\u8868",
+      "history": "\u67E5\u8A62\u6B77\u53F2\u8A18\u9304",
+      "setid": "\u8A2D\u7F6E\u5C0D\u8A71 ID \u683C\u5F0F\u70BA `/setid id`",
+      "setalias": "\u8A2D\u7F6E\u5C0D\u8A71\u5225\u540D \u683C\u5F0F\u70BA `/setalias \u5C0D\u8A71\u5E8F\u5217\u865F(\u6570\u5B57) \u5225\u540D`",
+      "refreshchatlist": "\u66F4\u65B0\u7DE9\u5B58\u7684\u5C0D\u8A71\u5217\u8868"
     },
     role: {
       "not_defined_any_role": "\u5C1A\u672A\u5B9A\u7FA9\u4EFB\u4F55\u89D2\u8272",
@@ -3576,7 +4016,12 @@ var en_default = {
       "role": "Set the preset identity",
       "redo": "Redo the last conversation, /redo with modified content or directly /redo",
       "echo": "Echo the message",
-      "bill": "View current bill"
+      "bill": "View current bill",
+      "chatlist": "Query dialog list",
+      "history": "Query history",
+      "setid": "Set the conversation ID, the complete command format is `/setid id`",
+      "setalias": "Set conversation alias format is `/setalias conversation_number alias`",
+      "refreshchatlist": "Update the list of cached conversations"
     },
     role: {
       "not_defined_any_role": "No roles have been defined yet",

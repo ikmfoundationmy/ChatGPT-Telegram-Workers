@@ -5,10 +5,12 @@ import {mergeConfig, fetchWithRetry, CUSTOM_TINFO} from './utils.js';
 import {
   getChatRoleWithContext,
   sendChatActionToTelegramWithContext,
+  sendLoadingMessageToTelegramWithContext,
   sendMessageToTelegramWithContext,
   sendPhotoToTelegramWithContext,
 } from './telegram.js';
-import {chatWithLLM, loadImageGen} from './llm.js';
+import { chatWithLLM, loadImageGen } from './llm.js';
+import { requestReverseChatListOrHistory } from "./openai.js";
 
 
 const commandAuthCheck = {
@@ -42,8 +44,21 @@ const commandSortList = [
   '/usage',
   '/system',
   '/help',
-  '/mode'
+  '/mode',
 ];
+
+const commandSortListNew = [
+  '/new',
+  '/setenv',
+  '/delenv',
+  '/chatlist',
+  '/history',
+  '/setid',
+  '/setalias',
+  '/refreshchatlist',
+  '/system',
+  '/help',
+]
 
 // 命令绑定
 const commandHandlers = {
@@ -115,6 +130,58 @@ const commandHandlers = {
     scopes: [],
     fn: commandUpdateUserConfig,
     needAuth: commandAuthCheck.shareModeGroup,
+  },
+};
+
+const commandHandlersNew = {
+  '/new': {
+    scopes: ['all_private_chats'],
+    fn: commandReverseNewChat,
+    needAuth: commandAuthCheck.default,
+  },
+  '/setenv': {
+    scopes: [],
+    fn: commandUpdateUserConfig,
+    needAuth: commandAuthCheck.shareModeGroup,
+  },
+  '/delenv': {
+    scopes: [],
+    fn: commandDeleteUserConfig,
+    needAuth: commandAuthCheck.shareModeGroup,
+  },
+  '/chatlist': {
+    scopes: ['all_private_chats'],
+    fn: commandGetChatList,
+    needAuth: commandAuthCheck.default,
+  },
+  '/history': {
+    scopes: ['all_private_chats'],
+    fn: commandReverseHistory,
+    needAuth: commandAuthCheck.default,
+  },
+  '/system': {
+    scopes: ['all_private_chats'],
+    fn: commandSystemNew,
+    needAuth: commandAuthCheck.default,
+  },
+  '/setid': {
+    scopes: ['all_private_chats'],
+    fn: commandSetId,
+    needAuth: commandAuthCheck.default,
+  },
+  '/help': {
+    scopes: ['all_private_chats'],
+    fn: commandGetHelp,
+  },
+  '/setalias': {
+    scopes: ['all_private_chats'],
+    needAuth: commandAuthCheck.default,
+    fn: commandSetChatAlias,
+  },
+  '/refreshchatlist': {
+    scopes: ['all_private_chats'],
+    fn: commandRefreshChatList,
+    needAuth: commandAuthCheck.default,
   },
 };
 
@@ -251,11 +318,11 @@ async function commandGenerateImg(message, command, subcommand, context) {
 async function commandGetHelp(message, command, subcommand, context) {
   const helpMsg =
     ENV.I18N.command.help.summary +
-    '<pre>' +
-    Object.keys(commandHandlers)
+    '```markdown\n' +
+    Object.keys(context.USER_CONFIG.REVERSE_MODE ? commandHandlersNew : commandHandlers)
       .map((key) => `${key}：${ENV.I18N.command.help[key.substring(1)]}`)
-      .join('\n') + '</pre>';
-  context.CURRENT_CHAT_CONTEXT.parse_mode = 'HTML';
+      .join('\n') + '\n```';
+  context.CURRENT_CHAT_CONTEXT.parse_mode = 'MarkdownV2';
   return sendMessageToTelegramWithContext(context)(helpMsg);
 }
 
@@ -517,7 +584,7 @@ async function commandUsage(message, command, subcommand, context) {
  * @return {Promise<Response>}
  */
 async function commandSystem(message, command, subcommand, context) {
-  let msg = '<pre>GLOBAL_CHAT_MODEL: ' + ENV.CHAT_MODEL + '\n';
+  let msg = '<pre>CHAT_MODEL: ' + context.USER_CONFIG.CHAT_MODEL + '\n';
   if (!ENV.DEV_MODE) {
   msg +=
     'AI_PROVIDER: ' +
@@ -550,6 +617,8 @@ async function commandSystem(message, command, subcommand, context) {
     context.USER_CONFIG.AZURE_DALLE_API = "******";
     context.USER_CONFIG.GOOGLE_API_KEY = "******";
     context.USER_CONFIG.MISTRAL_API_KEY = "******";
+    delete context.USER_CONFIG.REVERSE_PERFIX;
+    delete context.USER_CONFIG.REVERSE_TOKEN;
     Object.values(context.USER_CONFIG.PROVIDER_SOURCES).map((source) => {
       Object.keys(source).map((k) => (source[k] = '******'));
       return null;
@@ -648,12 +717,14 @@ export async function handleCommandMessage(message, context) {
   if (customKey) {
     message.text = message.text.replace(customKey, CUSTOM_COMMAND[customKey]);
   }
+  const commandSelect = context.USER_CONFIG.REVERSE_MODE ? commandHandlersNew : commandHandlers;
   const msgRegExp = /^.*?[!！]/;
   const commandMsg = msgRegExp.exec(message.text)?.[0].slice(0,-1) || message.text;
   const otherMsg = message.text.substring(commandMsg.length + 1);
-  for (const key in commandHandlers) {
+  
+  for (const key in commandSelect) {
     if (commandMsg === key || commandMsg.startsWith(key + ' ') || commandMsg.startsWith(key + `@${context.SHARE_CONTEXT.currentBotName}`)) {
-      const command = commandHandlers[key];
+      const command = commandSelect[key];
       try {
         // 如果存在权限条件
         if (command.needAuth) {
@@ -686,6 +757,9 @@ export async function handleCommandMessage(message, context) {
       }
     }
   }
+  if (context.USER_CONFIG.REVERSE_MODE && message.text.startsWith('/')) {
+    return sendMessageToTelegramWithContext(context)(`Tip: Don't process command-like text.`);
+  }
   return null;
 }
 
@@ -700,16 +774,17 @@ export async function bindCommandForTelegram(token) {
     all_group_chats: [],
     all_chat_administrators: [],
   };
-  const commands = commandSortList;
+  const commands = ENV.REVERSE_MODE ? commandSortListNew: commandSortList;
   if (!ENV.ENABLE_USAGE_STATISTICS) {
     commands.splice(commands.indexOf('/usage'), 1);
   }
+  const commandHandlersSelect =  ENV.REVERSE_MODE ? commandHandlersNew: commandHandlers;
   for (const key of commands) {
     if (ENV.HIDE_COMMAND_BUTTONS.includes(key)) {
       continue;
     }
-    if (Object.prototype.hasOwnProperty.call(commandHandlers, key) && commandHandlers[key].scopes) {
-      for (const scope of commandHandlers[key].scopes) {
+    if (Object.prototype.hasOwnProperty.call(commandHandlersSelect, key) && commandHandlersSelect[key].scopes) {
+      for (const scope of commandHandlersSelect[key].scopes) {
         if (!scopeCommandMap[scope]) {
           scopeCommandMap[scope] = [];
         }
@@ -720,7 +795,7 @@ export async function bindCommandForTelegram(token) {
 
   const result = {};
   for (const scope in scopeCommandMap) {  
-    result[scope] = await fetchWithRetry(
+    result[scope] = await fetch(
         `https://api.telegram.org/bot${token}/setMyCommands`,
         {
           method: 'POST',
@@ -738,6 +813,7 @@ export async function bindCommandForTelegram(token) {
           }),
         },
     ).then((res) => res.json());
+    
   }
   // console.log('--------')
   // console.log(`${JSON.stringify(result,null, 2)}`)
@@ -755,4 +831,277 @@ export function commandsDocument() {
       description: ENV.I18N.command.help[key.substring(1)],
     };
   });
+}
+
+/**
+ * /chatList 查询缓存中已有对话
+ *
+ * @param {TelegramMessage} message
+ * @param {string} command
+ * @param {string} subcommand
+ * @param {Context} context
+ * @return {Promise<Response>}
+ */
+async function commandGetChatList(message, command, subcommand, context) {
+  try {
+    let reverseChatInfo = JSON.parse(await DATABASE.get(context.SHARE_CONTEXT.reverseHistoryKey) || '{}');
+    if (Object.keys(reverseChatInfo).length === 0) {
+      await commandRefreshChatList(message, command, subcommand, context);
+      reverseChatInfo = JSON.parse(await DATABASE.get(context.SHARE_CONTEXT.reverseHistoryKey) || '{}');
+    }
+    if (reverseChatInfo instanceof Response) {
+      return reverseChatInfo;
+    }
+    let currentConversation = context.REVERSE_CONTEXT.conversation_id;
+    context.CURRENT_CHAT_CONTEXT.parse_mode = 'MarkdownV2';
+    let formatData = Object.entries(reverseChatInfo).map(
+      ([k, { title, alias }], i) => `${i}. ${title || '标题为空'}\n` + (alias ? `- alias: ${alias}\n` : '') + `${k}`,
+    );
+    
+    const current_alias = reverseChatInfo?.[currentConversation]?.alias || '';
+    const current_title = reverseChatInfo?.[currentConversation]?.title || '';
+    formatData = '```\n'
+      + '当前对话:\n'
+      + (current_title ? `title: ${current_title}\n` : '')
+      + `id: ${currentConversation || null}\n`
+      + (current_alias? `alias: ${current_alias}\n\n`: '\n')
+      + formatData.join('\n\n') + '\n```'
+    return sendMessageToTelegramWithContext(context)(formatData);
+  } catch (e) {
+    return sendMessageToTelegramWithContext(context)(e.message);
+  }
+}
+
+/**
+ * /refreshchatlist 刷新对话列表
+ *
+ * @param {TelegramMessage} message
+ * @param {string} command
+ * @param {string} subcommand
+ * @param {Context} context
+ * @return {Promise<Response>}
+ */
+async function commandRefreshChatList(message, command, subcommand, context) {
+  try {
+    let reverseChatInfo = {};
+    const chatListData = await requestReverseChatListOrHistory(context, 'list', 25);
+    chatListData?.items?.forEach(({ id, title, update_time, create_time }) => {
+      reverseChatInfo[id] = {
+        ...(reverseChatInfo[id] || {}),
+        title,
+        // parent_message_id: '',
+        // id: i.id,
+        // alias: '',
+        update_time,
+        create_time,
+        // is_archived: i.is_archived,
+      };
+    });
+    if (!Object.keys(reverseChatInfo).length) {
+      throw new Error(`未查询到任何对话记录`);
+    }
+    await DATABASE.put(context.SHARE_CONTEXT.reverseHistoryKey, JSON.stringify(reverseChatInfo));
+    return sendMessageToTelegramWithContext(context)(ENV.I18N.command.setenv.update_config_success);
+  } catch (e) {
+    return sendMessageToTelegramWithContext(context)(e.message);
+  }
+}
+
+
+/**
+ * /history 查询当前对话历史记录并重置最新parent_id
+ *
+ * @param {TelegramMessage} message
+ * @param {string} command
+ * @param {string} subcommand
+ * @param {Context} context
+ * @return {Promise<Response>}
+ */
+async function commandReverseHistory(message, command, subcommand, context) {
+  try {
+    const currentConversation = context.REVERSE_CONTEXT.conversation_id;
+    if (!currentConversation || currentConversation === ':new:') {
+      return sendMessageToTelegramWithContext(context)('当前为新对话或ID为空');
+    }
+
+    const detail = await requestReverseChatListOrHistory(context, 'detail');
+    const parent_message_id = detail?.current_node || '';
+    const reverseChatInfo = JSON.parse(await DATABASE.get(context.SHARE_CONTEXT.reverseHistoryKey) || '{}');
+    if (parent_message_id && parent_message_id !== context.REVERSE_CONTEXT.parent_message_id) {
+      reverseChatInfo[currentConversation].parent_message_id = parent_message_id;
+      context.REVERSE_CONTEXT.parent_message_id = parent_message_id;
+      await DATABASE.put(context.SHARE_CONTEXT.reverseChatKey, context.REVERSE_CONTEXT);
+      await DATABASE.put(context.SHARE_CONTEXT.reverseHistoryKey, reverseChatInfo);
+    } else if (!parent_message_id)
+      return sendMessageToTelegramWithContext(context)("Data don't obtain parent message id");
+    function toDateTime(timestamp) {
+      const date = new Date(timestamp);
+      const options = { timeZone: 'Asia/Shanghai', hour12: false };
+      return date.toLocaleString('zh-CN', options) // + ' (UTC+8)'
+    }
+    
+    let filterData = Object.values(detail.mapping)
+      .filter(({ message }) => (
+        message?.author?.name !== 'browser') && 
+        ['text', 'model_editable_context'].includes( message?.content?.content_type) &&
+        ( message?.content?.parts?.[0] ||  message?.content?.model_set_context))
+      .map(({ id, parent_id, message: { author: { role }, content, create_time } }) => ({
+        id,
+        role,
+        content: content?.parts?.join('') || content?.model_set_context,
+        content_type: content?.content_type,
+        parent_id,
+        // children: i.children,
+        create_time: create_time * 1e3,
+      }))
+      .sort((a, b) => a.create_time - b.create_time)
+      .map(({ id, role, content, content_type, parent_id, create_time }) => {
+        role = role === 'user' ? 'you' : 'gpt';
+        content = content_type === 'text' ? `${content}\n` : `\`\`\`code\n${content}\n\`\`\`\n`;
+        return `${role} (${toDateTime(create_time)}) \n`
+          + `${content}`
+          // + `[ID](${id}) [parentid](${parent_id})`;
+      })
+      .slice(-10)
+      .join('-'.repeat(36) + '\n');
+    
+    filterData = '```markdown\nLatest 10 messages:\n\n' + filterData + '```\n'
+    // context.CURRENT_CHAT_CONTEXT.parse_mode = 'MarkdownV2';
+    return sendMessageToTelegramWithContext(context)(filterData);
+  } catch (e) {
+    return sendMessageToTelegramWithContext(context)(ENV.I18N.command.setenv.update_config_error(e));
+  }
+}
+
+
+/**
+ * /new 开启新的聊天
+ *
+ * @param {TelegramMessage} message
+ * @param {string} command
+ * @param {string} subcommand
+ * @param {Context} context
+ * @return {Promise<Response>}
+ */
+async function commandReverseNewChat(message, command, subcommand, context) {
+  try {
+    context.REVERSE_CONTEXT = { conversation_id: ':new:', parent_message_id: '' }
+    await DATABASE.put(context.SHARE_CONTEXT.reverseChatKey, context.REVERSE_CONTEXT);
+    return sendMessageToTelegramWithContext(context)(ENV.I18N.command.setenv.update_config_success);
+  } catch (e) {
+    return sendMessageToTelegramWithContext(context)(ENV.I18N.command.setenv.update_config_error(e));
+  }
+}
+
+
+/**
+ * /setid 设置对话ID
+ *
+ * @param {TelegramMessage} message
+ * @param {string} command
+ * @param {string} subcommand
+ * @param {Context} context
+ * @return {Promise<Response>}
+ */
+async function commandSetId(message, command, subcommand, context) {
+  try {
+    subcommand = subcommand.trim();
+    const idIndexreg = /^\d+$/;
+    const idAliasReg = /^\S+$/;
+    const idReg = /^\w{8}-\w{4}-\w{4}-\w{4}-\w{12}$/;
+    let reverseChatInfo = JSON.parse((await DATABASE.get(context.SHARE_CONTEXT.reverseHistoryKey)) || '{}');
+    let message = '';
+    if (idIndexreg.test(subcommand)) {
+      if (Object.keys(reverseChatInfo).length === 0) {
+        reverseChatInfo = await commandRefreshChatList(message, command, subcommand, context);
+      }
+      if (Object.keys(reverseChatInfo).length === 0) {
+        message = '无任何对话记录';
+      } else if (subcommand > Object.keys(reverseChatInfo).length - 1 || subcommand < 0) {
+        message = `Error: Index need smaller than ${Object.keys(reverseChatInfo).length}`;
+      }
+      const dataList = Object.entries(reverseChatInfo);
+      context.REVERSE_CONTEXT = {
+        conversation_id: dataList[subcommand][0],
+        parent_message_id: dataList[subcommand][1].parent_message_id,
+      };
+    } else if (idReg.test(subcommand)) {
+      context.REVERSE_CONTEXT = {
+        conversation_id: subcommand,
+        parent_id: reverseChatInfo[subcommand].parent_message_id,
+      };
+    } else if (idAliasReg.test(subcommand)) {
+      const conversation_id = Object.keys(reverseChatInfo).find((key) => reverseChatInfo[key].alias === subcommand);
+      if (conversation_id) {
+        context.REVERSE_CONTEXT = {
+          conversation_id,
+          parent_message_id: reverseChatInfo[conversation_id].parent_message_id,
+        };
+      } else message = `Error: alias \`${subcommand} not found\``;
+    } else message = 'id格式错误 格式为 `/setid (id/序号/别名)`';
+    if (message) {
+      return sendMessageToTelegramWithContext(context)(message);
+    } else {
+      await DATABASE.put(context.SHARE_CONTEXT.reverseChatKey, context.REVERSE_CONTEXT);
+      return sendMessageToTelegramWithContext(context)(ENV.I18N.command.setenv.update_config_success);
+    }
+  } catch (e) {
+    return sendMessageToTelegramWithContext(context)(ENV.I18N.command.setenv.update_config_error(e));
+  }
+}
+
+/**
+ * /setChatAlias 设置对话Alias
+ *
+ * @param {TelegramMessage} message
+ * @param {string} command
+ * @param {string} subcommand
+ * @param {Context} context
+ * @return {Promise<Response>}
+ */
+async function commandSetChatAlias(message, command, subcommand, context) {
+  try {
+    const idAndAliasregex = /^\s*(\d+)\s*(\S+)$/;
+    const result = subcommand.match(idAndAliasregex);
+    if (result?.[1] && result?.[2]) {
+      let reverseChatInfo = JSON.parse(await DATABASE.get(context.SHARE_CONTEXT.reverseHistoryKey) || '{}');
+      if (Object.keys(reverseChatInfo).length === 0) {
+        reverseChatInfo = await commandRefreshChatList(message, command, subcommand, context);
+      }
+      if (result[1] > Object.keys(reverseChatInfo).length) {
+        throw new Error(`Error: index need smaller than ${Object.keys(reverseChatInfo).length}`);
+      }
+      const dataList = Object.entries(reverseChatInfo);
+      dataList[result[1]][1].alias = result[2];
+      await DATABASE.put(context.SHARE_CONTEXT.reverseHistoryKey, JSON.stringify(Object.fromEntries(dataList)));
+    } else return sendMessageToTelegramWithContext(context)('请以 `/setalias index alias` 设置对话Alias');
+    return sendMessageToTelegramWithContext(context)(ENV.I18N.command.setenv.update_config_success);
+  } catch (e) {
+    return sendMessageToTelegramWithContext(context)(ENV.I18N.command.setenv.update_config_error(e));
+  }
+}
+
+
+/**
+ * /system REVERSE_MODE 下查询当前信息
+ *
+ * @param {TelegramMessage} message
+ * @param {string} command
+ * @param {string} subcommand
+ * @param {Context} context
+ * @return {Promise<Response>}
+ */
+async function commandSystemNew(message, command, subcommand, context) {
+  try {
+    let msg =
+      `\`\`\`markdown\nREVERSE_PERFIX: ${context.USER_CONFIG.REVERSE_PERFIX}` +
+      `\nREVERSE_TOKEN: ${context.USER_CONFIG.REVERSE_TOKEN ? '******' : 'null'}` +
+      `\nCHAT_MODEL: ${context.USER_CONFIG.CHAT_MODEL}` +
+      `\n\nREVERSE_CHAT: ${JSON.stringify(context.REVERSE_CONTEXT, null, 2)}` +
+      '\n\`\`\`';
+    context.CURRENT_CHAT_CONTEXT.parse_mode = 'MarkdownV2';
+    return sendMessageToTelegramWithContext(context)(msg);
+  } catch (e) {
+    return sendMessageToTelegramWithContext(context)(ENV.I18N.command.setenv.update_config_error(e));
+  }
 }

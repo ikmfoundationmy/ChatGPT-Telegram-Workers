@@ -36,6 +36,11 @@ export default {
       'echo': '回显消息',
       'bill': '查看当前账单',
       'mode': '设置当前模式 命令完整格式为 /mode NAME, 当NAME=all时, 查看所有mode',
+      'chatlist': '查询对话列表',
+      'history': '查询历史记录',
+      'setid': '设置对话ID 格式为 `/setid id`',
+      'setalias': '设置对话别名 格式为 `/setalias 对话序列号(数字) 别名`',
+      'refreshchatlist': '更新缓存的对话列表',
     },
     role: {
       'not_defined_any_role': '还未定义任何角色',

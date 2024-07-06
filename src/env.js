@@ -171,7 +171,10 @@ class Environment {
   CURRENT_MODE = 'default';
 
   PROVIDER_SOURCES = {};
-
+  REVERSE_MODE = false;
+  REVERSE_TOKEN = "";
+  REVERSE_PERFIX = "";
+  
   // 是否读取图片
   LOAD_IMAGE_FILE = false;
   // -- 模式开关 --

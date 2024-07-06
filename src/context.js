@@ -121,7 +121,6 @@ export class Context {
       // TEST: { PROXY_URL: 'https://xxxxxx', API_KEY: 'xxxxxx' },
     },
 
-  
     MODES: ENV.MODES,
 
     CURRENT_MODE: ENV.CURRENT_MODE || 'default',
@@ -132,6 +131,10 @@ export class Context {
     MISTRAL_COMPLETIONS_API: ENV.MISTRAL_COMPLETIONS_API,
     // mistral api model
     MISTRAL_CHAT_MODEL: ENV.MISTRAL_CHAT_MODEL,
+
+    REVERSE_MODE: ENV.REVERSE_MODE,
+    REVERSE_TOKEN: ENV.REVERSE_TOKEN,
+    REVERSE_PERFIX: ENV.REVERSE_PERFIX,
   };
 
   USER_DEFINE = {
@@ -164,6 +167,8 @@ export class Context {
     speakerId: null, // 发言人 id
     role: null, // 角色
     extraMessageContext: null, // 额外消息上下文
+    reverseHistoryKey: null, // reverse openai hstory conversation and parent id;
+    reverseChatKey: null,
   };
 
   /**
@@ -215,15 +220,12 @@ export class Context {
     }
   }
 
-
   /**
    * @param {Request} request
    */
   initTelegramContext(request) {
-    const {pathname} = new URL(request.url);
-    const token = pathname.match(
-        /^\/telegram\/(\d+:[A-Za-z0-9_-]{35})\/webhook/,
-    )[1];
+    const { pathname } = new URL(request.url);
+    const token = pathname.match(/^\/telegram\/(\d+:[A-Za-z0-9_-]{35})\/webhook/)[1];
     const telegramIndex = ENV.TELEGRAM_AVAILABLE_TOKENS.indexOf(token);
     if (telegramIndex === -1) {
       throw new Error('Token not allowed');
@@ -263,10 +265,11 @@ export class Context {
     const botId = this.SHARE_CONTEXT.currentBotId;
     let historyKey = `history:${id}`;
     let configStoreKey = `user_config:${id}`;
+
     // message_thread_id区分不同话题
     if (message?.chat?.is_forum && message?.is_topic_message) {
-      historyKey += `:${message.message_thread_id}`
-      configStoreKey += `:${message.message_thread_id}`
+      historyKey += `:${message.message_thread_id}`;
+      configStoreKey += `:${message.message_thread_id}`;
     }
     let groupAdminKey = null;
 
@@ -291,6 +294,8 @@ export class Context {
     this.SHARE_CONTEXT.chatType = message.chat?.type;
     this.SHARE_CONTEXT.chatId = message.chat.id;
     this.SHARE_CONTEXT.speakerId = message.from.id || message.chat.id;
+    this.SHARE_CONTEXT.reverseHistoryKey = message?.from?.id ? `reverseHistory:${message.from.id || message.chat.id}` : '';
+    this.SHARE_CONTEXT.reverseChatKey = message?.from?.id ? `reverseChatId:${message.from.id || message.chat.id}` : '';
   }
 
   /**

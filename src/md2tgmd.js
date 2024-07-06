@@ -1,4 +1,4 @@
-const escapeChars = /([\_\*\[\]\(\)\~\`\>\#\+\-\=\|\{\}\.\!])/g;
+const escapeChars = /([\_\*\[\]\(\)\\\~\`\>\#\+\-\=\|\{\}\.\!])/g;
 let codeBlank = 0;
 
 /**
@@ -77,10 +77,14 @@ function handleEscape(text, type = 'text') {
     }
     text = text
       .trimEnd()
-      .replace(/(\`)/g, '\\$1') // backtick
+      .replace(/([\\\`])/g, '\\$1') 
+      // .replace(/\\\\([\`\=])/g, '\\$1') // restore duplicate escapes
       // .replace(/([^\\])\\([^\_\*\[\]\(\)\~\`\>\#\+\-\=\|\{\}\.\!])/g, '$1\\\\$2') // escape
       .replace(/^\\`\\`\\`([\s\S]+)\\`\\`\\`$/g, '```$1```'); // code block
   }
-  text = text.replace(/([^\\])\\([^\_\*\[\]\(\)\~\`\>\#\+\-\=\|\{\}\.\!])/g, '$1\\\\$2'); // single escape sign
+  // text = text.replace(/([^\\])\\([^\_\*\[\]\(\)\~\`\>\#\+\-\=\|\{\}\.\!])/g, '$1\\\\$2'); // single escape sign
+
+  // Where escaping is needed in a normal MD document tg also needs to be escaped, so it does not need to be repeated, but in the case of a single symbol, tg needs to be escaped here, so only the symbols that are repeatedly escaped are restored;
+  // In the code block, there are only two symbols need to be escaped, such as the escape character, the escape character is mostly a single occurrence, tg will automatically hide, need to be escaped to express its literal value, in addition to the back-quote involved in the identification of the code block, so in the middle of the code block must be escaped.
   return text;
 }

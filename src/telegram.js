@@ -55,7 +55,7 @@ export async function sendMessageToTelegram(message, token, context) {
   let info = '';
   const step = context.PROCESS_INFO?.STEP.split('/') || [0, 0];
   const escapeContent = (parse_mode = chatContext?.parse_mode) => {
-    info = context.MIDDLE_INFO?.TEMP_INFO.trim() || '';
+    info = context.MIDDLE_INFO?.TEMP_INFO?.trim() || '';
     if (step[0] < step[1] && !ENV.HIDE_MIDDLE_MESSAGE) {
       chatContext.parse_mode = null;
       message = info + ' \n\n' + origin_msg;
@@ -451,4 +451,23 @@ export async function getFileInfo(file_id, token) {
  */
 export async function getFile(fullPath) {
   return fetchWithRetry(fullPath);
+}
+
+/**
+ * 发送Loading 并记录消息ID
+ * @param {Context} context
+ * @return {*}
+ */
+export async function sendLoadingMessageToTelegramWithContext(context) {
+  try {
+    if (!context.CURRENT_CHAT_CONTEXT.message_id) {
+    const msg = await sendMessageToTelegramWithContext(context)(
+      ENV.I18N.message.loading
+    ).then(r => r.json());
+    context.CURRENT_CHAT_CONTEXT.message_id = msg.result.message_id;
+    context.CURRENT_CHAT_CONTEXT.reply_markup = null;
+    }
+  } catch (e) {
+    console.error(e);
+  }
 }

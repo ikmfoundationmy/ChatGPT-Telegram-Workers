@@ -1,7 +1,7 @@
 /* eslint-disable no-unused-vars */
 import {Context} from './context.js';
 import {DATABASE, ENV} from './env.js';
-import {isEventStreamResponse, isJsonResponse} from './utils.js';
+import {fetchWithRetry, isEventStreamResponse, isJsonResponse, UUIDv4} from './utils.js';
 import {Stream} from './vendors/stream.js';
 
 
@@ -93,6 +93,73 @@ export async function requestCompletionsFromOpenAI(message, history, context, on
   });
 }
 
+/**
+ * @description: 
+ * @param {*} message
+ * @param {*} reverseContext
+ * @param {*} context
+ * @param {*} onStream
+ * @return {*}
+ */
+export async function requestCompletionsFromReverseOpenAI(message, reverseContext, context, onStream) {
+  const url = `${context.USER_CONFIG.REVERSE_PERFIX}/backend-api/conversation`;
+  let model = context.USER_CONFIG.CHAT_MODEL;
+  let content = { parts: [`${message}`], content_type: 'text' };
+  const body = {
+    conversation_mode: { kind: 'primary_assistant' },
+    force_paragen: false,
+    messages: [{ metadata: {}, id: reverseContext.id, author: { role: 'user' }, content }],
+    timezone_offset_min: '-480',
+    ...(reverseContext.conversation_id !==':new:' && { conversation_id: reverseContext.conversation_id }),
+    parent_message_id: reverseContext.parent_message_id,
+    action: 'next',
+    force_rate_limit: false,
+    suggestions: [],
+    history_and_training_disabled: false,
+    model,
+    arkose_token: null,
+  };
+
+  const header = {
+    'Content-Type': 'application/json',
+    'Accept': 'text/event-stream',
+    'User-Agent':
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 15_6_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.6.1 Mobile/15E148 Safari/604.1',
+    'Authorization': `Bearer ${context.USER_CONFIG.REVERSE_TOKEN}`,
+  };
+
+  return requestCompletionsFromOpenAICompatible(url, header, body, context, onStream);
+}
+
+/**
+ * 
+ * @param {Context} context
+ * @param {enum} type
+ * @param {number} num
+ * @return {object} listOrHistory
+ */
+export async function requestReverseChatListOrHistory(context, type = 'list', num = 30) {
+  let url = '';
+  if (!context.USER_CONFIG.REVERSE_PERFIX || !context.USER_CONFIG.REVERSE_TOKEN) {
+    throw new Error('REVERSE 关键变量未设置');
+  }
+  if (type === 'list') {
+    url = `${context.USER_CONFIG.REVERSE_PERFIX}/backend-api/conversations?offset=0&limit=${num}&order=updated`;
+  } else url = `${context.USER_CONFIG.REVERSE_PERFIX}/backend-api/conversation/${context.REVERSE_CONTEXT.conversation_id}`;
+
+  const headers = {
+    'User-Agent':
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 15_6_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.6.1 Mobile/15E148 Safari/604.1',
+    Authorization: `Bearer ${context.USER_CONFIG.REVERSE_TOKEN}`,
+    'Accept-Language': 'en-US',
+  };
+  
+  const result = await fetchWithRetry(url, { headers });
+  if (result.status !== 200) {
+    throw new Error(await result.text());
+  }
+  return result.json();
+}
 
 /**
  * 发送消息到Azure ChatGPT
@@ -139,7 +206,7 @@ export async function requestCompletionsFromOpenAICompatible(url, header, body, 
   const timeout = 1000 * 60 * 5;
   setTimeout(() => controller.abort(), timeout);
 
-  // 超10s无响应中断请求
+  // 超指定时间无响应中断请求
   let firstTimeoutId;
   const timeoutPromise = new Promise((_, reject) => {
     firstTimeoutId = setTimeout(() => {
@@ -158,8 +225,10 @@ export async function requestCompletionsFromOpenAICompatible(url, header, body, 
   })]);
 
   clearTimeout(firstTimeoutId); 
+  
+  const immediatePromise = Promise.resolve('immediate'); 
 
-  if (onStream && resp.ok && isEventStreamResponse(resp)) {
+  if (onStream && resp.ok && isEventStreamResponse(resp) && !context.USER_CONFIG.REVERSE_MODE) {
     const stream = new Stream(resp, controller);
     let contentFull = '';
     let lengthDelta = 0;
@@ -167,7 +236,6 @@ export async function requestCompletionsFromOpenAICompatible(url, header, body, 
     let msgPromise = null;
     let lastChunk = null;
     let usage = null;
-    const immediatePromise = Promise.resolve('immediate'); 
     try {
       for await (const data of stream) {
         const c = data?.choices?.[0]?.delta?.content || '';
@@ -188,8 +256,8 @@ export async function requestCompletionsFromOpenAICompatible(url, header, body, 
       console.log(`errorEnd`);
     }
     contentFull += lastChunk;
-    if (ENV.GPT3_TOKENS_COUNT && usage) {
-      onResult?.({usage});
+    if (ENV.GPT3_TOKENS_COUNT && usage && !context.USER_CONFIG.REVERSE_MODE) {
+      onResult?.({ usage });
       context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.promptToken = usage?.prompt_tokens ?? 0;
       context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.completionToken = usage?.completion_tokens ?? 0;
     }
@@ -199,6 +267,48 @@ export async function requestCompletionsFromOpenAICompatible(url, header, body, 
     await msgPromise;
     console.log(`MiddleMsgTime: ${((performance.now() - startTime) / 1000).toFixed(2)}s`);
     return contentFull;
+  } else if (context.USER_CONFIG.REVERSE_MODE) {
+
+    const stream = new Stream(resp, controller);
+    let updateStep = 5;
+    let content = '';
+    let lastChunk = null;
+    let msgPromise = null;
+    let conversation_id = '';
+    let id = '';
+    let model = '';
+    let title = '';
+    try {
+      for await (const data of stream) {
+        content = data?.message?.content?.parts?.[0] || content;
+        if (!conversation_id) conversation_id = data?.conversation_id;
+        if (!id) id = data?.message?.id;
+        if (!model) model = data?.model || data?.message?.metadata?.model_slug;
+        if (!title) title = data?.title;
+        if (lastChunk && content.length > updateStep) {
+          updateStep += 10;
+          if (!msgPromise || (await Promise.race([msgPromise, immediatePromise])) !== 'immediate') {
+            msgPromise = onStream(`${lastChunk}\n\n${ENV.I18N.message.loading}...`);
+          }
+        }
+        lastChunk = content;
+      }
+      context.REVERSE_CONTEXT.conversation_id = conversation_id;
+      context.REVERSE_CONTEXT.parent_message_id = id;
+      if(title) context.REVERSE_CONTEXT.title = title;
+    } catch (e) {
+      console.error(e.message)
+      content = `Error: ${e.message}`;
+    }
+    let endTime = performance.now();
+    const LLMTime = `${((endTime - startTime) / 1000).toFixed(2)}s`;
+    if (ENV.ENABLE_SHOWINFO) {
+      context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO = `${model || context.USER_CONFIG.CHAT_MODEL} ${LLMTime} `;
+    }
+    console.log(`[DONE] Chat via OpenAILike: ${LLMTime}`);
+    await msgPromise;
+    console.log(`MiddleMsgTime: ${((performance.now() - startTime) / 1000).toFixed(2)}s`);
+    return lastChunk;
   }
 
   if (!isJsonResponse(resp)) {

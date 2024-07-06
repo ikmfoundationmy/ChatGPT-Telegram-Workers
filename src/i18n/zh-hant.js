@@ -13,8 +13,10 @@ export default {
     'not_supported_chat_type': (type) => `當前不支持${type}類型的聊天`,
     'not_supported_chat_type_message': '當前不支持非文本格式消息',
     'handle_chat_type_message_error': (type) => `處理${type}類型的聊天消息出錯`,
-    'user_has_no_permission_to_use_the_bot': (id) => `您沒有權限使用本機器人，請聯繫管理員將您的ID(${id})添加到白名單中`,
-    'group_has_no_permission_to_use_the_bot': (id) => `該群組未開啟聊天權限，請聯繫管理員將該群組ID(${id})添加到白名單中`,
+    'user_has_no_permission_to_use_the_bot': (id) =>
+      `您沒有權限使用本機器人，請聯繫管理員將您的ID(${id})添加到白名單中`,
+    'group_has_no_permission_to_use_the_bot': (id) =>
+      `該群組未開啟聊天權限，請聯繫管理員將該群組ID(${id})添加到白名單中`,
     'history_empty': '暫無歷史消息',
   },
   command: {
@@ -35,18 +37,25 @@ export default {
       'redo': '重做上一次的對話 /redo 加修改過的內容 或者 直接 /redo',
       'echo': '回显消息',
       'bill': '查看當前的賬單',
+      'mode': '設置當前模式 命令完整格式為 `/mode NAME`，當 NAME=all 時，查看所有模式',
+      'chatlist': '查詢對話列表',
+      'history': '查詢歷史記錄',
+      'setid': '設置對話 ID 格式為 `/setid id`',
+      'setalias': '設置對話別名 格式為 `/setalias 對話序列號(数字) 別名`',
+      "refreshchatlist": "更新緩存的對話列表"
     },
     role: {
       'not_defined_any_role': '尚未定義任何角色',
       'current_defined_role': (size) => `當前已定義的角色如下(${size})：\n`,
-      'help': '格式錯誤：完整命令格式為`/role 操作`\n' +
-                '當前支持的`操作`如下：\n' +
-                ' `/role show` 查看當前已定義的角色。\n' +
-                ' `/role 角色名 del` 刪除指定的角色。\n' +
-                ' `/role 角色名 KEY=VALUE` 設置指定角色的配置。\n' +
-                '  當前支持的設置如下：\n' +
-                '   `SYSTEM_INIT_MESSAGE`：初始化消息\n' +
-                '   `OPENAI_API_EXTRA_PARAMS`：OpenAI API額外參數，必須為JSON',
+      'help':
+        '格式錯誤：完整命令格式為`/role 操作`\n' +
+        '當前支持的`操作`如下：\n' +
+        ' `/role show` 查看當前已定義的角色。\n' +
+        ' `/role 角色名 del` 刪除指定的角色。\n' +
+        ' `/role 角色名 KEY=VALUE` 設置指定角色的配置。\n' +
+        '  當前支持的設置如下：\n' +
+        '   `SYSTEM_INIT_MESSAGE`：初始化消息\n' +
+        '   `OPENAI_API_EXTRA_PARAMS`：OpenAI API額外參數，必須為JSON',
       'delete_role_success': '刪除角色成功',
       'delete_role_error': (e) => `刪除角色出錯：\`${e.message}\``,
       'update_role_success': '更新配置成功',
@@ -66,7 +75,8 @@ export default {
       'update_config_error': (e) => `配置項格式錯誤：\`${e.message}\``,
     },
     version: {
-      'new_version_found': (current, online) => `發現新版本，當前版本：${JSON.stringify(current)}，最新版本：${JSON.stringify(online)}`,
+      'new_version_found': (current, online) =>
+        `發現新版本，當前版本：${JSON.stringify(current)}，最新版本：${JSON.stringify(online)}`,
       'current_is_latest_version': (current) => `當前已是最新版本，當前版本：${JSON.stringify(current)}`,
     },
     usage: {
@@ -82,7 +92,8 @@ export default {
       'command_error': (e) => `命令執行出錯：${e.message}`,
     },
     bill: {
-      'bill_detail': (totalAmount, totalUsage, remaining) => `📊 本月机器人用量\n\n\t- 总额度: $${totalAmount || 0}\n\t- 已使用: $${totalUsage || 0}\n\t- 剩余额度: $${remaining || 0}`,
+      'bill_detail': (totalAmount, totalUsage, remaining) =>
+        `📊 本月机器人用量\n\n\t- 总额度: $${totalAmount || 0}\n\t- 已使用: $${totalUsage || 0}\n\t- 剩余额度: $${remaining || 0}`,
     },
   },
 };

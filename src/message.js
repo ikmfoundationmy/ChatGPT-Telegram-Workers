@@ -25,6 +25,24 @@ async function msgInitChatContext(message, context) {
   return null;
 }
 
+/**
+ * 初始化 REVERSE_MODE 上下文
+ *
+ * @param {TelegramMessage} message
+ * @param {Context} context
+ * @return {Promise<Response>}
+ */
+async function msgInitReverContext(message, context) {
+  try {
+    if (context.USER_CONFIG.REVERSE_MODE) {
+      context.REVERSE_CONTEXT = JSON.parse((await DATABASE.get(context.SHARE_CONTEXT.reverseChatKey)) || '{}');
+    }
+    return null;
+  } catch (e) {
+    return new Response(errorToString(e), { status: 200 });
+  }
+}
+
 
 /**
  * 保存最后一条消息
@@ -58,6 +76,7 @@ async function msgIgnoreOldMessage(message, context) {
     }
     // 保存最近的100条消息，如果存在则忽略，如果不存在则保存
     if (idList.includes(message.message_id)) {
+      console.log('ignore old msg');
       return new Response(JSON.stringify({
         ok: true,
       }), {status: 200});
@@ -149,6 +168,9 @@ async function msgFilterNonTextMessage(message, context) {
  * @return {Promise<Response>}
  */
 async function msgHandlePrivateMessage(message, context) {
+  if (context.USER_CONFIG.REVERSE_MODE) {
+    return null;
+  }
   if (message.voice || message.audio || message.photo || message.document) {
     return null;
   }
@@ -442,6 +464,9 @@ async function msgHandleFile(message, fileType, context) {
  * @return {Promise<Response>}
  */
 async function msgChatWithLLM(message, context) {
+  // reverse model only support text now
+  if (context.USER_CONFIG.REVERSE_MODE) return chatWithLLM(message.text, context, null);
+
   // 消息类型优先级: 图片-音频-文本
   const acceptType = ['photo', 'image', 'voice', 'audio', 'text']
   let msgType = acceptType.find((key) => key in message);
@@ -557,27 +582,27 @@ async function msgChatWithLLM(message, context) {
  * @return {Promise<Response>}
  */
 export async function msgProcessByChatType(message, context) {
-  const handlerMap = {
-    'private': [
-      msgFilterWhiteList,
-      msgHandlePrivateMessage,
-      // msgFilterNonTextMessage,
-      msgHandleCommand,
-      msgHandleRole,
-    ],
-    'group': [
-      msgFilterWhiteList,
-      msgHandleGroupMessage,
-      msgHandleCommand,
-      msgHandleRole,
-    ],
-    'supergroup': [
-      msgFilterWhiteList,
-      msgHandleGroupMessage,
-      msgHandleCommand,
-      msgHandleRole,
-    ],
-  };
+  let handlerMap;
+  if (context.USER_CONFIG.REVERSE_MODE) {
+    handlerMap = {
+      'private': [msgFilterWhiteList, msgFilterNonTextMessage, msgHandleCommand],
+      'group': [msgFilterWhiteList, msgHandleGroupMessage, msgHandleCommand],
+      'supergroup': [msgFilterWhiteList, msgHandleGroupMessage, msgHandleCommand],
+    };
+  } else {
+    handlerMap = {
+      'private': [
+        msgFilterWhiteList,
+        msgHandlePrivateMessage,
+        // msgFilterNonTextMessage,
+        msgHandleCommand,
+        msgHandleRole,
+      ],
+      'group': [msgFilterWhiteList, msgHandleGroupMessage, msgHandleCommand, msgHandleRole],
+      'supergroup': [msgFilterWhiteList, msgHandleGroupMessage, msgHandleCommand, msgHandleRole],
+    };
+  }
+  
   if (!Object.prototype.hasOwnProperty.call(handlerMap, context.SHARE_CONTEXT.chatType)) {
     return sendMessageToTelegramWithContext(context)(
         ENV.I18N.message.not_supported_chat_type(context.SHARE_CONTEXT.chatType),
@@ -642,10 +667,11 @@ export async function handleMessage(request) {
   // 消息处理中间件
   const handlers = [
     msgIgnoreSpecificMessage, // 忽略特定文本
-    msgInitChatContext, // 初始化聊天上下文: 生成chat_id, reply_to_message_id(群组消息), SHARE_CONTEXT
-    msgSaveLastMessage, // 保存最后一条消息
     msgCheckEnvIsReady, // 检查环境是否准备好: API_KEY, DATABASE
+    msgInitChatContext, // 初始化聊天上下文: 生成chat_id, reply_to_message_id(群组消息), SHARE_CONTEXT
     msgIgnoreOldMessage, // 忽略旧消息
+    msgInitReverContext, // 初始化REVERSE_MODE上下文 生成 conversation_id, parent_message_id
+    msgSaveLastMessage, // 保存最后一条消息
     msgProcessByChatType, // 根据类型对消息进一步处理
     msgChatWithLLM, // 与llm聊天
   ];

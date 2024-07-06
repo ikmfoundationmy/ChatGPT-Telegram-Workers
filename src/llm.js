@@ -2,6 +2,7 @@ import {
   deleteMessageFromTelegramWithContext,
   sendChatActionToTelegramWithContext,
   sendMessageToTelegramWithContext,
+  sendLoadingMessageToTelegramWithContext,
 } from './telegram.js';
 import {DATABASE, ENV} from './env.js';
 // eslint-disable-next-line no-unused-vars
@@ -12,8 +13,10 @@ import {
   requestCompletionsFromAzureOpenAI,
   requestCompletionsFromOpenAI,
   requestImageFromOpenAI,
+  requestCompletionsFromReverseOpenAI,
+  requestReverseChatListOrHistory
 } from './openai.js';
-import {tokensCounter, delay} from './utils.js';
+import {tokensCounter, delay, UUIDv4} from './utils.js';
 import {isWorkersAIEnable, requestCompletionsFromWorkersAI, requestImageFromWorkersAI} from './workersai.js';
 import {isGeminiAIEnable, requestCompletionsFromGeminiAI} from './gemini.js';
 import {isMistralAIEnable, requestCompletionsFromMistralAI} from './mistralai.js';
@@ -119,6 +122,7 @@ async function loadHistory(key, context) {
  * @return {function}
  */
 export function loadChatLLM(context) {
+  if (context.USER_CONFIG.REVERSE_MODE) return requestCompletionsFromReverseOpenAI;
   switch (context.CURRENT_CHAT_CONTEXT.PROCESS_INFO['AI_PROVIDER']) {
     case 'openai':
       return requestCompletionsFromOpenAI;
@@ -208,6 +212,49 @@ async function requestCompletionsFromLLM(text, context, llm, modifier, onStream)
   return answer;
 }
 
+async function requestCompletionsFromReverseLLM(text, context, llm, modifier, onStream) {
+  // const CHAT_ID = await DATABASE.get(context.SHARE_CONTEXT.reverseChatKey) || '';
+  const CHAT_ID = context.REVERSE_CONTEXT.conversation_id;
+  if (!CHAT_ID) {
+    throw new Error('未设置消息ID 如需新建对话 请执行 `/new`命令');
+  }
+  const reverseContext = { ...context.REVERSE_CONTEXT, id: UUIDv4() };
+  // context.REVERSE_CONTEXT = reverseContext;
+  
+  if (CHAT_ID === ':new:') {
+    reverseContext.parent_message_id = UUIDv4();
+  } else {
+    // reverseContext.parent_message_id = history[CHAT_ID]?.parent_message_id;
+    if (CHAT_ID && !reverseContext.parent_message_id) {
+      try {
+        const detail = await requestReverseChatListOrHistory(context, 'detail');
+        reverseContext.parent_message_id = detail?.current_node;
+      } catch (e) {
+        throw new Error(e.message);
+      }
+      if (!reverseContext.parent_message_id) {
+        console.error(JSON.stringify(detail));
+        throw new Error(`Can't get parent message id.`);
+      }
+    }
+  }
+
+  let history = JSON.parse((await DATABASE.get(context.SHARE_CONTEXT.reverseHistoryKey)) || '{}');
+  const answer = await llm(text, reverseContext, context, onStream);
+  const { conversation_id, parent_message_id, title } = context.REVERSE_CONTEXT;
+  if (!history[conversation_id]) {
+    history[conversation_id] = {}
+  }
+  history[conversation_id].parent_message_id = parent_message_id;
+  if (title) history[conversation_id].title = title;
+  await DATABASE.put(context.SHARE_CONTEXT.reverseChatKey, {
+    conversation_id,
+    parent_message_id,
+  });
+  await DATABASE.put(context.SHARE_CONTEXT.reverseHistoryKey, history);
+  return answer;
+}
+
 /**
  * 与LLM聊天
  *
@@ -217,58 +264,37 @@ async function requestCompletionsFromLLM(text, context, llm, modifier, onStream)
  * @return {Promise<Response>}
  */
 export async function chatWithLLM(text, context, modifier) {
-  text = (context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO?.TEXT || '') + text;
+  text = (context.CURRENT_CHAT_CONTEXT?.MIDDLE_INFO?.TEXT || '') + text;
   const sendFinalMsg = async (msg) => {
-    console.log(`[START] Final Msg`);
-    const start = performance.now();
     let finalResponse = await sendMessageToTelegramWithContext(context)(msg);
     if (finalResponse.status === 429) {
       let retryTime = 1000 * (finalResponse.headers.get('Retry-After') ?? 10); 
-      const msgIntervalId = setInterval(() => {
-        console.log(`Wait ${retryTime / 1000}s for final msg`);
-        retryTime -= 5000;
-        if (retryTime <= 0) {
-          clearInterval(msgIntervalId);
-        }
-      }, 5000);
+      console.log(`Wait ${retryTime / 1000}s for final msg`);
       await delay(retryTime);
       finalResponse = await sendMessageToTelegramWithContext(context)(msg);
     } 
     if (finalResponse.status !== 200) {
       console.log(`[FAILED] Final Msg: ${await finalResponse.text()}`);
     } else {
-      const time = ((performance.now() - start) / 1000).toFixed(2);
-      console.log(`[DONE] Final Msg: ${time}s`);
+      console.log(`[DONE] Final Msg`);
     }
     return finalResponse;
   }
   try {
-    if (!context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO) {
+    if (!context.CURRENT_CHAT_CONTEXT?.MIDDLE_INFO) {
       context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO = {}
     }
 
     if (context.CURRENT_CHAT_CONTEXT.reply_markup) {
       delete context.CURRENT_CHAT_CONTEXT.reply_markup;
     }
-    try {
-      if (!context.CURRENT_CHAT_CONTEXT.message_id) {
-      const msg = await sendMessageToTelegramWithContext(context)(
-        ENV.I18N.message.loading
-      ).then(r => r.json());
-      context.CURRENT_CHAT_CONTEXT.message_id = msg.result.message_id;
-      context.CURRENT_CHAT_CONTEXT.reply_markup = null;
-      }
 
-      if (ENV.ENABLE_SHOWINFO) {
-        context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO += context.CURRENT_CHAT_CONTEXT.PROCESS_INFO['MODEL'];
-      }
-      
-    } catch (e) {
-      console.error(e);
+    await sendLoadingMessageToTelegramWithContext(context);
+    if (ENV.ENABLE_SHOWINFO && !context.USER_CONFIG.REVERSE_MODE) {
+      context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO += context.CURRENT_CHAT_CONTEXT.PROCESS_INFO['MODEL'];
     }
-
-    const originalInfo = context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO;
-    const steps = context.CURRENT_CHAT_CONTEXT.PROCESS_INFO.STEP.split('/');
+    let originalInfo = context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO?.TEMP_INFO || '';
+    const steps = context.CURRENT_CHAT_CONTEXT?.PROCESS_INFO?.STEP?.split('/') || [1, 1];
     const isLastStep = steps[0] == steps[1];
     setTimeout(() => sendChatActionToTelegramWithContext(context)('typing').catch(console.error), 0);
     let onStream = null;
@@ -279,7 +305,7 @@ export async function chatWithLLM(text, context, modifier) {
         extraInfo = ` ${time}s`;
       }
   
-      if (ENV.ENABLE_SHOWTOKENINFO && context.CURRENT_CHAT_CONTEXT?.MIDDLE_INFO.promptToken && context.CURRENT_CHAT_CONTEXT?.MIDDLE_INFO.completionToken) {
+      if (ENV.ENABLE_SHOWTOKENINFO && context.CURRENT_CHAT_CONTEXT?.MIDDLE_INFO.promptToken && context.CURRENT_CHAT_CONTEXT?.MIDDLE_INFO.completionToken && !context.USER_CONFIG.REVERSE_MODE) {
         extraInfo += ' \nToken: ' + context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.promptToken + ' | ' + context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.completionToken + ' ';
       }
       context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO =  originalInfo + extraInfo;
@@ -291,7 +317,7 @@ export async function chatWithLLM(text, context, modifier) {
           return;
         }
         try {
-          await generateInfo(text);
+          await generateInfo();
           const resp = await sendMessageToTelegramWithContext(context)(text);
 
           if (!context.CURRENT_CHAT_CONTEXT.message_id && resp.ok) {
@@ -310,7 +336,9 @@ export async function chatWithLLM(text, context, modifier) {
     }
     console.log(`[START] Chat via ${llm.name}`);
     const llmStart = performance.now();
-    const answer = await requestCompletionsFromLLM(text, context, llm, modifier, onStream);
+    const answer = await (
+      context.USER_CONFIG.REVERSE_MODE ? requestCompletionsFromReverseLLM : requestCompletionsFromLLM
+    )(text, context, llm, modifier, onStream);
     console.log(`[DONE] Chat with LLM: ${((performance.now()- llmStart)/1000).toFixed(2)}s`);
 
     if (ENV.SHOW_REPLY_BUTTON && context.CURRENT_CHAT_CONTEXT.message_id) {
@@ -329,7 +357,7 @@ export async function chatWithLLM(text, context, modifier) {
     }
     // 缓存LLM回答结果给后续步骤使用
     if (!ENV.HIDE_MIDDLE_MESSAGE || isLastStep) {
-      await generateInfo(answer);
+      if (!context.USER_CONFIG.REVERSE_MODE) await generateInfo(answer);
       // console.log(answer)
       await sendFinalMsg(answer);
     }
