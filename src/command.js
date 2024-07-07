@@ -5,6 +5,7 @@ import {mergeConfig, fetchWithRetry, CUSTOM_TINFO} from './utils.js';
 import {
   getChatRoleWithContext,
   sendChatActionToTelegramWithContext,
+  sendLoadingMessageToTelegramWithContext,
   sendMessageToTelegramWithContext,
   sendPhotoToTelegramWithContext,
 } from './telegram.js';
@@ -848,24 +849,30 @@ export function commandsDocument() {
  */
 async function commandGetChatList(message, command, subcommand, context) {
   try {
+    const loadingPromise = sendLoadingMessageToTelegramWithContext(context);
     let reverseChatInfo = JSON.parse(await DATABASE.get(context.SHARE_CONTEXT.reverseHistoryKey) || '{}');
     if (Object.keys(reverseChatInfo).length === 0) {
+      await loadingPromise;
       return sendMessageToTelegramWithContext(context)(ENV.I18N.message.refreshchatlist); 
     }
-    let currentConversation = context.REVERSE_CONTEXT.conversation_id;
+    let conversation_id = context.REVERSE_CONTEXT.conversation_id;
     context.CURRENT_CHAT_CONTEXT.parse_mode = 'MarkdownV2';
     let formatData = Object.entries(reverseChatInfo).map(
-      ([k, { title, alias }], i) => `${i}. ${title || '标题为空'}\n` + (alias ? `- alias: ${alias}\n` : '') + `${k}`,
+      ([k, { title, update_time, alias }], i) => `${i}. ${title || '-'}\n`
+        + (update_time ? `update time: ${update_time.substring(0, 19)}\n` : '')
+        + (alias ? `- alias: ${alias}` : '')
+        // + `\n${k}`,
     );
     
-    const current_alias = reverseChatInfo?.[currentConversation]?.alias || '';
-    const current_title = reverseChatInfo?.[currentConversation]?.title || '';
+    const { alias , title = '-', update_time } = reverseChatInfo?.[conversation_id] ?? {};
     formatData = '```\n'
       + '当前对话:\n'
-      + (current_title ? `title: ${current_title}\n` : '')
-      + `id: ${currentConversation || null}\n`
-      + (current_alias? `alias: ${current_alias}\n\n`: '\n')
-      + formatData.join('\n\n') + '\n```'
+      + (title ? `title: ${title} ` : '- ')
+      + (update_time ? `\nupdate time: ${update_time.substring(0, 19)}\n` : '\n')
+      + `id: ${conversation_id || null}\n`
+      + (alias? `alias: ${alias}\n\n`: '\n')
+      + formatData.join('\n') + '\n```'
+    await loadingPromise;
     return sendMessageToTelegramWithContext(context)(formatData);
   } catch (e) {
     return sendMessageToTelegramWithContext(context)(e.message);
@@ -883,6 +890,7 @@ async function commandGetChatList(message, command, subcommand, context) {
  */
 async function commandRefreshChatList(message, command, subcommand, context) {
   try {
+    const loadingPromise = sendLoadingMessageToTelegramWithContext(context);
     let reverseChatInfo = JSON.parse(await DATABASE.get(context.SHARE_CONTEXT.reverseHistoryKey) || '{}');
     const chatListData = await requestReverseChatListOrHistory(context, 'list', 25);
     if (!chatListData.items || chatListData?.items?.length === 0) {
@@ -900,7 +908,12 @@ async function commandRefreshChatList(message, command, subcommand, context) {
         // is_archived: i.is_archived,
       };
     });
+    reverseChatInfo = Object.fromEntries(
+      Object.entries(reverseChatInfo).sort(([, a], [, b]) => new Date(b.update_time) - new Date(a.update_time)),
+    );
+    
     await DATABASE.put(context.SHARE_CONTEXT.reverseHistoryKey, JSON.stringify(reverseChatInfo));
+    await loadingPromise;
     return sendMessageToTelegramWithContext(context)(ENV.I18N.command.refreshchatlist.refresh_success(chatListData.items.length));
   } catch (e) {
     return sendMessageToTelegramWithContext(context)(e.message);
@@ -919,8 +932,10 @@ async function commandRefreshChatList(message, command, subcommand, context) {
  */
 async function commandReverseHistory(message, command, subcommand, context) {
   try {
-    const currentConversation = context.REVERSE_CONTEXT.conversation_id;
-    if (!currentConversation || currentConversation === ':new:') {
+    const loadingPromise = sendLoadingMessageToTelegramWithContext(context);
+    const conversation_id = context.REVERSE_CONTEXT.conversation_id;
+    if (!conversation_id || conversation_id === ':new:') {
+      await loadingPromise;
       return sendMessageToTelegramWithContext(context)(ENV.I18N.message.new_chat_or_id_is_empty);
     }
 
@@ -928,12 +943,14 @@ async function commandReverseHistory(message, command, subcommand, context) {
     const parent_message_id = detail?.current_node || '';
     const reverseChatInfo = JSON.parse(await DATABASE.get(context.SHARE_CONTEXT.reverseHistoryKey) || '{}');
     if (parent_message_id && parent_message_id !== context.REVERSE_CONTEXT.parent_message_id) {
-      reverseChatInfo[currentConversation].parent_message_id = parent_message_id;
+      reverseChatInfo[conversation_id].parent_message_id = parent_message_id;
       context.REVERSE_CONTEXT.parent_message_id = parent_message_id;
       await DATABASE.put(context.SHARE_CONTEXT.reverseChatKey, JSON.stringify(context.REVERSE_CONTEXT));
       await DATABASE.put(context.SHARE_CONTEXT.reverseHistoryKey, JSON.stringify(reverseChatInfo));
-    } else if (!parent_message_id)
+    } else if (!parent_message_id) {
+      await loadingPromise;
       return sendMessageToTelegramWithContext(context)(ENV.I18N.history.query_error);
+    }
     function toDateTime(timestamp) {
       const date = new Date(timestamp);
       const options = { timeZone: 'Asia/Shanghai', hour12: false };
@@ -953,7 +970,8 @@ async function commandReverseHistory(message, command, subcommand, context) {
       })
       .join('-'.repeat(36) + '\n');
     
-    filterData = '```markdown\nLatest 10 messages:\n\n' + filterData + '```\n'
+    filterData = '```markdown\nLatest 10 messages:\n\n' + filterData + '```\n';
+    await loadingPromise;
     return sendMessageToTelegramWithContext(context)(filterData);
   } catch (e) {
     return sendMessageToTelegramWithContext(context)(ENV.I18N.command.setenv.update_config_error(e));

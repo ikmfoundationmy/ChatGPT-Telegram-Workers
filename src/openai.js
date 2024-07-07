@@ -270,7 +270,9 @@ export async function requestCompletionsFromOpenAICompatible(url, header, body, 
   } else if (context.USER_CONFIG.REVERSE_MODE) {
 
     const stream = new Stream(resp, controller);
-    let updateStep = 5;
+    let updateStep = 10;
+    let delta = 20;
+    // const deltaMax = 1000;
     let content = '';
     let lastChunk = null;
     let msgPromise = null;
@@ -286,7 +288,9 @@ export async function requestCompletionsFromOpenAICompatible(url, header, body, 
         if (!model) model = data?.model || data?.message?.metadata?.model_slug;
         if (!title) title = data?.title;
         if (lastChunk && content.length > updateStep) {
-          updateStep += 10;
+          updateStep += delta;
+          delta += 25;
+          // delta = delta >= deltaMax ? deltaMax : delta + 25;
           if (!msgPromise || (await Promise.race([msgPromise, immediatePromise])) !== 'immediate') {
             msgPromise = onStream(`${lastChunk}\n\n${ENV.I18N.message.loading}...`);
           }

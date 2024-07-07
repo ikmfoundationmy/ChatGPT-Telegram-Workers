@@ -69,7 +69,7 @@ export async function sendMessageToTelegram(message, token, context) {
       // chatContext.parse_mode = null;
       message = escape(origin_msg);
     } else {
-      message = (info) ? (info + ' \n\n' + origin_msg) : origin_msg;
+      message = (info) ? (info + ' \n' + origin_msg) : origin_msg;
     }
     if (parse_mode !== 'MarkdownV2' && context?.MIDDLE_INFO?.TEMP_INFO) {
       chatContext.entities = [
@@ -126,8 +126,9 @@ export async function sendMessageToTelegram(message, token, context) {
     }
 
     const msg = message.slice(i, Math.min(i + limit, message.length));
+    chatContext.entities[0].length = msg.length;
     chatContext.entities[1].length = msg.length;
-    chatContext.entities[0].length = msgIndex == 1 ? info.length : 0;
+    // chatContext.entities[0].length = msgIndex == 1 ? info.length : 0;
 
 
     let resp = await sendMessage(msg, token, chatContext);
