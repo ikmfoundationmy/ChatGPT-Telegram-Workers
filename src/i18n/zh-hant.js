@@ -18,6 +18,9 @@ export default {
     'group_has_no_permission_to_use_the_bot': (id) =>
       `該群組未開啟聊天權限，請聯繫管理員將該群組ID(${id})添加到白名單中`,
     'history_empty': '暫無歷史消息',
+    'refreshchatlist': '請先執行`/refreshchatlist`命令刷新列表`',
+    'chatlist_not_found': '未查到任何對話記錄',
+    'new_chat_or_id_is_empty': '當前為新對話或ID為空',
   },
   command: {
     help: {
@@ -42,7 +45,7 @@ export default {
       'history': '查詢歷史記錄',
       'setid': '設置對話 ID 格式為 `/setid id`',
       'setalias': '設置對話別名 格式為 `/setalias 對話序列號(数字) 別名`',
-      "refreshchatlist": "更新緩存的對話列表"
+      'refreshchatlist': '更新緩存的對話列表',
     },
     role: {
       'not_defined_any_role': '尚未定義任何角色',
@@ -95,5 +98,22 @@ export default {
       'bill_detail': (totalAmount, totalUsage, remaining) =>
         `📊 本月机器人用量\n\n\t- 总额度: $${totalAmount || 0}\n\t- 已使用: $${totalUsage || 0}\n\t- 剩余额度: $${remaining || 0}`,
     },
-  },
+    mode: {
+      'help': '配置項格式錯誤: 命令格式為 /mode NAME, 当NAME=all时, 查看所有mode',
+    },
+    setid: {
+      'help': '配置項格式錯誤：命令格式為 `/setid id`',
+      'out_of_range': (length) => `索引大小超出范围：${length}`,
+      'alias_not_found': (alias) => `找不到对应的别名：${alias}`,
+    },
+    setalias: {
+      'help': '配置項格式錯誤：命令格式為 `/setalias index alias`',
+    },
+    refreshchatlist: {
+      'refresh_success': (length) => `共刷新${length}个记录`,
+    },
+    history: {
+      'query_error': '無法獲取父消息id',
+    },
+  }
 };

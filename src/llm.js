@@ -247,11 +247,14 @@ async function requestCompletionsFromReverseLLM(text, context, llm, modifier, on
   }
   history[conversation_id].parent_message_id = parent_message_id;
   if (title) history[conversation_id].title = title;
-  await DATABASE.put(context.SHARE_CONTEXT.reverseChatKey, {
-    conversation_id,
-    parent_message_id,
-  });
-  await DATABASE.put(context.SHARE_CONTEXT.reverseHistoryKey, history);
+  await DATABASE.put(
+    context.SHARE_CONTEXT.reverseChatKey,
+    JSON.stringify({
+      conversation_id,
+      parent_message_id,
+    }),
+  );
+  await DATABASE.put(context.SHARE_CONTEXT.reverseHistoryKey, JSON.stringify(history));
   return answer;
 }
 

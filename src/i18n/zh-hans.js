@@ -16,6 +16,9 @@ export default {
     'user_has_no_permission_to_use_the_bot': (id) => `你没有权限使用这个bot, 请请联系管理员添加你的ID(${id})到白名单`,
     'group_has_no_permission_to_use_the_bot': (id) => `该群未开启聊天权限, 请请联系管理员添加群ID(${id})到白名单`,
     'history_empty': '暂无历史消息',
+    'refreshchatlist': '请先执行`/refreshchatlist`命令刷新列表`',
+    'chatlist_not_found': '未查询到任何对话记录',
+    'new_chat_or_id_is_empty': '当前为新对话或ID为空',
   },
   command: {
     help: {
@@ -45,13 +48,13 @@ export default {
     role: {
       'not_defined_any_role': '还未定义任何角色',
       'current_defined_role': (size) => `当前已定义的角色如下(${size}):\n`,
-      'help': '格式错误: 命令完整格式为 `/role 操作`\n'+
-        '当前支持以下`操作`:\n'+
-        ' `/role show` 显示当前定义的角色.\n'+
-        ' `/role 角色名 del` 删除指定名称的角色.\n'+
-        ' `/role 角色名 KEY=VALUE` 设置指定角色的配置.\n'+
-        '  目前以下设置项:\n'+
-        '   `SYSTEM_INIT_MESSAGE`:初始化消息\n'+
+      'help': '格式错误: 命令完整格式为 `/role 操作`\n' +
+        '当前支持以下`操作`:\n' +
+        ' `/role show` 显示当前定义的角色.\n' +
+        ' `/role 角色名 del` 删除指定名称的角色.\n' +
+        ' `/role 角色名 KEY=VALUE` 设置指定角色的配置.\n' +
+        '  目前以下设置项:\n' +
+        '   `SYSTEM_INIT_MESSAGE`:初始化消息\n' +
         '   `OPENAI_API_EXTRA_PARAMS`:OpenAI API 额外参数，必须为JSON',
       'delete_role_success': '删除角色成功',
       'delete_role_error': (e) => `删除角色错误: \`${e.message}\``,
@@ -92,6 +95,20 @@ export default {
     },
     mode: {
       'help': '配置项格式错误: 命令完整格式为 /mode NAME, 当NAME=all时, 查看所有mode',
-    }
-  },
-};
+    },
+    setid: {
+      'help': '格式错误：命令格式为 `/setid id`',
+      'out_of_range': (length) => `索引大小超出范围：${length}`,
+      'alias_not_found': (alias) => `找不到对应的别名：\`${alias}\``,
+    },
+    setalias: {
+      'help': '格式错误：命令格式为 `/setalias index alias`',
+    },
+    refreshchatlist: {
+      'refresh_success': (length) => `共刷新${length}条记录`,
+    },
+    history: {
+      'query_error': '无法获取父消息id',
+    },
+  }
+}

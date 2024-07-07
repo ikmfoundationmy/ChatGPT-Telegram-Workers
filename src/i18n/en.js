@@ -16,6 +16,10 @@ export default {
     'user_has_no_permission_to_use_the_bot': (id) => `You do not have permission to use this bot, please contact the administrator to add your ID (${id}) to the whitelist`,
     'group_has_no_permission_to_use_the_bot': (id) => `The group has not enabled chat permissions, please contact the administrator to add the group ID (${id}) to the whitelist`,
     'history_empty': 'No history messages',
+    'refreshchatlist': 'Please run the `/refreshchatlist` command first to refresh the list',
+    'chatlist_not_found': 'Chat list not found',
+    'new_chat_or_id_is_empty': 'New chat or ID is empty',
+
   },
   command: {
     help: {
@@ -88,6 +92,23 @@ export default {
     },
     bill: {
       'bill_detail': (totalAmount, totalUsage, remaining) => `📊 This month usage\n\n\t- Amount: $${totalAmount || 0}\n\t- Usage: $${totalUsage || 0}\n\t- Remaining: $${remaining || 0}`,
+    },
+    mode: {
+      'help': 'Configuration entry format error: the full format of the command is /mode NAME, when NAME=all, view all modes',
+    },
+    setid: {
+      'help': 'Configuration entry format error: the full format of the command is /setid id',
+      'out_of_range': (length) => `Error: Index need smaller than ${length}`,
+      'alias_not_found': (alias)=>`Error: alias \`${alias}\` not found`,
+    },
+    setalias: {
+      'help': 'Configuration entry format error: the full format of the command is /setalias index alias',
+    },
+    refreshchatlist: {
+      'refresh_success': (length) => `freshed ${length} records`,
+    },
+    history: {
+      'query_error': "Data don't obtain parent message id",
     },
   },
 };

@@ -4,9 +4,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1720274175;
+  BUILD_TIMESTAMP = 1720320169;
   // 当前版本 commit id
-  BUILD_VERSION = "8cf8334";
+  BUILD_VERSION = "3bb5d9c";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -2202,11 +2202,14 @@ async function requestCompletionsFromReverseLLM(text, context, llm, modifier, on
   history[conversation_id].parent_message_id = parent_message_id;
   if (title)
     history[conversation_id].title = title;
-  await DATABASE.put(context.SHARE_CONTEXT.reverseChatKey, {
-    conversation_id,
-    parent_message_id
-  });
-  await DATABASE.put(context.SHARE_CONTEXT.reverseHistoryKey, history);
+  await DATABASE.put(
+    context.SHARE_CONTEXT.reverseChatKey,
+    JSON.stringify({
+      conversation_id,
+      parent_message_id
+    })
+  );
+  await DATABASE.put(context.SHARE_CONTEXT.reverseHistoryKey, JSON.stringify(history));
   return answer;
 }
 async function chatWithLLM(text, context, modifier) {
@@ -2434,6 +2437,11 @@ var commandHandlersNew = {
   "/setenv": {
     scopes: [],
     fn: commandUpdateUserConfig,
+    needAuth: commandAuthCheck.shareModeGroup
+  },
+  "/setenvs": {
+    scopes: [],
+    fn: commandUpdateUserConfigs,
     needAuth: commandAuthCheck.shareModeGroup
   },
   "/delenv": {
@@ -2927,11 +2935,7 @@ async function commandGetChatList(message, command, subcommand, context) {
   try {
     let reverseChatInfo = JSON.parse(await DATABASE.get(context.SHARE_CONTEXT.reverseHistoryKey) || "{}");
     if (Object.keys(reverseChatInfo).length === 0) {
-      await commandRefreshChatList(message, command, subcommand, context);
-      reverseChatInfo = JSON.parse(await DATABASE.get(context.SHARE_CONTEXT.reverseHistoryKey) || "{}");
-    }
-    if (reverseChatInfo instanceof Response) {
-      return reverseChatInfo;
+      return sendMessageToTelegramWithContext2(context)(ENV.I18N.message.refreshchatlist);
     }
     let currentConversation = context.REVERSE_CONTEXT.conversation_id;
     context.CURRENT_CHAT_CONTEXT.parse_mode = "MarkdownV2";
@@ -2954,8 +2958,11 @@ async function commandGetChatList(message, command, subcommand, context) {
 }
 async function commandRefreshChatList(message, command, subcommand, context) {
   try {
-    let reverseChatInfo = {};
+    let reverseChatInfo = JSON.parse(await DATABASE.get(context.SHARE_CONTEXT.reverseHistoryKey) || "{}");
     const chatListData = await requestReverseChatListOrHistory(context, "list", 25);
+    if (!chatListData.items || chatListData?.items?.length === 0) {
+      return sendMessageToTelegramWithContext2(context)(ENV.I18N.message.chatlist_not_found);
+    }
     chatListData?.items?.forEach(({ id, title, update_time, create_time }) => {
       reverseChatInfo[id] = {
         ...reverseChatInfo[id] || {},
@@ -2968,11 +2975,8 @@ async function commandRefreshChatList(message, command, subcommand, context) {
         // is_archived: i.is_archived,
       };
     });
-    if (!Object.keys(reverseChatInfo).length) {
-      throw new Error(`\u672A\u67E5\u8BE2\u5230\u4EFB\u4F55\u5BF9\u8BDD\u8BB0\u5F55`);
-    }
     await DATABASE.put(context.SHARE_CONTEXT.reverseHistoryKey, JSON.stringify(reverseChatInfo));
-    return sendMessageToTelegramWithContext2(context)(ENV.I18N.command.setenv.update_config_success);
+    return sendMessageToTelegramWithContext2(context)(ENV.I18N.command.refreshchatlist.refresh_success(chatListData.items.length));
   } catch (e) {
     return sendMessageToTelegramWithContext2(context)(e.message);
   }
@@ -2986,7 +2990,7 @@ async function commandReverseHistory(message, command, subcommand, context) {
     };
     const currentConversation = context.REVERSE_CONTEXT.conversation_id;
     if (!currentConversation || currentConversation === ":new:") {
-      return sendMessageToTelegramWithContext2(context)("\u5F53\u524D\u4E3A\u65B0\u5BF9\u8BDD\u6216ID\u4E3A\u7A7A");
+      return sendMessageToTelegramWithContext2(context)(ENV.I18N.message.new_chat_or_id_is_empty);
     }
     const detail2 = await requestReverseChatListOrHistory(context, "detail");
     const parent_message_id = detail2?.current_node || "";
@@ -2994,28 +2998,16 @@ async function commandReverseHistory(message, command, subcommand, context) {
     if (parent_message_id && parent_message_id !== context.REVERSE_CONTEXT.parent_message_id) {
       reverseChatInfo[currentConversation].parent_message_id = parent_message_id;
       context.REVERSE_CONTEXT.parent_message_id = parent_message_id;
-      await DATABASE.put(context.SHARE_CONTEXT.reverseChatKey, context.REVERSE_CONTEXT);
-      await DATABASE.put(context.SHARE_CONTEXT.reverseHistoryKey, reverseChatInfo);
+      await DATABASE.put(context.SHARE_CONTEXT.reverseChatKey, JSON.stringify(context.REVERSE_CONTEXT));
+      await DATABASE.put(context.SHARE_CONTEXT.reverseHistoryKey, JSON.stringify(reverseChatInfo));
     } else if (!parent_message_id)
-      return sendMessageToTelegramWithContext2(context)("Data don't obtain parent message id");
-    let filterData = Object.values(detail2.mapping).filter(({ message: message2 }) => message2?.author?.name !== "browser" && ["text", "model_editable_context"].includes(message2?.content?.content_type) && (message2?.content?.parts?.[0] || message2?.content?.model_set_context)).map(({ id, parent_id, message: { author: { role }, content, create_time } }) => ({
-      id,
-      role,
-      content: content?.parts?.join("") || content?.model_set_context,
-      content_type: content?.content_type,
-      parent_id,
-      // children: i.children,
-      create_time: create_time * 1e3
-    })).sort((a, b) => a.create_time - b.create_time).map(({ id, role, content, content_type, parent_id, create_time }) => {
+      return sendMessageToTelegramWithContext2(context)(ENV.I18N.history.query_error);
+    let filterData = Object.values(detail2.mapping).filter(({ message: message2 }) => message2?.author?.name !== "browser" && "text" === message2?.content?.content_type && message2.content.parts.join("")).sort((a, b) => a.message.create_time - b.message.create_time).slice(-10).map(({ message: { author: { role }, content: { parts }, create_time } }) => {
       role = role === "user" ? "you" : "gpt";
-      content = content_type === "text" ? `${content}
-` : `\`\`\`code
-${content}
-\`\`\`
+      return `${role} [${toDateTime(create_time * 1e3)}]:
+${parts.join("\n")}
 `;
-      return `${role} (${toDateTime(create_time)}) 
-${content}`;
-    }).slice(-10).join("-".repeat(36) + "\n");
+    }).join("-".repeat(36) + "\n");
     filterData = "```markdown\nLatest 10 messages:\n\n" + filterData + "```\n";
     return sendMessageToTelegramWithContext2(context)(filterData);
   } catch (e) {
@@ -3025,7 +3017,7 @@ ${content}`;
 async function commandReverseNewChat(message, command, subcommand, context) {
   try {
     context.REVERSE_CONTEXT = { conversation_id: ":new:", parent_message_id: "" };
-    await DATABASE.put(context.SHARE_CONTEXT.reverseChatKey, context.REVERSE_CONTEXT);
+    await DATABASE.put(context.SHARE_CONTEXT.reverseChatKey, JSON.stringify(context.REVERSE_CONTEXT));
     return sendMessageToTelegramWithContext2(context)(ENV.I18N.command.setenv.update_config_success);
   } catch (e) {
     return sendMessageToTelegramWithContext2(context)(ENV.I18N.command.setenv.update_config_error(e));
@@ -3041,12 +3033,10 @@ async function commandSetId(message, command, subcommand, context) {
     let message2 = "";
     if (idIndexreg.test(subcommand)) {
       if (Object.keys(reverseChatInfo).length === 0) {
-        reverseChatInfo = await commandRefreshChatList(message2, command, subcommand, context);
+        return sendMessageToTelegramWithContext2(context)(ENV.I18N.message.history_empty);
       }
-      if (Object.keys(reverseChatInfo).length === 0) {
-        message2 = "\u65E0\u4EFB\u4F55\u5BF9\u8BDD\u8BB0\u5F55";
-      } else if (subcommand > Object.keys(reverseChatInfo).length - 1 || subcommand < 0) {
-        message2 = `Error: Index need smaller than ${Object.keys(reverseChatInfo).length}`;
+      if (subcommand > Object.keys(reverseChatInfo).length - 1 || subcommand < 0) {
+        message2 = ENV.I18N.setid.out_of_range(Object.keys(reverseChatInfo).length);
       }
       const dataList = Object.entries(reverseChatInfo);
       context.REVERSE_CONTEXT = {
@@ -3066,13 +3056,13 @@ async function commandSetId(message, command, subcommand, context) {
           parent_message_id: reverseChatInfo[conversation_id].parent_message_id
         };
       } else
-        message2 = `Error: alias \`${subcommand} not found\``;
+        message2 = ENV.I18N.setid.alias_not_found(subcommand);
     } else
-      message2 = "id\u683C\u5F0F\u9519\u8BEF \u683C\u5F0F\u4E3A `/setid (id/\u5E8F\u53F7/\u522B\u540D)`";
+      message2 = ENV.I18N.command.setid.help;
     if (message2) {
       return sendMessageToTelegramWithContext2(context)(message2);
     } else {
-      await DATABASE.put(context.SHARE_CONTEXT.reverseChatKey, context.REVERSE_CONTEXT);
+      await DATABASE.put(context.SHARE_CONTEXT.reverseChatKey, JSON.stringify(context.REVERSE_CONTEXT));
       return sendMessageToTelegramWithContext2(context)(ENV.I18N.command.setenv.update_config_success);
     }
   } catch (e) {
@@ -3086,7 +3076,7 @@ async function commandSetChatAlias(message, command, subcommand, context) {
     if (result?.[1] && result?.[2]) {
       let reverseChatInfo = JSON.parse(await DATABASE.get(context.SHARE_CONTEXT.reverseHistoryKey) || "{}");
       if (Object.keys(reverseChatInfo).length === 0) {
-        reverseChatInfo = await commandRefreshChatList(message, command, subcommand, context);
+        return sendMessageToTelegramWithContext2(context)(ENV.I18N.message.refreshchatlist);
       }
       if (result[1] > Object.keys(reverseChatInfo).length) {
         throw new Error(`Error: index need smaller than ${Object.keys(reverseChatInfo).length}`);
@@ -3095,7 +3085,7 @@ async function commandSetChatAlias(message, command, subcommand, context) {
       dataList[result[1]][1].alias = result[2];
       await DATABASE.put(context.SHARE_CONTEXT.reverseHistoryKey, JSON.stringify(Object.fromEntries(dataList)));
     } else
-      return sendMessageToTelegramWithContext2(context)("\u8BF7\u4EE5 `/setalias index alias` \u8BBE\u7F6E\u5BF9\u8BDDAlias");
+      return sendMessageToTelegramWithContext2(context)(ENV.I18N.command.setalias.help);
     return sendMessageToTelegramWithContext2(context)(ENV.I18N.command.setenv.update_config_success);
   } catch (e) {
     return sendMessageToTelegramWithContext2(context)(ENV.I18N.command.setenv.update_config_error(e));
@@ -3810,7 +3800,10 @@ var zh_hans_default = {
     "handle_chat_type_message_error": (type) => `\u5904\u7406${type}\u7C7B\u578B\u7684\u804A\u5929\u6D88\u606F\u51FA\u9519`,
     "user_has_no_permission_to_use_the_bot": (id) => `\u4F60\u6CA1\u6709\u6743\u9650\u4F7F\u7528\u8FD9\u4E2Abot, \u8BF7\u8BF7\u8054\u7CFB\u7BA1\u7406\u5458\u6DFB\u52A0\u4F60\u7684ID(${id})\u5230\u767D\u540D\u5355`,
     "group_has_no_permission_to_use_the_bot": (id) => `\u8BE5\u7FA4\u672A\u5F00\u542F\u804A\u5929\u6743\u9650, \u8BF7\u8BF7\u8054\u7CFB\u7BA1\u7406\u5458\u6DFB\u52A0\u7FA4ID(${id})\u5230\u767D\u540D\u5355`,
-    "history_empty": "\u6682\u65E0\u5386\u53F2\u6D88\u606F"
+    "history_empty": "\u6682\u65E0\u5386\u53F2\u6D88\u606F",
+    "refreshchatlist": "\u8BF7\u5148\u6267\u884C`/refreshchatlist`\u547D\u4EE4\u5237\u65B0\u5217\u8868`",
+    "chatlist_not_found": "\u672A\u67E5\u8BE2\u5230\u4EFB\u4F55\u5BF9\u8BDD\u8BB0\u5F55",
+    "new_chat_or_id_is_empty": "\u5F53\u524D\u4E3A\u65B0\u5BF9\u8BDD\u6216ID\u4E3A\u7A7A"
   },
   command: {
     help: {
@@ -3886,6 +3879,20 @@ var zh_hans_default = {
     },
     mode: {
       "help": "\u914D\u7F6E\u9879\u683C\u5F0F\u9519\u8BEF: \u547D\u4EE4\u5B8C\u6574\u683C\u5F0F\u4E3A /mode NAME, \u5F53NAME=all\u65F6, \u67E5\u770B\u6240\u6709mode"
+    },
+    setid: {
+      "help": "\u683C\u5F0F\u9519\u8BEF\uFF1A\u547D\u4EE4\u683C\u5F0F\u4E3A `/setid id`",
+      "out_of_range": (length) => `\u7D22\u5F15\u5927\u5C0F\u8D85\u51FA\u8303\u56F4\uFF1A${length}`,
+      "alias_not_found": (alias) => `\u627E\u4E0D\u5230\u5BF9\u5E94\u7684\u522B\u540D\uFF1A\`${alias}\``
+    },
+    setalias: {
+      "help": "\u683C\u5F0F\u9519\u8BEF\uFF1A\u547D\u4EE4\u683C\u5F0F\u4E3A `/setalias index alias`"
+    },
+    refreshchatlist: {
+      "refresh_success": (length) => `\u5171\u5237\u65B0${length}\u6761\u8BB0\u5F55`
+    },
+    history: {
+      "query_error": "\u65E0\u6CD5\u83B7\u53D6\u7236\u6D88\u606Fid"
     }
   }
 };
@@ -3905,7 +3912,10 @@ var zh_hant_default = {
     "handle_chat_type_message_error": (type) => `\u8655\u7406${type}\u985E\u578B\u7684\u804A\u5929\u6D88\u606F\u51FA\u932F`,
     "user_has_no_permission_to_use_the_bot": (id) => `\u60A8\u6C92\u6709\u6B0A\u9650\u4F7F\u7528\u672C\u6A5F\u5668\u4EBA\uFF0C\u8ACB\u806F\u7E6B\u7BA1\u7406\u54E1\u5C07\u60A8\u7684ID(${id})\u6DFB\u52A0\u5230\u767D\u540D\u55AE\u4E2D`,
     "group_has_no_permission_to_use_the_bot": (id) => `\u8A72\u7FA4\u7D44\u672A\u958B\u555F\u804A\u5929\u6B0A\u9650\uFF0C\u8ACB\u806F\u7E6B\u7BA1\u7406\u54E1\u5C07\u8A72\u7FA4\u7D44ID(${id})\u6DFB\u52A0\u5230\u767D\u540D\u55AE\u4E2D`,
-    "history_empty": "\u66AB\u7121\u6B77\u53F2\u6D88\u606F"
+    "history_empty": "\u66AB\u7121\u6B77\u53F2\u6D88\u606F",
+    "refreshchatlist": "\u8ACB\u5148\u57F7\u884C`/refreshchatlist`\u547D\u4EE4\u5237\u65B0\u5217\u8868`",
+    "chatlist_not_found": "\u672A\u67E5\u5230\u4EFB\u4F55\u5C0D\u8A71\u8A18\u9304",
+    "new_chat_or_id_is_empty": "\u7576\u524D\u70BA\u65B0\u5C0D\u8A71\u6216ID\u70BA\u7A7A"
   },
   command: {
     help: {
@@ -3978,6 +3988,23 @@ var zh_hant_default = {
 	- \u603B\u989D\u5EA6: $${totalAmount || 0}
 	- \u5DF2\u4F7F\u7528: $${totalUsage || 0}
 	- \u5269\u4F59\u989D\u5EA6: $${remaining || 0}`
+    },
+    mode: {
+      "help": "\u914D\u7F6E\u9805\u683C\u5F0F\u932F\u8AA4: \u547D\u4EE4\u683C\u5F0F\u70BA /mode NAME, \u5F53NAME=all\u65F6, \u67E5\u770B\u6240\u6709mode"
+    },
+    setid: {
+      "help": "\u914D\u7F6E\u9805\u683C\u5F0F\u932F\u8AA4\uFF1A\u547D\u4EE4\u683C\u5F0F\u70BA `/setid id`",
+      "out_of_range": (length) => `\u7D22\u5F15\u5927\u5C0F\u8D85\u51FA\u8303\u56F4\uFF1A${length}`,
+      "alias_not_found": (alias) => `\u627E\u4E0D\u5230\u5BF9\u5E94\u7684\u522B\u540D\uFF1A${alias}`
+    },
+    setalias: {
+      "help": "\u914D\u7F6E\u9805\u683C\u5F0F\u932F\u8AA4\uFF1A\u547D\u4EE4\u683C\u5F0F\u70BA `/setalias index alias`"
+    },
+    refreshchatlist: {
+      "refresh_success": (length) => `\u5171\u5237\u65B0${length}\u4E2A\u8BB0\u5F55`
+    },
+    history: {
+      "query_error": "\u7121\u6CD5\u7372\u53D6\u7236\u6D88\u606Fid"
     }
   }
 };
@@ -3997,7 +4024,10 @@ var en_default = {
     "handle_chat_type_message_error": (type) => `Error handling ${type} type of chat messages`,
     "user_has_no_permission_to_use_the_bot": (id) => `You do not have permission to use this bot, please contact the administrator to add your ID (${id}) to the whitelist`,
     "group_has_no_permission_to_use_the_bot": (id) => `The group has not enabled chat permissions, please contact the administrator to add the group ID (${id}) to the whitelist`,
-    "history_empty": "No history messages"
+    "history_empty": "No history messages",
+    "refreshchatlist": "Please run the `/refreshchatlist` command first to refresh the list",
+    "chatlist_not_found": "Chat list not found",
+    "new_chat_or_id_is_empty": "New chat or ID is empty"
   },
   command: {
     help: {
@@ -4069,6 +4099,23 @@ var en_default = {
 	- Amount: $${totalAmount || 0}
 	- Usage: $${totalUsage || 0}
 	- Remaining: $${remaining || 0}`
+    },
+    mode: {
+      "help": "Configuration entry format error: the full format of the command is /mode NAME, when NAME=all, view all modes"
+    },
+    setid: {
+      "help": "Configuration entry format error: the full format of the command is /setid id",
+      "out_of_range": (length) => `Error: Index need smaller than ${length}`,
+      "alias_not_found": (alias) => `Error: alias \`${alias}\` not found`
+    },
+    setalias: {
+      "help": "Configuration entry format error: the full format of the command is /setalias index alias"
+    },
+    refreshchatlist: {
+      "refresh_success": (length) => `freshed ${length} records`
+    },
+    history: {
+      "query_error": "Data don't obtain parent message id"
     }
   }
 };
