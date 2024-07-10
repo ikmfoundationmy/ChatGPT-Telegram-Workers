@@ -65,8 +65,9 @@ function handleEscape(text, type = 'text') {
       .replace(/\\\[([^\]]+?)\\\]\\\((.+?)\\\)/g, '[$1]($2)') // url
       .replace(/\\\`(.*?[^\\])\\\`/g, '`$1`') // inline code
       // .replace(/`\\``/g, '```') // code block
-      .replace(/\\\\([\_\*\[\]\(\)\~\`\>\#\+\-\=\|\{\}\.\!])/g, '\\$1') // restore duplicate escapes
-      .replace(/^(\s*)\\(>.+\s*)$/gm, '$1$2') // more than
+      .replace(/\\\\\\([\_\*\[\]\(\)\\\~\`\>\#\+\-\=\|\{\}\.\!])/g, '\\$1') // restore duplicate escapes
+      .replace(/^(\s*)\\(>.+\s*)$/gm, '$1$2') // > 
+      .replace(/^(\s*)\\-\s*(.+)$/gm, '$1• $2') // - 
       // .replace(/([^\\])\\([^\_\*\[\]\(\)\~\`\>\#\+\-\=\|\{\}\.\!])/g, '$1\\\\$2') // escape sign
       .replace(/^((\\#){1,3}\s)(.+)/gm, '$1*$3*'); // number sign
   } else {

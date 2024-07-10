@@ -228,7 +228,7 @@ export async function requestCompletionsFromOpenAICompatible(url, header, body, 
   
   const immediatePromise = Promise.resolve('immediate'); 
 
-  if (onStream && resp.ok && isEventStreamResponse(resp) && !context.USER_CONFIG.REVERSE_MODE) {
+  if (onStream && resp.ok && isEventStreamResponse(resp) && !ENV.REVERSE_MODE) {
     const stream = new Stream(resp, controller);
     let contentFull = '';
     let lengthDelta = 0;
@@ -246,7 +246,7 @@ export async function requestCompletionsFromOpenAICompatible(url, header, body, 
           lengthDelta = 0;
           updateStep += 10;
           if (!msgPromise || (await Promise.race([msgPromise, immediatePromise])) !== 'immediate') {
-            msgPromise = onStream(`${contentFull}\n\n${ENV.I18N.message.loading}...`);
+            msgPromise = onStream(`${contentFull}𒊹`);
           }
         }
         lastChunk = c;
@@ -256,7 +256,7 @@ export async function requestCompletionsFromOpenAICompatible(url, header, body, 
       console.log(`errorEnd`);
     }
     contentFull += lastChunk;
-    if (ENV.GPT3_TOKENS_COUNT && usage && !context.USER_CONFIG.REVERSE_MODE) {
+    if (ENV.GPT3_TOKENS_COUNT && usage && !ENV.REVERSE_MODE) {
       onResult?.({ usage });
       context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.promptToken = usage?.prompt_tokens ?? 0;
       context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.completionToken = usage?.completion_tokens ?? 0;
@@ -267,7 +267,7 @@ export async function requestCompletionsFromOpenAICompatible(url, header, body, 
     await msgPromise;
     console.log(`MiddleMsgTime: ${((performance.now() - startTime) / 1000).toFixed(2)}s`);
     return contentFull;
-  } else if (context.USER_CONFIG.REVERSE_MODE) {
+  } else if (ENV.REVERSE_MODE) {
 
     const stream = new Stream(resp, controller);
     let updateStep = 10;

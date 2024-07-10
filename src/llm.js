@@ -122,7 +122,7 @@ async function loadHistory(key, context) {
  * @return {function}
  */
 export function loadChatLLM(context) {
-  if (context.USER_CONFIG.REVERSE_MODE) return requestCompletionsFromReverseOpenAI;
+  if (ENV.REVERSE_MODE) return requestCompletionsFromReverseOpenAI;
   switch (context.CURRENT_CHAT_CONTEXT.PROCESS_INFO['AI_PROVIDER']) {
     case 'openai':
       return requestCompletionsFromOpenAI;
@@ -293,7 +293,7 @@ export async function chatWithLLM(text, context, modifier) {
     }
 
     await sendLoadingMessageToTelegramWithContext(context);
-    if (ENV.ENABLE_SHOWINFO && !context.USER_CONFIG.REVERSE_MODE) {
+    if (ENV.ENABLE_SHOWINFO && !ENV.REVERSE_MODE) {
       context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO += context.CURRENT_CHAT_CONTEXT.PROCESS_INFO['MODEL'];
     }
     let originalInfo = context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO?.TEMP_INFO || '';
@@ -308,7 +308,7 @@ export async function chatWithLLM(text, context, modifier) {
         extraInfo = ` ${time}s`;
       }
   
-      if (ENV.ENABLE_SHOWTOKENINFO && context.CURRENT_CHAT_CONTEXT?.MIDDLE_INFO.promptToken && context.CURRENT_CHAT_CONTEXT?.MIDDLE_INFO.completionToken && !context.USER_CONFIG.REVERSE_MODE) {
+      if (ENV.ENABLE_SHOWTOKENINFO && context.CURRENT_CHAT_CONTEXT?.MIDDLE_INFO.promptToken && context.CURRENT_CHAT_CONTEXT?.MIDDLE_INFO.completionToken && !ENV.REVERSE_MODE) {
         extraInfo += ' \nToken: ' + context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.promptToken + ' | ' + context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.completionToken + ' ';
       }
       context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO =  originalInfo + extraInfo;
@@ -340,7 +340,7 @@ export async function chatWithLLM(text, context, modifier) {
     console.log(`[START] Chat via ${llm.name}`);
     const llmStart = performance.now();
     const answer = await (
-      context.USER_CONFIG.REVERSE_MODE ? requestCompletionsFromReverseLLM : requestCompletionsFromLLM
+      ENV.REVERSE_MODE ? requestCompletionsFromReverseLLM : requestCompletionsFromLLM
     )(text, context, llm, modifier, onStream);
     console.log(`[DONE] Chat with LLM: ${((performance.now()- llmStart)/1000).toFixed(2)}s`);
 
@@ -360,7 +360,7 @@ export async function chatWithLLM(text, context, modifier) {
     }
     // 缓存LLM回答结果给后续步骤使用
     if (!ENV.HIDE_MIDDLE_MESSAGE || isLastStep) {
-      if (!context.USER_CONFIG.REVERSE_MODE) await generateInfo(answer);
+      if (!ENV.REVERSE_MODE) await generateInfo(answer);
       // console.log(answer)
       await sendFinalMsg(answer);
     }

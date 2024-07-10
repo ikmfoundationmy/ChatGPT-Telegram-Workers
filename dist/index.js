@@ -4,9 +4,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1720329968;
+  BUILD_TIMESTAMP = 1720618764;
   // 当前版本 commit id
-  BUILD_VERSION = "58b6ed4";
+  BUILD_VERSION = "c12bea1";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -94,6 +94,7 @@ var Environment = class {
   SHOW_REPLY_BUTTON = false;
   // 额外引用消息开关
   EXTRA_MESSAGE_CONTEXT = false;
+  ENABLE_REPLY_TO_MENTION = false;
   // 默认忽略#开头的消息
   IGNORE_TEXT = "#";
   // 消息中是否显示提供商, 模型等额外信息
@@ -155,6 +156,8 @@ var Environment = class {
     }
   };
   CURRENT_MODE = "default";
+  // 默认不开启 读取文件类型消息
+  ENABLE_FILE = false;
   PROVIDER_SOURCES = {};
   REVERSE_MODE = false;
   REVERSE_TOKEN = "";
@@ -399,7 +402,6 @@ var Context = class {
     MISTRAL_COMPLETIONS_API: ENV.MISTRAL_COMPLETIONS_API,
     // mistral api model
     MISTRAL_CHAT_MODEL: ENV.MISTRAL_CHAT_MODEL,
-    REVERSE_MODE: ENV.REVERSE_MODE,
     REVERSE_TOKEN: ENV.REVERSE_TOKEN,
     REVERSE_PERFIX: ENV.REVERSE_PERFIX
   };
@@ -554,16 +556,28 @@ var Context = class {
     this.SHARE_CONTEXT.reverseHistoryKey = message?.from?.id ? `reverseHistory:${message.from.id || message.chat.id}` : "";
     this.SHARE_CONTEXT.reverseChatKey = message?.from?.id ? `reverseChatId:${message.from.id || message.chat.id}` : "";
   }
+  async _initReverseContext() {
+    try {
+      if (ENV.REVERSE_MODE) {
+        this.REVERSE_CONTEXT = JSON.parse(await DATABASE.get(this.SHARE_CONTEXT.reverseChatKey) || "{}");
+      }
+      return null;
+    } catch (e) {
+      return new Response(errorToString(e), { status: 200 });
+    }
+  }
   /**
    * @param {TelegramMessage} message
    * @return {Promise<void>}
    */
   async initContext(message) {
     const chatId = message?.chat?.id;
-    const replyId = CONST.GROUP_TYPES.includes(message.chat?.type) ? message.message_id : null;
+    let replyId = CONST.GROUP_TYPES.includes(message.chat?.type) ? message.message_id : null;
+    if (ENV.EXTRA_MESSAGE_CONTEXT && ENV.ENABLE_REPLY_TO_MENTION) {
+      replyId = message.reply_to_message.message_id;
+    }
     this._initChatContext(chatId, replyId);
     await this._initShareContext(message);
-    await this._initUserConfig(this.SHARE_CONTEXT.configStoreKey);
   }
 };
 
@@ -770,7 +784,7 @@ function renderHTML(body) {
 </html>
   `;
 }
-function errorToString(e) {
+function errorToString2(e) {
   return JSON.stringify({
     message: e.message,
     stack: e.stack
@@ -1029,7 +1043,7 @@ function handleEscape(text, type = "text") {
     return text;
   }
   if (type === "text") {
-    text = text.replace(escapeChars, "\\$1").replace(/\\\*\\\*(.*?[^\\])\\\*\\\*/g, "*$1*").replace(/\\_\\_(.*?[^\\])\\_\\_/g, "__$1__").replace(/\\_(.*?[^\\])\\_/g, "_$1_").replace(/\\~(.*?[^\\])\\~/g, "~$1~").replace(/\\\|\\\|(.*?[^\\])\\\|\\\|/g, "||$1||").replace(/\\\[([^\]]+?)\\\]\\\((.+?)\\\)/g, "[$1]($2)").replace(/\\\`(.*?[^\\])\\\`/g, "`$1`").replace(/\\\\([\_\*\[\]\(\)\~\`\>\#\+\-\=\|\{\}\.\!])/g, "\\$1").replace(/^(\s*)\\(>.+\s*)$/gm, "$1$2").replace(/^((\\#){1,3}\s)(.+)/gm, "$1*$3*");
+    text = text.replace(escapeChars, "\\$1").replace(/\\\*\\\*(.*?[^\\])\\\*\\\*/g, "*$1*").replace(/\\_\\_(.*?[^\\])\\_\\_/g, "__$1__").replace(/\\_(.*?[^\\])\\_/g, "_$1_").replace(/\\~(.*?[^\\])\\~/g, "~$1~").replace(/\\\|\\\|(.*?[^\\])\\\|\\\|/g, "||$1||").replace(/\\\[([^\]]+?)\\\]\\\((.+?)\\\)/g, "[$1]($2)").replace(/\\\`(.*?[^\\])\\\`/g, "`$1`").replace(/\\\\\\([\_\*\[\]\(\)\\\~\`\>\#\+\-\=\|\{\}\.\!])/g, "\\$1").replace(/^(\s*)\\(>.+\s*)$/gm, "$1$2").replace(/^(\s*)\\-\s*(.+)$/gm, "$1\u2022 $2").replace(/^((\\#){1,3}\s)(.+)/gm, "$1*$3*");
   } else {
     if (codeBlank === 0)
       codeBlank = text.length - text.trimStart().length;
@@ -1677,7 +1691,7 @@ async function requestCompletionsFromOpenAICompatible(url, header, body, context
   })]);
   clearTimeout(firstTimeoutId);
   const immediatePromise = Promise.resolve("immediate");
-  if (onStream && resp.ok && isEventStreamResponse(resp) && !context.USER_CONFIG.REVERSE_MODE) {
+  if (onStream && resp.ok && isEventStreamResponse(resp) && !ENV.REVERSE_MODE) {
     const stream = new Stream(resp, controller);
     let contentFull = "";
     let lengthDelta = 0;
@@ -1696,9 +1710,7 @@ async function requestCompletionsFromOpenAICompatible(url, header, body, context
           lengthDelta = 0;
           updateStep += 10;
           if (!msgPromise || await Promise.race([msgPromise, immediatePromise]) !== "immediate") {
-            msgPromise = onStream(`${contentFull}
-
-${ENV.I18N.message.loading}...`);
+            msgPromise = onStream(`${contentFull}\u{122B9}`);
           }
         }
         lastChunk = c;
@@ -1709,7 +1721,7 @@ ERROR: ${e.message}`;
       console.log(`errorEnd`);
     }
     contentFull += lastChunk;
-    if (ENV.GPT3_TOKENS_COUNT && usage && !context.USER_CONFIG.REVERSE_MODE) {
+    if (ENV.GPT3_TOKENS_COUNT && usage && !ENV.REVERSE_MODE) {
       onResult?.({ usage });
       context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.promptToken = usage?.prompt_tokens ?? 0;
       context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.completionToken = usage?.completion_tokens ?? 0;
@@ -1719,7 +1731,7 @@ ERROR: ${e.message}`;
     await msgPromise;
     console.log(`MiddleMsgTime: ${((performance.now() - startTime) / 1e3).toFixed(2)}s`);
     return contentFull;
-  } else if (context.USER_CONFIG.REVERSE_MODE) {
+  } else if (ENV.REVERSE_MODE) {
     const stream = new Stream(resp, controller);
     let updateStep = 10;
     let delta = 20;
@@ -1935,8 +1947,7 @@ async function requestCompletionsFromWorkersAI(message, history, context, onStre
         if (lengthDelta > updateStep) {
           lengthDelta = 0;
           updateStep += 5;
-          await onStream(`${contentFull}
-${ENV.I18N.message.loading}...`);
+          await onStream(`${contentFull}\u{122B9}`);
         }
       }
     } catch (e) {
@@ -2099,7 +2110,7 @@ async function loadHistory(key, context) {
   return { real: history, original };
 }
 function loadChatLLM(context) {
-  if (context.USER_CONFIG.REVERSE_MODE)
+  if (ENV.REVERSE_MODE)
     return requestCompletionsFromReverseOpenAI;
   switch (context.CURRENT_CHAT_CONTEXT.PROCESS_INFO["AI_PROVIDER"]) {
     case "openai":
@@ -2239,7 +2250,7 @@ async function chatWithLLM(text, context, modifier) {
       delete context.CURRENT_CHAT_CONTEXT.reply_markup;
     }
     await sendLoadingMessageToTelegramWithContext(context);
-    if (ENV.ENABLE_SHOWINFO && !context.USER_CONFIG.REVERSE_MODE) {
+    if (ENV.ENABLE_SHOWINFO && !ENV.REVERSE_MODE) {
       context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO += context.CURRENT_CHAT_CONTEXT.PROCESS_INFO["MODEL"];
     }
     let originalInfo = context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO?.TEMP_INFO || "";
@@ -2253,7 +2264,7 @@ async function chatWithLLM(text, context, modifier) {
         const time = ((performance.now() - llmStart) / 1e3).toFixed(2);
         extraInfo = ` ${time}s`;
       }
-      if (ENV.ENABLE_SHOWTOKENINFO && context.CURRENT_CHAT_CONTEXT?.MIDDLE_INFO.promptToken && context.CURRENT_CHAT_CONTEXT?.MIDDLE_INFO.completionToken && !context.USER_CONFIG.REVERSE_MODE) {
+      if (ENV.ENABLE_SHOWTOKENINFO && context.CURRENT_CHAT_CONTEXT?.MIDDLE_INFO.promptToken && context.CURRENT_CHAT_CONTEXT?.MIDDLE_INFO.completionToken && !ENV.REVERSE_MODE) {
         extraInfo += " \nToken: " + context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.promptToken + " | " + context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.completionToken + " ";
       }
       context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO = originalInfo + extraInfo;
@@ -2282,7 +2293,7 @@ async function chatWithLLM(text, context, modifier) {
     }
     console.log(`[START] Chat via ${llm.name}`);
     const llmStart = performance.now();
-    const answer = await (context.USER_CONFIG.REVERSE_MODE ? requestCompletionsFromReverseLLM : requestCompletionsFromLLM)(text, context, llm, modifier, onStream);
+    const answer = await (ENV.REVERSE_MODE ? requestCompletionsFromReverseLLM : requestCompletionsFromLLM)(text, context, llm, modifier, onStream);
     console.log(`[DONE] Chat with LLM: ${((performance.now() - llmStart) / 1e3).toFixed(2)}s`);
     if (ENV.SHOW_REPLY_BUTTON && context.CURRENT_CHAT_CONTEXT.message_id) {
       try {
@@ -2299,7 +2310,7 @@ async function chatWithLLM(text, context, modifier) {
       }
     }
     if (!ENV.HIDE_MIDDLE_MESSAGE || isLastStep) {
-      if (!context.USER_CONFIG.REVERSE_MODE)
+      if (!ENV.REVERSE_MODE)
         await generateInfo(answer);
       await sendFinalMsg(answer);
     }
@@ -2582,7 +2593,7 @@ async function commandGenerateImg(message, command, subcommand, context) {
   }
 }
 async function commandGetHelp(message, command, subcommand, context) {
-  const helpMsg = ENV.I18N.command.help.summary + "```markdown\n" + Object.keys(context.USER_CONFIG.REVERSE_MODE ? commandHandlersNew : commandHandlers).map((key) => `${key}\uFF1A${ENV.I18N.command.help[key.substring(1)]}`).join("\n") + "\n```";
+  const helpMsg = ENV.I18N.command.help.summary + "```markdown\n" + Object.keys(ENV.REVERSE_MODE ? commandHandlersNew : commandHandlers).map((key) => `${key}\uFF1A${ENV.I18N.command.help[key.substring(1)]}`).join("\n") + "\n```";
   context.CURRENT_CHAT_CONTEXT.parse_mode = "MarkdownV2";
   return sendMessageToTelegramWithContext2(context)(helpMsg);
 }
@@ -2836,7 +2847,7 @@ async function handleCommandMessage(message, context) {
   if (customKey) {
     message.text = message.text.replace(customKey, CUSTOM_COMMAND[customKey]);
   }
-  const commandSelect = context.USER_CONFIG.REVERSE_MODE ? commandHandlersNew : commandHandlers;
+  const commandSelect = ENV.REVERSE_MODE ? commandHandlersNew : commandHandlers;
   const msgRegExp = /^.*?[!！]/;
   const commandMsg = msgRegExp.exec(message.text)?.[0].slice(0, -1) || message.text;
   const otherMsg = message.text.substring(commandMsg.length + 1);
@@ -2862,19 +2873,26 @@ async function handleCommandMessage(message, context) {
       }
       const subcommand = commandMsg.substring(key.length).trim();
       try {
+        await context._initUserConfig(context.SHARE_CONTEXT.configStoreKey);
+        await context._initReverseContext();
         const result = await command.fn(message, key, subcommand, context);
         console.log("[DONE] Command: " + key + " " + subcommand);
         if (!otherMsg) {
           return result;
         }
         message.text = otherMsg;
+        break;
       } catch (e) {
         return sendMessageToTelegramWithContext2(context)(ENV.I18N.command.permission.command_error(e));
       }
     }
   }
-  if (context.USER_CONFIG.REVERSE_MODE && message.text.startsWith("/")) {
-    return sendMessageToTelegramWithContext2(context)(`Tip: Don't process command-like text.`);
+  if (message.text.startsWith("/")) {
+    return sendMessageToTelegramWithContext2(context)(`Oops! It's not a command.`);
+  }
+  if (!context?.USER_CONFIG) {
+    await context._initUserConfig(context.SHARE_CONTEXT.configStoreKey);
+    await context._initReverseContext();
   }
   return null;
 }
@@ -3015,7 +3033,7 @@ async function commandReverseHistory(message, command, subcommand, context) {
       await DATABASE.put(context.SHARE_CONTEXT.reverseHistoryKey, JSON.stringify(reverseChatInfo));
     } else if (!parent_message_id) {
       await loadingPromise;
-      return sendMessageToTelegramWithContext2(context)(ENV.I18N.history.query_error);
+      return sendMessageToTelegramWithContext2(context)(ENV.I18N.command.history.query_error);
     }
     let filterData = Object.values(detail2.mapping).filter(({ message: message2 }) => message2?.author?.name !== "browser" && "text" === message2?.content?.content_type && message2.content.parts.join("")).sort((a, b) => a.message.create_time - b.message.create_time).slice(-10).map(({ message: { author: { role }, content: { parts }, create_time } }) => {
       role = role === "user" ? "you" : "gpt";
@@ -3052,7 +3070,7 @@ async function commandSetId(message, command, subcommand, context) {
         return sendMessageToTelegramWithContext2(context)(ENV.I18N.message.history_empty);
       }
       if (subcommand > Object.keys(reverseChatInfo).length - 1 || subcommand < 0) {
-        message2 = ENV.I18N.setid.out_of_range(Object.keys(reverseChatInfo).length);
+        message2 = ENV.I18N.command.setid.out_of_range(Object.keys(reverseChatInfo).length);
       }
       const dataList = Object.entries(reverseChatInfo);
       context.REVERSE_CONTEXT = {
@@ -3072,7 +3090,7 @@ async function commandSetId(message, command, subcommand, context) {
           parent_message_id: reverseChatInfo[conversation_id].parent_message_id
         };
       } else
-        message2 = ENV.I18N.setid.alias_not_found(subcommand);
+        message2 = ENV.I18N.commond.setid.alias_not_found(subcommand);
     } else
       message2 = ENV.I18N.command.setid.help;
     if (message2) {
@@ -3128,19 +3146,9 @@ async function msgInitChatContext(message, context) {
   try {
     await context.initContext(message);
   } catch (e) {
-    return new Response(errorToString(e), { status: 200 });
+    return new Response(errorToString2(e), { status: 200 });
   }
   return null;
-}
-async function msgInitReverContext(message, context) {
-  try {
-    if (context.USER_CONFIG.REVERSE_MODE) {
-      context.REVERSE_CONTEXT = JSON.parse(await DATABASE.get(context.SHARE_CONTEXT.reverseChatKey) || "{}");
-    }
-    return null;
-  } catch (e) {
-    return new Response(errorToString(e), { status: 200 });
-  }
 }
 async function msgSaveLastMessage(message, context) {
   if (ENV.DEBUG_MODE) {
@@ -3207,13 +3215,13 @@ async function msgFilterWhiteList(message, context) {
   );
 }
 async function msgFilterNonTextMessage(message, context) {
-  if (!message.text && !context.CURRENT_CHAT_CONTEXT?.MIDDLE_INFO?.FILEURL) {
+  if (!message.text && !ENV.ENABLE_FILE && (ENV.EXTRA_MESSAGE_CONTEXT && !message.reply_to_message.text)) {
     return sendMessageToTelegramWithContext2(context)(ENV.I18N.message.not_supported_chat_type_message);
   }
   return null;
 }
 async function msgHandlePrivateMessage(message, context) {
-  if (context.USER_CONFIG.REVERSE_MODE) {
+  if (ENV.REVERSE_MODE) {
     return null;
   }
   if (message.voice || message.audio || message.photo || message.document) {
@@ -3444,12 +3452,12 @@ async function msgHandleFile(message, fileType, context) {
   return new Response("Handle file msg failed", { status: 200 });
 }
 async function msgChatWithLLM(message, context) {
-  if (context.USER_CONFIG.REVERSE_MODE)
+  if (ENV.REVERSE_MODE)
     return chatWithLLM(message.text, context, null);
-  const acceptType = ["photo", "image", "voice", "audio", "text"];
+  const acceptType = ENV.ENABLE_FILE ? ["photo", "image", "voice", "audio", "text"] : ["text"];
   let msgType2 = acceptType.find((key) => key in message);
-  let fileType = message?.document || msgType2;
-  if (message?.document) {
+  let fileType = ENV.ENABLE_FILE ? message?.document || msgType2 : msgType2;
+  if (message?.document && ENV.ENABLE_FILE) {
     if (message.document.mime_type.match(/image/)) {
       msgType2 = "image";
     } else if (message.document.mime_type.match(/audio/))
@@ -3543,7 +3551,7 @@ async function msgChatWithLLM(message, context) {
 }
 async function msgProcessByChatType(message, context) {
   let handlerMap;
-  if (context.USER_CONFIG.REVERSE_MODE) {
+  if (ENV.REVERSE_MODE) {
     handlerMap = {
       "private": [msgFilterWhiteList, msgFilterNonTextMessage, msgHandleCommand],
       "group": [msgFilterWhiteList, msgHandleGroupMessage, msgHandleCommand],
@@ -3553,13 +3561,19 @@ async function msgProcessByChatType(message, context) {
     handlerMap = {
       "private": [
         msgFilterWhiteList,
+        msgFilterNonTextMessage,
         msgHandlePrivateMessage,
-        // msgFilterNonTextMessage,
         msgHandleCommand,
         msgHandleRole
       ],
-      "group": [msgFilterWhiteList, msgHandleGroupMessage, msgHandleCommand, msgHandleRole],
-      "supergroup": [msgFilterWhiteList, msgHandleGroupMessage, msgHandleCommand, msgHandleRole]
+      "group": [msgFilterWhiteList, msgHandleGroupMessage, msgFilterNonTextMessage, msgHandleCommand, msgHandleRole],
+      "supergroup": [
+        msgFilterWhiteList,
+        msgHandleGroupMessage,
+        msgFilterNonTextMessage,
+        msgHandleCommand,
+        msgHandleRole
+      ]
     };
   }
   if (!Object.prototype.hasOwnProperty.call(handlerMap, context.SHARE_CONTEXT.chatType)) {
@@ -3612,12 +3626,11 @@ async function handleMessage(request) {
     // 初始化聊天上下文: 生成chat_id, reply_to_message_id(群组消息), SHARE_CONTEXT
     msgIgnoreOldMessage,
     // 忽略旧消息
-    msgInitReverContext,
-    // 初始化REVERSE_MODE上下文 生成 conversation_id, parent_message_id
-    msgSaveLastMessage,
-    // 保存最后一条消息
     msgProcessByChatType,
     // 根据类型对消息进一步处理
+    // msgInitReverseContext, // 初始化REVERSE_MODE上下文 生成 conversation_id, parent_message_id
+    msgSaveLastMessage,
+    // 保存最后一条消息
     msgChatWithLLM
     // 与llm聊天
   ];
@@ -3629,7 +3642,7 @@ async function handleMessage(request) {
       }
     } catch (e) {
       console.error(e);
-      return new Response(errorToString(e), { status: 500 });
+      return new Response(errorToString2(e), { status: 500 });
     }
   }
   return null;
@@ -3656,8 +3669,8 @@ async function bindWebHookAction(request) {
     console.log(`webhook url: ${url}`);
     const id = token.split(":")[0];
     result[id] = {
-      webhook: await bindTelegramWebHook(token, url).catch((e) => errorToString(e)),
-      command: await bindCommandForTelegram(token).catch((e) => errorToString(e))
+      webhook: await bindTelegramWebHook(token, url).catch((e) => errorToString2(e)),
+      command: await bindCommandForTelegram(token).catch((e) => errorToString2(e))
     };
   }
   const HTML = renderHTML(`
@@ -3701,7 +3714,7 @@ async function telegramWebhook(request) {
     return await makeResponse200(await handleMessage(request));
   } catch (e) {
     console.error(e);
-    return new Response(errorToString(e), { status: 200 });
+    return new Response(errorToString2(e), { status: 200 });
   }
 }
 async function telegramSafeHook(request) {
@@ -3716,7 +3729,7 @@ async function telegramSafeHook(request) {
     return await makeResponse200(await API_GUARD.fetch(request));
   } catch (e) {
     console.error(e);
-    return new Response(errorToString(e), { status: 200 });
+    return new Response(errorToString2(e), { status: 200 });
   }
 }
 async function defaultIndexAction() {
@@ -4163,7 +4176,7 @@ var main_default = {
       return resp || new Response("NOTFOUND", { status: 404 });
     } catch (e) {
       console.error(e);
-      return new Response(errorToString(e), { status: 500 });
+      return new Response(errorToString2(e), { status: 500 });
     }
   }
 };

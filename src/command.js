@@ -324,7 +324,7 @@ async function commandGetHelp(message, command, subcommand, context) {
   const helpMsg =
     ENV.I18N.command.help.summary +
     '```markdown\n' +
-    Object.keys(context.USER_CONFIG.REVERSE_MODE ? commandHandlersNew : commandHandlers)
+    Object.keys(ENV.REVERSE_MODE ? commandHandlersNew : commandHandlers)
       .map((key) => `${key}：${ENV.I18N.command.help[key.substring(1)]}`)
       .join('\n') + '\n```';
   context.CURRENT_CHAT_CONTEXT.parse_mode = 'MarkdownV2';
@@ -722,7 +722,7 @@ export async function handleCommandMessage(message, context) {
   if (customKey) {
     message.text = message.text.replace(customKey, CUSTOM_COMMAND[customKey]);
   }
-  const commandSelect = context.USER_CONFIG.REVERSE_MODE ? commandHandlersNew : commandHandlers;
+  const commandSelect = ENV.REVERSE_MODE ? commandHandlersNew : commandHandlers;
   const msgRegExp = /^.*?[!！]/;
   const commandMsg = msgRegExp.exec(message.text)?.[0].slice(0,-1) || message.text;
   const otherMsg = message.text.substring(commandMsg.length + 1);
@@ -751,19 +751,29 @@ export async function handleCommandMessage(message, context) {
       }
       const subcommand = commandMsg.substring(key.length).trim();
       try {
+        // 延迟请求用户配置
+        await context._initUserConfig(context.SHARE_CONTEXT.configStoreKey);
+        await context._initReverseContext();
         const result = await command.fn(message, key, subcommand, context);
         console.log('[DONE] Command: ' + key + ' ' + subcommand);
         if (!otherMsg) {
           return result;
         }
         message.text = otherMsg;
+        break;
       } catch (e) {
         return sendMessageToTelegramWithContext(context)(ENV.I18N.command.permission.command_error(e));
       }
     }
   }
-  if (context.USER_CONFIG.REVERSE_MODE && message.text.startsWith('/')) {
-    return sendMessageToTelegramWithContext(context)(`Tip: Don't process command-like text.`);
+  // 除命令外, 以 / 开头 的文本不再处理
+  if (message.text.startsWith('/')) {
+    return sendMessageToTelegramWithContext(context)(`Oops! It's not a command.`);
+  }
+  // 延迟请求用户配置
+  if (!context?.USER_CONFIG) {
+    await context._initUserConfig(context.SHARE_CONTEXT.configStoreKey);
+    await context._initReverseContext();
   }
   return null;
 }
@@ -949,7 +959,7 @@ async function commandReverseHistory(message, command, subcommand, context) {
       await DATABASE.put(context.SHARE_CONTEXT.reverseHistoryKey, JSON.stringify(reverseChatInfo));
     } else if (!parent_message_id) {
       await loadingPromise;
-      return sendMessageToTelegramWithContext(context)(ENV.I18N.history.query_error);
+      return sendMessageToTelegramWithContext(context)(ENV.I18N.command.history.query_error);
     }
     function toDateTime(timestamp) {
       const date = new Date(timestamp);
@@ -1021,7 +1031,7 @@ async function commandSetId(message, command, subcommand, context) {
         return sendMessageToTelegramWithContext(context)(ENV.I18N.message.history_empty);
       }
       if (subcommand > Object.keys(reverseChatInfo).length - 1 || subcommand < 0) {
-        message = ENV.I18N.setid.out_of_range(Object.keys(reverseChatInfo).length);
+        message = ENV.I18N.command.setid.out_of_range(Object.keys(reverseChatInfo).length);
       }
       const dataList = Object.entries(reverseChatInfo);
       context.REVERSE_CONTEXT = {
@@ -1040,7 +1050,7 @@ async function commandSetId(message, command, subcommand, context) {
           conversation_id,
           parent_message_id: reverseChatInfo[conversation_id].parent_message_id,
         };
-      } else message = ENV.I18N.setid.alias_not_found(subcommand);
+      } else message = ENV.I18N.commond.setid.alias_not_found(subcommand);
     } else message = ENV.I18N.command.setid.help;
     if (message) {
       return sendMessageToTelegramWithContext(context)(message);

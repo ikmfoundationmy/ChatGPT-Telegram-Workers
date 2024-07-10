@@ -32,9 +32,9 @@ async function msgInitChatContext(message, context) {
  * @param {Context} context
  * @return {Promise<Response>}
  */
-async function msgInitReverContext(message, context) {
+async function msgInitReverseContext(message, context) {
   try {
-    if (context.USER_CONFIG.REVERSE_MODE) {
+    if (ENV.REVERSE_MODE) {
       context.REVERSE_CONTEXT = JSON.parse((await DATABASE.get(context.SHARE_CONTEXT.reverseChatKey)) || '{}');
     }
     return null;
@@ -154,7 +154,7 @@ async function msgFilterWhiteList(message, context) {
  * @return {Promise<Response>}
  */
 async function msgFilterNonTextMessage(message, context) {
-  if (!message.text && !context.CURRENT_CHAT_CONTEXT?.MIDDLE_INFO?.FILEURL) {
+  if (!message.text && !ENV.ENABLE_FILE && (ENV.EXTRA_MESSAGE_CONTEXT && !message.reply_to_message.text)) {
     return sendMessageToTelegramWithContext(context)(ENV.I18N.message.not_supported_chat_type_message);
   }
   return null;
@@ -168,7 +168,7 @@ async function msgFilterNonTextMessage(message, context) {
  * @return {Promise<Response>}
  */
 async function msgHandlePrivateMessage(message, context) {
-  if (context.USER_CONFIG.REVERSE_MODE) {
+  if (ENV.REVERSE_MODE) {
     return null;
   }
   if (message.voice || message.audio || message.photo || message.document) {
@@ -465,13 +465,13 @@ async function msgHandleFile(message, fileType, context) {
  */
 async function msgChatWithLLM(message, context) {
   // reverse model only support text now
-  if (context.USER_CONFIG.REVERSE_MODE) return chatWithLLM(message.text, context, null);
+  if (ENV.REVERSE_MODE) return chatWithLLM(message.text, context, null);
 
   // 消息类型优先级: 图片-音频-文本
-  const acceptType = ['photo', 'image', 'voice', 'audio', 'text']
+  const acceptType = ENV.ENABLE_FILE ? ['photo', 'image', 'voice', 'audio', 'text'] : ['text'];
   let msgType = acceptType.find((key) => key in message);
-  let fileType = message?.document || msgType;
-  if (message?.document) {
+  let fileType = ENV.ENABLE_FILE ? (message?.document || msgType) : msgType;
+  if (message?.document && ENV.ENABLE_FILE) {
     if (message.document.mime_type.match(/image/)) {
       msgType = 'image';
     } else if (message.document.mime_type.match(/audio/)) msgType = 'audio';
@@ -583,7 +583,7 @@ async function msgChatWithLLM(message, context) {
  */
 export async function msgProcessByChatType(message, context) {
   let handlerMap;
-  if (context.USER_CONFIG.REVERSE_MODE) {
+  if (ENV.REVERSE_MODE) {
     handlerMap = {
       'private': [msgFilterWhiteList, msgFilterNonTextMessage, msgHandleCommand],
       'group': [msgFilterWhiteList, msgHandleGroupMessage, msgHandleCommand],
@@ -593,13 +593,19 @@ export async function msgProcessByChatType(message, context) {
     handlerMap = {
       'private': [
         msgFilterWhiteList,
+        msgFilterNonTextMessage,
         msgHandlePrivateMessage,
-        // msgFilterNonTextMessage,
         msgHandleCommand,
         msgHandleRole,
       ],
-      'group': [msgFilterWhiteList, msgHandleGroupMessage, msgHandleCommand, msgHandleRole],
-      'supergroup': [msgFilterWhiteList, msgHandleGroupMessage, msgHandleCommand, msgHandleRole],
+      'group': [msgFilterWhiteList, msgHandleGroupMessage, msgFilterNonTextMessage, msgHandleCommand, msgHandleRole],
+      'supergroup': [
+        msgFilterWhiteList,
+        msgHandleGroupMessage,
+        msgFilterNonTextMessage,
+        msgHandleCommand,
+        msgHandleRole,
+      ],
     };
   }
   
@@ -670,9 +676,9 @@ export async function handleMessage(request) {
     msgCheckEnvIsReady, // 检查环境是否准备好: API_KEY, DATABASE
     msgInitChatContext, // 初始化聊天上下文: 生成chat_id, reply_to_message_id(群组消息), SHARE_CONTEXT
     msgIgnoreOldMessage, // 忽略旧消息
-    msgInitReverContext, // 初始化REVERSE_MODE上下文 生成 conversation_id, parent_message_id
-    msgSaveLastMessage, // 保存最后一条消息
     msgProcessByChatType, // 根据类型对消息进一步处理
+    // msgInitReverseContext, // 初始化REVERSE_MODE上下文 生成 conversation_id, parent_message_id
+    msgSaveLastMessage, // 保存最后一条消息
     msgChatWithLLM, // 与llm聊天
   ];
   // console.log('消息中间件')

@@ -132,7 +132,6 @@ export class Context {
     // mistral api model
     MISTRAL_CHAT_MODEL: ENV.MISTRAL_CHAT_MODEL,
 
-    REVERSE_MODE: ENV.REVERSE_MODE,
     REVERSE_TOKEN: ENV.REVERSE_TOKEN,
     REVERSE_PERFIX: ENV.REVERSE_PERFIX,
   };
@@ -220,6 +219,9 @@ export class Context {
     }
   }
 
+
+
+
   /**
    * @param {Request} request
    */
@@ -298,6 +300,17 @@ export class Context {
     this.SHARE_CONTEXT.reverseChatKey = message?.from?.id ? `reverseChatId:${message.from.id || message.chat.id}` : '';
   }
 
+  async _initReverseContext() {
+    try {
+      if (ENV.REVERSE_MODE) {
+        this.REVERSE_CONTEXT = JSON.parse((await DATABASE.get(this.SHARE_CONTEXT.reverseChatKey)) || '{}');
+      }
+      return null;
+    } catch (e) {
+      return new Response(errorToString(e), { status: 200 });
+    }
+  }
+
   /**
    * @param {TelegramMessage} message
    * @return {Promise<void>}
@@ -305,12 +318,17 @@ export class Context {
   async initContext(message) {
     // 按顺序初始化上下文
     const chatId = message?.chat?.id;
-    const replyId = CONST.GROUP_TYPES.includes(message.chat?.type) ? message.message_id : null;
+    let replyId = CONST.GROUP_TYPES.includes(message.chat?.type) ? message.message_id : null;
+    // 回复提及的消息
+    if (ENV.EXTRA_MESSAGE_CONTEXT && ENV.ENABLE_REPLY_TO_MENTION) {
+      replyId = message.reply_to_message.message_id;
+    }
     this._initChatContext(chatId, replyId);
     // console.log(this.CURRENT_CHAT_CONTEXT);
     await this._initShareContext(message);
     // console.log(this.SHARE_CONTEXT);
-    await this._initUserConfig(this.SHARE_CONTEXT.configStoreKey);
+    // 初始化用户配置移至handleChatType中 减少数据库的读取频率
+    // await this._initUserConfig(this.SHARE_CONTEXT.configStoreKey);
     // console.log(this.USER_CONFIG);
   }
 }

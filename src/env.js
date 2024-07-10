@@ -107,6 +107,7 @@ class Environment {
   SHOW_REPLY_BUTTON = false;
   // 额外引用消息开关
   EXTRA_MESSAGE_CONTEXT = false;
+  ENABLE_REPLY_TO_MENTION = false;
   // 默认忽略#开头的消息
   IGNORE_TEXT = '#';
   // 消息中是否显示提供商, 模型等额外信息
@@ -169,6 +170,9 @@ class Environment {
     }
   };
   CURRENT_MODE = 'default';
+
+  // 默认不开启 读取文件类型消息
+  ENABLE_FILE = false;
 
   PROVIDER_SOURCES = {};
   REVERSE_MODE = false;
