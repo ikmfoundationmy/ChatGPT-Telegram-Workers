@@ -4,9 +4,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1720618764;
+  BUILD_TIMESTAMP = 1720621148;
   // 当前版本 commit id
-  BUILD_VERSION = "c12bea1";
+  BUILD_VERSION = "f5749df";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -573,11 +573,11 @@ var Context = class {
   async initContext(message) {
     const chatId = message?.chat?.id;
     let replyId = CONST.GROUP_TYPES.includes(message.chat?.type) ? message.message_id : null;
-    if (ENV.EXTRA_MESSAGE_CONTEXT && ENV.ENABLE_REPLY_TO_MENTION) {
+    await this._initShareContext(message);
+    if (ENV.EXTRA_MESSAGE_CONTEXT && ENV.ENABLE_REPLY_TO_MENTION && this.SHARE_CONTEXT.currentBotId != message.reply_to_message.from.id) {
       replyId = message.reply_to_message.message_id;
     }
     this._initChatContext(chatId, replyId);
-    await this._initShareContext(message);
   }
 };
 
