@@ -84,7 +84,7 @@ class Environment {
   // OpenAI API BASE `https://api.openai.com/v1`
   OPENAI_API_BASE = null;
   OPENAI_STT_MODEL = 'whisper-1';
-  OPENAI_VISION_MODEL = 'gpt-4-vision-preview';
+  OPENAI_VISION_MODEL = 'gpt-4o';
 
   // -- DALLE 配置 --
   //
@@ -108,8 +108,8 @@ class Environment {
   // 额外引用消息开关
   EXTRA_MESSAGE_CONTEXT = false;
   ENABLE_REPLY_TO_MENTION = false;
-  // 默认忽略#开头的消息
-  IGNORE_TEXT = '#';
+  // 忽略指定文本开头的消息
+  IGNORE_TEXT = '';
   // 消息中是否显示提供商, 模型等额外信息
   ENABLE_SHOWINFO = false;
   // 对话首次长时间无响应时间(针对OPENAI)
@@ -118,7 +118,9 @@ class Environment {
   ENABLE_SHOWTOKENINFO = false;
   // 是否隐藏中间步骤
   HIDE_MIDDLE_MESSAGE = false;
-  CHAT_MESSAGE_TRIGGER = { ':n': '/new', ':g3': '/gpt3', ':g4': '/gpt4', ':c':'' }
+  CHAT_MESSAGE_TRIGGER = {}
+  // CHAT_MESSAGE_TRIGGER = { ':n': '/new', ':g3': '/gpt3', ':g4': '/gpt4', ':c':'' }
+
   // 额外信息
   EXTRA_TINFO = '';
 
@@ -126,29 +128,37 @@ class Environment {
     default: {
       text: [
         {
-          TYPE: 'text:text',
+          // 默认TYPE为 消息类型:text
+          // TYPE: 'text:text',
+          // 默认来源为default 没有则为全局变量中的baselurl和apikey
           // PROVIDER_SOURCE: 'default',
-          AI_PROVIDER: 'openai',
+          // 默认AI_PROVIDER 为 openai // 发送openai格式的请求 处理openai格式的消息
+          // AI_PROVIDER: 'openai',
+          // 默认模型为环境变量中的CHAT_MODEL
           // MODEL: ENV.CHAT_MODEL,
         },
       ],
       audio: [
+        // 后续若出现模型能直接audio:text对话 则可加上指定模型, 去掉流程中的text:text
         {
-          TYPE: 'audio:text',
+          // 默认TYPE为 消息类型:text
+          // TYPE: 'audio:text',
           // PROVIDER_SOURCE: 'default',
-          AI_PROVIDER: 'openai',
+          // AI_PROVIDER: 'openai',
+          // 模型默认环境变量中的STT_MODEL
         },
         {
           TYPE: 'text:text',
           // PROVIDER_SOURCE: 'default',
-          AI_PROVIDER: 'openai',
+          // AI_PROVIDER: 'openai',
         },
       ],
       image: [
         {
-          TYPE: 'image:text',
+          // 默认TYPE为 消息类型:text
+          // TYPE: 'image:text',
           // PROVIDER_SOURCE: 'default',
-          AI_PROVIDER: 'openai',
+          // AI_PROVIDER: 'openai',
           MODEL: 'gpt-4o',
         },
       ],
@@ -156,7 +166,8 @@ class Environment {
     'dall-e': {
       text: [
         {
-          TYPE: 'text:text',
+          // 默认TYPE为 消息类型:text
+          // TYPE: 'text:text',
           // PROVIDER_SOURCE: 'default',
           // AI_PROVIDER: 'openai',
         },
@@ -164,6 +175,7 @@ class Environment {
           TYPE: 'text:image',
           // PROVIDER_SOURCE: 'default',
           // AI_PROVIDER: 'openai',
+          // 默认环境变量中的 DALL_E_MODEL
           // MODEL: ENV.DALL_E_MODEL,
         },
       ]

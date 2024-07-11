@@ -154,7 +154,7 @@ export async function requestReverseChatListOrHistory(context, type = 'list', nu
     'Accept-Language': 'en-US',
   };
   
-  const result = await fetchWithRetry(url, { headers });
+  const result = await fetch(url, { headers });
   if (result.status !== 200) {
     throw new Error(await result.text());
   }
@@ -246,7 +246,7 @@ export async function requestCompletionsFromOpenAICompatible(url, header, body, 
           lengthDelta = 0;
           updateStep += 10;
           if (!msgPromise || (await Promise.race([msgPromise, immediatePromise])) !== 'immediate') {
-            msgPromise = onStream(`${contentFull}𒊹`);
+            msgPromise = onStream(`${contentFull}●`);
           }
         }
         lastChunk = c;
@@ -292,7 +292,7 @@ export async function requestCompletionsFromOpenAICompatible(url, header, body, 
           delta += 25;
           // delta = delta >= deltaMax ? deltaMax : delta + 25;
           if (!msgPromise || (await Promise.race([msgPromise, immediatePromise])) !== 'immediate') {
-            msgPromise = onStream(`${lastChunk}\n\n${ENV.I18N.message.loading}...`);
+            msgPromise = onStream(`${lastChunk}●`);
           }
         }
         lastChunk = content;

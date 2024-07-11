@@ -69,7 +69,7 @@ export async function requestCompletionsFromWorkersAI(message, history, context,
         if (lengthDelta > updateStep) {
           lengthDelta = 0;
           updateStep += 5;
-          await onStream(`${contentFull}𒊹`);
+          await onStream(`${contentFull}●`);
         }
       }
     } catch (e) {

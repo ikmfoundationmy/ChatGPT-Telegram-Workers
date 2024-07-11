@@ -167,7 +167,7 @@ async function msgFilterNonTextMessage(message, context) {
  * @param {Context} context
  * @return {Promise<Response>}
  */
-async function msgHandlePrivateMessage(message, context) {
+async function msgHandlePrivateMessage(message, context) {  
   if (ENV.REVERSE_MODE) {
     return null;
   }
@@ -177,7 +177,7 @@ async function msgHandlePrivateMessage(message, context) {
   if (!message.text) {
     return new Response('Non text message',{'status':200});
   }
-  // 私人聊天中简化命令
+  // 聊天中简化命令
   const chatMsgKey = Object.keys(ENV.CHAT_MESSAGE_TRIGGER).find(key => message.text.startsWith(key))
   if (chatMsgKey) {
     message.text = message.text.replace(chatMsgKey, ENV.CHAT_MESSAGE_TRIGGER[chatMsgKey] + '!');
@@ -193,8 +193,7 @@ async function msgHandlePrivateMessage(message, context) {
  * @return {Promise<Response>}
  */
 async function msgHandleGroupMessage(message, context) {
-  // 非文本/语音/图片消息直接忽略, 不考虑以文件形式发送的图片/语音
-  if (!message.text && !(message.voice || message.audio || message.photo)) {
+  if (!message.text || !ENV.ENABLE_FILE) {
     return new Response('Non text message', {status: 200});
   }
 
@@ -267,6 +266,11 @@ async function msgHandleGroupMessage(message, context) {
     if (!mentioned) {
       return new Response('No mentioned', {status: 200});
     } else {
+      // 延迟请求群组模式下的配置
+      await context._initUserConfig(context.SHARE_CONTEXT.configStoreKey);
+      if (ENV.REVERSE_MODE) {
+        await context._initReverseContext();
+      }
       return null;
     }
   }

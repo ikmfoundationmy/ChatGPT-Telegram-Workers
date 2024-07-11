@@ -4,9 +4,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1720621148;
+  BUILD_TIMESTAMP = 1720696978;
   // 当前版本 commit id
-  BUILD_VERSION = "f5749df";
+  BUILD_VERSION = "35be9a5";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -73,7 +73,7 @@ var Environment = class {
   // OpenAI API BASE `https://api.openai.com/v1`
   OPENAI_API_BASE = null;
   OPENAI_STT_MODEL = "whisper-1";
-  OPENAI_VISION_MODEL = "gpt-4-vision-preview";
+  OPENAI_VISION_MODEL = "gpt-4o";
   // -- DALLE 配置 --
   //
   // DALL-E的模型名称
@@ -95,8 +95,8 @@ var Environment = class {
   // 额外引用消息开关
   EXTRA_MESSAGE_CONTEXT = false;
   ENABLE_REPLY_TO_MENTION = false;
-  // 默认忽略#开头的消息
-  IGNORE_TEXT = "#";
+  // 忽略指定文本开头的消息
+  IGNORE_TEXT = "";
   // 消息中是否显示提供商, 模型等额外信息
   ENABLE_SHOWINFO = false;
   // 对话首次长时间无响应时间(针对OPENAI)
@@ -105,36 +105,45 @@ var Environment = class {
   ENABLE_SHOWTOKENINFO = false;
   // 是否隐藏中间步骤
   HIDE_MIDDLE_MESSAGE = false;
-  CHAT_MESSAGE_TRIGGER = { ":n": "/new", ":g3": "/gpt3", ":g4": "/gpt4", ":c": "" };
+  CHAT_MESSAGE_TRIGGER = {};
+  // CHAT_MESSAGE_TRIGGER = { ':n': '/new', ':g3': '/gpt3', ':g4': '/gpt4', ':c':'' }
   // 额外信息
   EXTRA_TINFO = "";
   MODES = {
     default: {
       text: [
         {
-          TYPE: "text:text",
+          // 默认TYPE为 消息类型:text
+          // TYPE: 'text:text',
+          // 默认来源为default 没有则为全局变量中的baselurl和apikey
           // PROVIDER_SOURCE: 'default',
-          AI_PROVIDER: "openai"
+          // 默认AI_PROVIDER 为 openai // 发送openai格式的请求 处理openai格式的消息
+          // AI_PROVIDER: 'openai',
+          // 默认模型为环境变量中的CHAT_MODEL
           // MODEL: ENV.CHAT_MODEL,
         }
       ],
       audio: [
+        // 后续若出现模型能直接audio:text对话 则可加上指定模型, 去掉流程中的text:text
         {
-          TYPE: "audio:text",
+          // 默认TYPE为 消息类型:text
+          // TYPE: 'audio:text',
           // PROVIDER_SOURCE: 'default',
-          AI_PROVIDER: "openai"
+          // AI_PROVIDER: 'openai',
+          // 模型默认环境变量中的STT_MODEL
         },
         {
-          TYPE: "text:text",
+          TYPE: "text:text"
           // PROVIDER_SOURCE: 'default',
-          AI_PROVIDER: "openai"
+          // AI_PROVIDER: 'openai',
         }
       ],
       image: [
         {
-          TYPE: "image:text",
+          // 默认TYPE为 消息类型:text
+          // TYPE: 'image:text',
           // PROVIDER_SOURCE: 'default',
-          AI_PROVIDER: "openai",
+          // AI_PROVIDER: 'openai',
           MODEL: "gpt-4o"
         }
       ]
@@ -142,7 +151,8 @@ var Environment = class {
     "dall-e": {
       text: [
         {
-          TYPE: "text:text"
+          // 默认TYPE为 消息类型:text
+          // TYPE: 'text:text',
           // PROVIDER_SOURCE: 'default',
           // AI_PROVIDER: 'openai',
         },
@@ -150,6 +160,7 @@ var Environment = class {
           TYPE: "text:image"
           // PROVIDER_SOURCE: 'default',
           // AI_PROVIDER: 'openai',
+          // 默认环境变量中的 DALL_E_MODEL
           // MODEL: ENV.DALL_E_MODEL,
         }
       ]
@@ -574,10 +585,16 @@ var Context = class {
     const chatId = message?.chat?.id;
     let replyId = CONST.GROUP_TYPES.includes(message.chat?.type) ? message.message_id : null;
     await this._initShareContext(message);
-    if (ENV.EXTRA_MESSAGE_CONTEXT && ENV.ENABLE_REPLY_TO_MENTION && this.SHARE_CONTEXT.currentBotId != message.reply_to_message.from.id) {
+    if (ENV.EXTRA_MESSAGE_CONTEXT && ENV.ENABLE_REPLY_TO_MENTION && CONST.GROUP_TYPES.includes(message.chat?.type) && this.SHARE_CONTEXT.currentBotId !== `${message?.reply_to_message?.from?.id}`) {
       replyId = message.reply_to_message.message_id;
     }
     this._initChatContext(chatId, replyId);
+    if (!CONST.GROUP_TYPES.includes(message.chat?.type)) {
+      await this._initUserConfig(this.SHARE_CONTEXT.configStoreKey);
+      if (ENV.REVERSE_MODE) {
+        await this._initReverseContext();
+      }
+    }
   }
 };
 
@@ -1649,7 +1666,7 @@ async function requestReverseChatListOrHistory(context, type = "list", num = 30)
     Authorization: `Bearer ${context.USER_CONFIG.REVERSE_TOKEN}`,
     "Accept-Language": "en-US"
   };
-  const result = await fetchWithRetry(url, { headers });
+  const result = await fetch(url, { headers });
   if (result.status !== 200) {
     throw new Error(await result.text());
   }
@@ -1710,7 +1727,7 @@ async function requestCompletionsFromOpenAICompatible(url, header, body, context
           lengthDelta = 0;
           updateStep += 10;
           if (!msgPromise || await Promise.race([msgPromise, immediatePromise]) !== "immediate") {
-            msgPromise = onStream(`${contentFull}\u{122B9}`);
+            msgPromise = onStream(`${contentFull}\u25CF`);
           }
         }
         lastChunk = c;
@@ -1757,9 +1774,7 @@ ERROR: ${e.message}`;
           updateStep += delta;
           delta += 25;
           if (!msgPromise || await Promise.race([msgPromise, immediatePromise]) !== "immediate") {
-            msgPromise = onStream(`${lastChunk}
-
-${ENV.I18N.message.loading}...`);
+            msgPromise = onStream(`${lastChunk}\u25CF`);
           }
         }
         lastChunk = content;
@@ -1947,7 +1962,7 @@ async function requestCompletionsFromWorkersAI(message, history, context, onStre
         if (lengthDelta > updateStep) {
           lengthDelta = 0;
           updateStep += 5;
-          await onStream(`${contentFull}\u{122B9}`);
+          await onStream(`${contentFull}\u25CF`);
         }
       }
     } catch (e) {
@@ -2166,7 +2181,7 @@ async function requestCompletionsFromLLM(text, context, llm, modifier, onStream)
   const readStartTime = performance.now();
   let history = { real: [], original: [] };
   if (!context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEXT && !context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILEURL) {
-    history = await loadHistory(historyKey, context);
+    history = ENV.MAX_HISTORY_LENGTH > 0 ? await loadHistory(historyKey, context) : history;
     const readTime = ((performance.now() - readStartTime) / 1e3).toFixed(2);
     console.log(`readHistoryTime: ${readTime}s`);
     if (modifier) {
@@ -2212,9 +2227,14 @@ async function requestCompletionsFromReverseLLM(text, context, llm, modifier, on
   if (!history[conversation_id]) {
     history[conversation_id] = {};
   }
-  history[conversation_id].parent_message_id = parent_message_id;
-  if (title)
-    history[conversation_id].title = title;
+  history[conversation_id] = {
+    parent_message_id,
+    title: title || history[conversation_id].title || "",
+    update_time: /* @__PURE__ */ new Date()
+  };
+  history = Object.fromEntries(
+    Object.entries(history).sort(([, a], [, b]) => new Date(b.update_time) - new Date(a.update_time)).slice(0, 25)
+  );
   await DATABASE.put(
     context.SHARE_CONTEXT.reverseChatKey,
     JSON.stringify({
@@ -2873,8 +2893,6 @@ async function handleCommandMessage(message, context) {
       }
       const subcommand = commandMsg.substring(key.length).trim();
       try {
-        await context._initUserConfig(context.SHARE_CONTEXT.configStoreKey);
-        await context._initReverseContext();
         const result = await command.fn(message, key, subcommand, context);
         console.log("[DONE] Command: " + key + " " + subcommand);
         if (!otherMsg) {
@@ -2889,10 +2907,6 @@ async function handleCommandMessage(message, context) {
   }
   if (message.text.startsWith("/")) {
     return sendMessageToTelegramWithContext2(context)(`Oops! It's not a command.`);
-  }
-  if (!context?.USER_CONFIG) {
-    await context._initUserConfig(context.SHARE_CONTEXT.configStoreKey);
-    await context._initReverseContext();
   }
   return null;
 }
@@ -2952,8 +2966,8 @@ function commandsDocument() {
   });
 }
 async function commandGetChatList(message, command, subcommand, context) {
+  const loadingPromise = sendLoadingMessageToTelegramWithContext(context);
   try {
-    const loadingPromise = sendLoadingMessageToTelegramWithContext(context);
     let reverseChatInfo = JSON.parse(await DATABASE.get(context.SHARE_CONTEXT.reverseHistoryKey) || "{}");
     if (Object.keys(reverseChatInfo).length === 0) {
       await loadingPromise;
@@ -2964,7 +2978,8 @@ async function commandGetChatList(message, command, subcommand, context) {
     let formatData = Object.entries(reverseChatInfo).map(
       ([k, { title: title2, update_time: update_time2, alias: alias2 }], i) => `${i}. ${title2 || "-"}
 ` + (update_time2 ? `update time: ${update_time2.substring(0, 19)}
-` : "") + (alias2 ? `- alias: ${alias2}` : "")
+` : "") + (alias2 ? `- alias: ${alias2}
+` : "")
       // + `\n${k}`,
     );
     const { alias, title = "-", update_time } = reverseChatInfo?.[conversation_id] ?? {};
@@ -2977,6 +2992,7 @@ update time: ${update_time.substring(0, 19)}
     await loadingPromise;
     return sendMessageToTelegramWithContext2(context)(formatData);
   } catch (e) {
+    await loadingPromise;
     return sendMessageToTelegramWithContext2(context)(e.message);
   }
 }
@@ -3001,7 +3017,7 @@ async function commandRefreshChatList(message, command, subcommand, context) {
       };
     });
     reverseChatInfo = Object.fromEntries(
-      Object.entries(reverseChatInfo).sort(([, a], [, b]) => new Date(b.update_time) - new Date(a.update_time))
+      Object.entries(reverseChatInfo).sort(([, a], [, b]) => new Date(b.update_time) - new Date(a.update_time)).slice(0, 25)
     );
     await DATABASE.put(context.SHARE_CONTEXT.reverseHistoryKey, JSON.stringify(reverseChatInfo));
     await loadingPromise;
@@ -3011,13 +3027,13 @@ async function commandRefreshChatList(message, command, subcommand, context) {
   }
 }
 async function commandReverseHistory(message, command, subcommand, context) {
+  const loadingPromise = sendLoadingMessageToTelegramWithContext(context);
   try {
     let toDateTime = function(timestamp) {
       const date = new Date(timestamp);
       const options = { timeZone: "Asia/Shanghai", hour12: false };
       return date.toLocaleString("zh-CN", options);
     };
-    const loadingPromise = sendLoadingMessageToTelegramWithContext(context);
     const conversation_id = context.REVERSE_CONTEXT.conversation_id;
     if (!conversation_id || conversation_id === ":new:") {
       await loadingPromise;
@@ -3045,6 +3061,7 @@ ${parts.join("\n")}
     await loadingPromise;
     return sendMessageToTelegramWithContext2(context)(filterData);
   } catch (e) {
+    await loadingPromise;
     return sendMessageToTelegramWithContext2(context)(ENV.I18N.command.setenv.update_config_error(e));
   }
 }
@@ -3237,7 +3254,7 @@ async function msgHandlePrivateMessage(message, context) {
   return null;
 }
 async function msgHandleGroupMessage(message, context) {
-  if (!message.text && !(message.voice || message.audio || message.photo)) {
+  if (!message.text || !ENV.ENABLE_FILE) {
     return new Response("Non text message", { status: 200 });
   }
   let botName = context.SHARE_CONTEXT.currentBotName;
@@ -3303,6 +3320,10 @@ async function msgHandleGroupMessage(message, context) {
     if (!mentioned) {
       return new Response("No mentioned", { status: 200 });
     } else {
+      await context._initUserConfig(context.SHARE_CONTEXT.configStoreKey);
+      if (ENV.REVERSE_MODE) {
+        await context._initReverseContext();
+      }
       return null;
     }
   }

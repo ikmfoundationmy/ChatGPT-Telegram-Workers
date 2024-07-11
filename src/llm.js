@@ -193,7 +193,7 @@ async function requestCompletionsFromLLM(text, context, llm, modifier, onStream)
   const readStartTime = performance.now();
   let history = { real: [], original: [] };
   if (!context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEXT && !context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILEURL ) {
-    history = await loadHistory(historyKey, context);
+    history = ENV.MAX_HISTORY_LENGTH > 0 ? (await loadHistory(historyKey, context)) : history;
     const readTime = ((performance.now() - readStartTime) / 1000).toFixed(2);
       console.log(`readHistoryTime: ${readTime}s`);
     if (modifier) {
@@ -245,8 +245,18 @@ async function requestCompletionsFromReverseLLM(text, context, llm, modifier, on
   if (!history[conversation_id]) {
     history[conversation_id] = {}
   }
-  history[conversation_id].parent_message_id = parent_message_id;
-  if (title) history[conversation_id].title = title;
+
+  history[conversation_id] = {
+    parent_message_id,
+    title: title || history[conversation_id].title || '',
+    update_time: new Date(),
+  };
+  history = Object.fromEntries(
+    Object.entries(history)
+      .sort(([, a], [, b]) => new Date(b.update_time) - new Date(a.update_time))
+      .slice(0, 25),
+  );
+  
   await DATABASE.put(
     context.SHARE_CONTEXT.reverseChatKey,
     JSON.stringify({

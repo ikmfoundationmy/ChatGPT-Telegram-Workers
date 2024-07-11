@@ -321,15 +321,20 @@ export class Context {
     let replyId = CONST.GROUP_TYPES.includes(message.chat?.type) ? message.message_id : null;
     await this._initShareContext(message);
     // console.log(this.SHARE_CONTEXT);
-    
     // 回复提及的消息
-    if (ENV.EXTRA_MESSAGE_CONTEXT && ENV.ENABLE_REPLY_TO_MENTION && this.SHARE_CONTEXT.currentBotId != message.reply_to_message.from.id) {
+    if (ENV.EXTRA_MESSAGE_CONTEXT && ENV.ENABLE_REPLY_TO_MENTION && CONST.GROUP_TYPES.includes(message.chat?.type) && this.SHARE_CONTEXT.currentBotId !== `${message?.reply_to_message?.from?.id}`) {
       replyId = message.reply_to_message.message_id;
     }
     this._initChatContext(chatId, replyId);
     // console.log(this.CURRENT_CHAT_CONTEXT);
-    // 初始化用户配置移至handleChatType中 减少数据库的读取频率
-    // await this._initUserConfig(this.SHARE_CONTEXT.configStoreKey);
+    // 群组初始化用户配置移至handleChatType提及检测后 减少数据库的读取频率
+    if (!CONST.GROUP_TYPES.includes(message.chat?.type)) {
+      await this._initUserConfig(this.SHARE_CONTEXT.configStoreKey);
+      if (ENV.REVERSE_MODE) {
+      await this._initReverseContext();
+      }
+    }
+    
     // console.log(this.USER_CONFIG);
   }
 }

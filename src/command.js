@@ -751,9 +751,6 @@ export async function handleCommandMessage(message, context) {
       }
       const subcommand = commandMsg.substring(key.length).trim();
       try {
-        // 延迟请求用户配置
-        await context._initUserConfig(context.SHARE_CONTEXT.configStoreKey);
-        await context._initReverseContext();
         const result = await command.fn(message, key, subcommand, context);
         console.log('[DONE] Command: ' + key + ' ' + subcommand);
         if (!otherMsg) {
@@ -769,11 +766,6 @@ export async function handleCommandMessage(message, context) {
   // 除命令外, 以 / 开头 的文本不再处理
   if (message.text.startsWith('/')) {
     return sendMessageToTelegramWithContext(context)(`Oops! It's not a command.`);
-  }
-  // 延迟请求用户配置
-  if (!context?.USER_CONFIG) {
-    await context._initUserConfig(context.SHARE_CONTEXT.configStoreKey);
-    await context._initReverseContext();
   }
   return null;
 }
@@ -858,8 +850,8 @@ export function commandsDocument() {
  * @return {Promise<Response>}
  */
 async function commandGetChatList(message, command, subcommand, context) {
+  const loadingPromise = sendLoadingMessageToTelegramWithContext(context);
   try {
-    const loadingPromise = sendLoadingMessageToTelegramWithContext(context);
     let reverseChatInfo = JSON.parse(await DATABASE.get(context.SHARE_CONTEXT.reverseHistoryKey) || '{}');
     if (Object.keys(reverseChatInfo).length === 0) {
       await loadingPromise;
@@ -870,7 +862,7 @@ async function commandGetChatList(message, command, subcommand, context) {
     let formatData = Object.entries(reverseChatInfo).map(
       ([k, { title, update_time, alias }], i) => `${i}. ${title || '-'}\n`
         + (update_time ? `update time: ${update_time.substring(0, 19)}\n` : '')
-        + (alias ? `- alias: ${alias}` : '')
+        + (alias ? `- alias: ${alias}\n` : '')
         // + `\n${k}`,
     );
     
@@ -885,6 +877,7 @@ async function commandGetChatList(message, command, subcommand, context) {
     await loadingPromise;
     return sendMessageToTelegramWithContext(context)(formatData);
   } catch (e) {
+    await loadingPromise;
     return sendMessageToTelegramWithContext(context)(e.message);
   }
 }
@@ -919,7 +912,9 @@ async function commandRefreshChatList(message, command, subcommand, context) {
       };
     });
     reverseChatInfo = Object.fromEntries(
-      Object.entries(reverseChatInfo).sort(([, a], [, b]) => new Date(b.update_time) - new Date(a.update_time)),
+      Object.entries(reverseChatInfo)
+        .sort(([, a], [, b]) => new Date(b.update_time) - new Date(a.update_time))
+        .slice(0, 25),
     );
     
     await DATABASE.put(context.SHARE_CONTEXT.reverseHistoryKey, JSON.stringify(reverseChatInfo));
@@ -941,8 +936,8 @@ async function commandRefreshChatList(message, command, subcommand, context) {
  * @return {Promise<Response>}
  */
 async function commandReverseHistory(message, command, subcommand, context) {
+  const loadingPromise = sendLoadingMessageToTelegramWithContext(context);
   try {
-    const loadingPromise = sendLoadingMessageToTelegramWithContext(context);
     const conversation_id = context.REVERSE_CONTEXT.conversation_id;
     if (!conversation_id || conversation_id === ':new:') {
       await loadingPromise;
@@ -984,6 +979,7 @@ async function commandReverseHistory(message, command, subcommand, context) {
     await loadingPromise;
     return sendMessageToTelegramWithContext(context)(filterData);
   } catch (e) {
+    await loadingPromise;
     return sendMessageToTelegramWithContext(context)(ENV.I18N.command.setenv.update_config_error(e));
   }
 }
