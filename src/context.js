@@ -322,7 +322,7 @@ export class Context {
     await this._initShareContext(message);
     // console.log(this.SHARE_CONTEXT);
     // 回复提及的消息
-    if (ENV.EXTRA_MESSAGE_CONTEXT && ENV.ENABLE_REPLY_TO_MENTION && CONST.GROUP_TYPES.includes(message.chat?.type) && this.SHARE_CONTEXT.currentBotId !== `${message?.reply_to_message?.from?.id}`) {
+    if (ENV.EXTRA_MESSAGE_CONTEXT && ENV.ENABLE_REPLY_TO_MENTION && CONST.GROUP_TYPES.includes(message.chat?.type) && message?.reply_to_message && this.SHARE_CONTEXT.currentBotId !== `${message?.reply_to_message?.from?.id}`) {
       replyId = message.reply_to_message.message_id;
     }
     this._initChatContext(chatId, replyId);

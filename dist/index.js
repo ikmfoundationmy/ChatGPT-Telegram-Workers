@@ -4,9 +4,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1720696978;
+  BUILD_TIMESTAMP = 1720714743;
   // 当前版本 commit id
-  BUILD_VERSION = "35be9a5";
+  BUILD_VERSION = "289dc2a";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -585,7 +585,7 @@ var Context = class {
     const chatId = message?.chat?.id;
     let replyId = CONST.GROUP_TYPES.includes(message.chat?.type) ? message.message_id : null;
     await this._initShareContext(message);
-    if (ENV.EXTRA_MESSAGE_CONTEXT && ENV.ENABLE_REPLY_TO_MENTION && CONST.GROUP_TYPES.includes(message.chat?.type) && this.SHARE_CONTEXT.currentBotId !== `${message?.reply_to_message?.from?.id}`) {
+    if (ENV.EXTRA_MESSAGE_CONTEXT && ENV.ENABLE_REPLY_TO_MENTION && CONST.GROUP_TYPES.includes(message.chat?.type) && message?.reply_to_message && this.SHARE_CONTEXT.currentBotId !== `${message?.reply_to_message?.from?.id}`) {
       replyId = message.reply_to_message.message_id;
     }
     this._initChatContext(chatId, replyId);
@@ -3254,7 +3254,7 @@ async function msgHandlePrivateMessage(message, context) {
   return null;
 }
 async function msgHandleGroupMessage(message, context) {
-  if (!message.text || !ENV.ENABLE_FILE) {
+  if (!message.text && !ENV.ENABLE_FILE) {
     return new Response("Non text message", { status: 200 });
   }
   let botName = context.SHARE_CONTEXT.currentBotName;
@@ -3265,6 +3265,10 @@ async function msgHandleGroupMessage(message, context) {
   }
   if (message.reply_to_message) {
     if (`${message.reply_to_message.from.id}` === context.SHARE_CONTEXT.currentBotId) {
+      await context._initUserConfig(context.SHARE_CONTEXT.configStoreKey);
+      if (ENV.REVERSE_MODE) {
+        await context._initReverseContext();
+      }
       return null;
     } else if (ENV.EXTRA_MESSAGE_CONTEXT) {
       context.SHARE_CONTEXT.extraMessageContext = message.reply_to_message;

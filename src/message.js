@@ -26,25 +26,6 @@ async function msgInitChatContext(message, context) {
 }
 
 /**
- * 初始化 REVERSE_MODE 上下文
- *
- * @param {TelegramMessage} message
- * @param {Context} context
- * @return {Promise<Response>}
- */
-async function msgInitReverseContext(message, context) {
-  try {
-    if (ENV.REVERSE_MODE) {
-      context.REVERSE_CONTEXT = JSON.parse((await DATABASE.get(context.SHARE_CONTEXT.reverseChatKey)) || '{}');
-    }
-    return null;
-  } catch (e) {
-    return new Response(errorToString(e), { status: 200 });
-  }
-}
-
-
-/**
  * 保存最后一条消息
  *
  * @param {TelegramMessage} message
@@ -193,7 +174,7 @@ async function msgHandlePrivateMessage(message, context) {
  * @return {Promise<Response>}
  */
 async function msgHandleGroupMessage(message, context) {
-  if (!message.text || !ENV.ENABLE_FILE) {
+  if (!message.text && !ENV.ENABLE_FILE) {
     return new Response('Non text message', {status: 200});
   }
 
@@ -204,8 +185,12 @@ async function msgHandleGroupMessage(message, context) {
     context.SHARE_CONTEXT.currentBotName = res.info.bot_name;
     botName = res.info.bot_name;
   }
-  if (message.reply_to_message ) {
+  if (message.reply_to_message) {
     if (`${message.reply_to_message.from.id}` === context.SHARE_CONTEXT.currentBotId) {
+      await context._initUserConfig(context.SHARE_CONTEXT.configStoreKey);
+      if (ENV.REVERSE_MODE) {
+        await context._initReverseContext();
+      }
       return null;
     } else if (ENV.EXTRA_MESSAGE_CONTEXT) {
       context.SHARE_CONTEXT.extraMessageContext = message.reply_to_message;
