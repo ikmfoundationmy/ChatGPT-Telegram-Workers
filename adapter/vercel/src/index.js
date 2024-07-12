@@ -1,5 +1,6 @@
 import worker from 'chatgpt-telegram-workers'
 import { RedisCache } from '../utils/redis.js'
+import Middle from "./_middleware.js";
 
 export const config = {
   runtime: 'edge',
@@ -7,6 +8,10 @@ export const config = {
 
 // cloudflare to vercel adapter
 export default async (req, res) => {
+  const result = Middle(req);
+  if (result instanceof Response) {
+    return result;
+  }
   const redis = new RedisCache(process.env.REDIS_URL, process.env.REDIS_TOKEN)
   const env = {
     ...(process.env || {}),
