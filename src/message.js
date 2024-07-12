@@ -48,6 +48,7 @@ async function msgSaveLastMessage(message, context) {
  */
 async function msgIgnoreOldMessage(message, context) {
   if (ENV.SAFE_MODE) {
+    // console.log('check old msg');
     let idList = [];
     try {
       const rawValue = await DATABASE.get(context.SHARE_CONTEXT.chatLastMessageIDKey).catch(() => '[]');
@@ -251,15 +252,29 @@ async function msgHandleGroupMessage(message, context) {
     if (!mentioned) {
       return new Response('No mentioned', {status: 200});
     } else {
-      // 延迟请求群组模式下的配置
-      await context._initUserConfig(context.SHARE_CONTEXT.configStoreKey);
-      if (ENV.REVERSE_MODE) {
-        await context._initReverseContext();
-      }
       return null;
     }
   }
   return new Response('Not set bot name', {status: 200});
+}
+
+/**
+ * 初始化用户配置 
+ * @param {TelegramMessage} message
+ * @param {Context} context
+ * @return {Promise<Response>}
+ */
+async function msgInitUserConfig(message, context) {
+  try {
+    // console.log('init user config');
+    await context._initUserConfig(context.SHARE_CONTEXT.configStoreKey);
+    if (ENV.REVERSE_MODE) {
+      await context._initReverseContext();
+    }
+    return null;
+  } catch (e) {
+    return sendMessageToTelegramWithContext(context)(e.message);
+  }
 }
 
 /**
@@ -574,9 +589,21 @@ export async function msgProcessByChatType(message, context) {
   let handlerMap;
   if (ENV.REVERSE_MODE) {
     handlerMap = {
-      'private': [msgFilterWhiteList, msgFilterNonTextMessage, msgHandleCommand],
-      'group': [msgFilterWhiteList, msgHandleGroupMessage, msgHandleCommand],
-      'supergroup': [msgFilterWhiteList, msgHandleGroupMessage, msgHandleCommand],
+      'private': [
+        msgFilterWhiteList,
+        msgFilterNonTextMessage,
+        msgIgnoreOldMessage,
+        msgInitUserConfig,
+        msgHandleCommand,
+      ],
+      'group': [msgFilterWhiteList, msgHandleGroupMessage, msgIgnoreOldMessage, msgInitUserConfig, msgHandleCommand],
+      'supergroup': [
+        msgFilterWhiteList,
+        msgHandleGroupMessage,
+        msgIgnoreOldMessage,
+        msgInitUserConfig,
+        msgHandleCommand,
+      ],
     };
   } else {
     handlerMap = {
@@ -584,14 +611,26 @@ export async function msgProcessByChatType(message, context) {
         msgFilterWhiteList,
         msgFilterNonTextMessage,
         msgHandlePrivateMessage,
+        msgIgnoreOldMessage,
+        msgInitUserConfig,
         msgHandleCommand,
         msgHandleRole,
       ],
-      'group': [msgFilterWhiteList, msgHandleGroupMessage, msgFilterNonTextMessage, msgHandleCommand, msgHandleRole],
+      'group': [
+        msgFilterWhiteList,
+        msgHandleGroupMessage,
+        msgFilterNonTextMessage,
+        msgIgnoreOldMessage,
+        msgInitUserConfig,
+        msgHandleCommand,
+        msgHandleRole,
+      ],
       'supergroup': [
         msgFilterWhiteList,
         msgHandleGroupMessage,
         msgFilterNonTextMessage,
+        msgIgnoreOldMessage,
+        msgInitUserConfig,
         msgHandleCommand,
         msgHandleRole,
       ],
@@ -664,7 +703,6 @@ export async function handleMessage(request) {
     msgIgnoreSpecificMessage, // 忽略特定文本
     msgCheckEnvIsReady, // 检查环境是否准备好: API_KEY, DATABASE
     msgInitChatContext, // 初始化聊天上下文: 生成chat_id, reply_to_message_id(群组消息), SHARE_CONTEXT
-    msgIgnoreOldMessage, // 忽略旧消息
     msgProcessByChatType, // 根据类型对消息进一步处理
     // msgInitReverseContext, // 初始化REVERSE_MODE上下文 生成 conversation_id, parent_message_id
     msgSaveLastMessage, // 保存最后一条消息

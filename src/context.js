@@ -328,13 +328,5 @@ export class Context {
     this._initChatContext(chatId, replyId);
     // console.log(this.CURRENT_CHAT_CONTEXT);
     // 群组初始化用户配置移至handleChatType提及检测后 减少数据库的读取频率
-    if (!CONST.GROUP_TYPES.includes(message.chat?.type)) {
-      await this._initUserConfig(this.SHARE_CONTEXT.configStoreKey);
-      if (ENV.REVERSE_MODE) {
-      await this._initReverseContext();
-      }
-    }
-    
-    // console.log(this.USER_CONFIG);
   }
 }
