@@ -4,9 +4,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1720794077;
+  BUILD_TIMESTAMP = 1720797322;
   // 当前版本 commit id
-  BUILD_VERSION = "13f683f";
+  BUILD_VERSION = "7465f87";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -1610,7 +1610,7 @@ async function requestCompletionsFromOpenAI(message, history, context, onStream)
     ...context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS,
     messages,
     stream: onStream != null,
-    ...!!onStream && { stream_options: { include_usage: true } }
+    ...!!onStream && ENV.ENABLE_SHOWTOKENINFO && { stream_options: { include_usage: true } }
   };
   const header = {
     "Content-Type": "application/json",
@@ -1672,7 +1672,7 @@ async function requestCompletionsFromAzureOpenAI(message, history, context, onSt
     ...context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS,
     messages: [...history || [], { role: "user", content: message }],
     stream: onStream != null,
-    ...!!onStream && { stream_options: { include_usage: true } }
+    ...!!onStream && ENV.ENABLE_SHOWTOKENINFO && { stream_options: { include_usage: true } }
   };
   const header = {
     "Content-Type": "application/json",

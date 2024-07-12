@@ -80,7 +80,7 @@ export async function requestCompletionsFromOpenAI(message, history, context, on
     ...context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS,
     messages: messages,
     stream: onStream != null,
-    ...(!!onStream && { stream_options: { include_usage: true } }),
+    ...(!!onStream && ENV.ENABLE_SHOWTOKENINFO &&{ stream_options: { include_usage: true } }),
   }
 
   const header = {
@@ -177,7 +177,7 @@ export async function requestCompletionsFromAzureOpenAI(message, history, contex
     ...context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS,
     messages: [...(history || []), {role: 'user', content: message}],
     stream: onStream != null,
-    ...(!!onStream && { stream_options: { include_usage: true } }),
+    ...(!!onStream && ENV.ENABLE_SHOWTOKENINFO && { stream_options: { include_usage: true } }),
   };
 
   const header = {
