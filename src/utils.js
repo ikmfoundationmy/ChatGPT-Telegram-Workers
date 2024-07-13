@@ -201,7 +201,8 @@ export function isJsonResponse(resp) {
  * @return {boolean}
  */
 export function isEventStreamResponse(resp) {
-  return resp.headers.get('content-type').indexOf('text/event-stream') !== -1;
+  // return resp.headers.get('content-type').indexOf('text/event-stream') !== -1;
+  return ['application/stream+json', 'text/event-stream'].includes(resp.headers.get('content-type'));
 }
 /**
  * 

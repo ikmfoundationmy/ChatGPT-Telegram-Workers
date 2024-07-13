@@ -1,7 +1,7 @@
 /* eslint-disable no-unused-vars */
 import {Context} from './context.js';
 import {DATABASE, ENV} from './env.js';
-import {fetchWithRetry, isEventStreamResponse, isJsonResponse, UUIDv4} from './utils.js';
+import {isEventStreamResponse, isJsonResponse} from './utils.js';
 import {Stream} from './vendors/stream.js';
 
 

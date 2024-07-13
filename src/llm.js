@@ -19,7 +19,8 @@ import {
 import {tokensCounter, delay, UUIDv4} from './utils.js';
 import {isWorkersAIEnable, requestCompletionsFromWorkersAI, requestImageFromWorkersAI} from './workersai.js';
 import {isGeminiAIEnable, requestCompletionsFromGeminiAI} from './gemini.js';
-import {isMistralAIEnable, requestCompletionsFromMistralAI} from './mistralai.js';
+import { isMistralAIEnable, requestCompletionsFromMistralAI } from './mistralai.js';
+import { isCohereAIEnable, requestCompletionsFromCohereAI } from "./cohereai.js";
 
 
 /**
@@ -134,6 +135,8 @@ export function loadChatLLM(context) {
       return requestCompletionsFromGeminiAI;
     case 'mistral':
       return requestCompletionsFromMistralAI;
+    case 'cohere':
+      return requestCompletionsFromCohereAI;
     default:
       if (isAzureEnable(context)) {
         return requestCompletionsFromAzureOpenAI;
@@ -149,6 +152,9 @@ export function loadChatLLM(context) {
       }
       if (isMistralAIEnable(context)) {
         return requestCompletionsFromMistralAI;
+      }
+      if (isCohereAIEnable(context)) {
+        return requestCompletionsFromCohereAI;
       }
       return null;
   }
@@ -193,7 +199,7 @@ async function requestCompletionsFromLLM(text, context, llm, modifier, onStream)
   const readStartTime = performance.now();
   let history = { real: [], original: [] };
   if (!context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEXT && !context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILEURL ) {
-    history = ENV.MAX_HISTORY_LENGTH > 0 ? (await loadHistory(historyKey, context)) : history;
+    history = await loadHistory(historyKey, context);
     const readTime = ((performance.now() - readStartTime) / 1000).toFixed(2);
       console.log(`readHistoryTime: ${readTime}s`);
     if (modifier) {

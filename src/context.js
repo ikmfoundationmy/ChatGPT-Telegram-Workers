@@ -92,9 +92,16 @@ export class Context {
     // Google Gemini API Key
     GOOGLE_API_KEY: ENV.GOOGLE_API_KEY,
     // Google Gemini API
-    GOOGLE_COMPLETIONS_API: ENV.GOOGLE_API_BASE || ENV.GOOGLE_COMPLETIONS_API,
+    GOOGLE_API_BASE: ENV.GOOGLE_API_BASE,
     // Google Gemini Model
     GOOGLE_CHAT_MODEL: ENV.GOOGLE_CHAT_MODEL,
+    // Cohere Model
+    COHERE_CHAT_MODEL: ENV.COHERE_CHAT_MODEL,
+    // Cohere API Key
+    COHERE_API_KEY: ENV.COHERE_API_KEY,
+    // Cohere API
+    COHERE_API_BASE: ENV.COHERE_API_BASE,
+    COHERE_API_EXTRA_PARAMS: {},
 
     EXTRA_TINFO: ENV.EXTRA_TINFO,
     /*
@@ -137,7 +144,7 @@ export class Context {
   };
 
   USER_DEFINE = {
-    VALID_KEYS: ['OPENAI_API_EXTRA_PARAMS', 'SYSTEM_INIT_MESSAGE'],
+    VALID_KEYS: ['OPENAI_API_EXTRA_PARAMS','SYSTEM_INIT_MESSAGE'],
     // 自定义角色
     ROLE: {},
   };
@@ -206,7 +213,7 @@ export class Context {
       console.error(e);
     }
     {
-      const aiProvider = new Set('auto,openai,azure,workers,gemini,mistral'.split(','));
+      const aiProvider = new Set('auto,openai,azure,workers,gemini,mistral,cohere'.split(','));
       if (!aiProvider.has(this.USER_CONFIG.AI_PROVIDER)) {
         this.USER_CONFIG.AI_PROVIDER = 'auto';
       }

@@ -112,8 +112,9 @@ class Environment {
   IGNORE_TEXT = '';
   // 消息中是否显示提供商, 模型等额外信息
   ENABLE_SHOWINFO = false;
-  // 对话首次长时间无响应时间(针对OPENAI)
+  // 对话首次长时间无响应时间
   OPENAI_CHAT_TIMEOUT = 15;
+  COHERE_TIMEOUT = 15;
   // 消息中是否显示token信息
   ENABLE_SHOWTOKENINFO = false;
   // 是否隐藏中间步骤
@@ -224,10 +225,8 @@ class Environment {
 
   // Google Gemini API Key
   GOOGLE_API_KEY = null;
-  // Google Gemini API
-  GOOGLE_COMPLETIONS_API = 'https://generativelanguage.googleapis.com/v1beta/models/';
   // Google Gemini API BASE
-  GOOGLE_API_BASE = null;
+  GOOGLE_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models/';
   // Google Gemini Model
   GOOGLE_CHAT_MODEL = 'gemini-pro';
 
@@ -237,6 +236,13 @@ class Environment {
   MISTRAL_COMPLETIONS_API = 'https://api.mistral.ai/v1/chat/completions';
   // mistral api model
   MISTRAL_CHAT_MODEL = 'mistral-tiny';
+
+  // cohere api key
+  COHERE_API_KEY = '';
+  // cohere api base
+  COHERE_API_BASE = 'https://api.cohere.com/v1';
+  // cohere api model
+  COHERE_CHAT_MODEL = 'command-r-plus';
 }
 
 
@@ -275,6 +281,7 @@ export function initEnv(env, i18n) {
     GOOGLE_API_KEY: 'string',
     GOOGLE_API_BASE: 'string',
     MISTRAL_API_KEY: 'string',
+    COHERE_API_KEY: 'string',
     PROVIDER_SOURCES: 'object',
     MODES: 'object'
   };

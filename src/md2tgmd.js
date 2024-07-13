@@ -1,5 +1,4 @@
 const escapeChars = /([\_\*\[\]\(\)\\\~\`\>\#\+\-\=\|\{\}\.\!])/g;
-let codeBlank = 0;
 
 /**
  * 分割代码块文本 适配嵌套代码块
@@ -71,7 +70,7 @@ function handleEscape(text, type = 'text') {
       // .replace(/([^\\])\\([^\_\*\[\]\(\)\~\`\>\#\+\-\=\|\{\}\.\!])/g, '$1\\\\$2') // escape sign
       .replace(/^((\\#){1,3}\s)(.+)/gm, '$1*$3*'); // number sign
   } else {
-    if (codeBlank === 0) codeBlank = text.length - text.trimStart().length;
+    const codeBlank = text.length - text.trimStart().length;
     if (codeBlank > 0) {
       const blankReg = new RegExp(`^\\s{${codeBlank}}`, 'gm');
       text = text.replace(blankReg, '');
