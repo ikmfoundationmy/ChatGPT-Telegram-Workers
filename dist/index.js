@@ -4,9 +4,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1720896018;
+  BUILD_TIMESTAMP = 1720956317;
   // 当前版本 commit id
-  BUILD_VERSION = "dbe6860";
+  BUILD_VERSION = "5af18be";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -220,6 +220,8 @@ var Environment = class {
   COHERE_API_BASE = "https://api.cohere.com/v1";
   // cohere api model
   COHERE_CHAT_MODEL = "command-r-plus";
+  COHERE_CONNECT_TRIGGER = {};
+  // COHERE_CONNECT_TRIGGER = { "web-search": ['^search', '搜一下'] };
 };
 var ENV = new Environment();
 var DATABASE = null;
@@ -394,6 +396,7 @@ var Context = class {
     // Cohere API
     COHERE_API_BASE: ENV.COHERE_API_BASE,
     COHERE_API_EXTRA_PARAMS: {},
+    COHERE_CONNECT_TRIGGER: ENV.COHERE_CONNECT_TRIGGER,
     EXTRA_TINFO: ENV.EXTRA_TINFO,
     /*
     MODEL_CONCISE: ENV.MODEL_CONCISE || {
@@ -2125,36 +2128,19 @@ var Stream2 = class {
 };
 var SSEDecoder2 = class {
   constructor() {
-    this.event = null;
-    this.data = [];
-    this.chunks = [];
   }
   decode(line) {
     if (line.endsWith("\r")) {
       line = line.substring(0, line.length - 1);
     }
-    if (!line) {
-      if (!this.event && !this.data.length)
-        return null;
-      const sse = {
-        event: this.event,
-        data: this.data.join("\n"),
-        raw: this.chunks
-      };
-      this.event = null;
-      this.data = [];
-      this.chunks = [];
+    if (line) {
+      let type = identifyType(line, SSEDecoder2.TYPE_REGEXP);
+      const sse = { event: line, data: line, raw: line };
+      if (type === "text-generation" || type === "stream-end") {
+        sse.event = null;
+      } else
+        sse.data = "";
       return sse;
-    }
-    this.chunks.push(line);
-    let type = identifyType(line, SSEDecoder2.TYPE_REGEXP);
-    if (line.startsWith(" ")) {
-      line = line.substring(1);
-    }
-    if (type === "text-generation" || type === "stream-end") {
-      this.data.push(line);
-    } else {
-      this.event = line;
     }
     return null;
   }
@@ -2265,13 +2251,22 @@ async function requestCompletionsFromCohereAI(message, history, context, onStrea
         continue;
     }
   }
+  let connectors = [];
+  Object.entries(context.USER_CONFIG.COHERE_CONNECT_TRIGGER).forEach(([id, triggers]) => {
+    const result2 = triggers.some((trigger) => {
+      const triggerRegex = new RegExp(trigger, "i");
+      return triggerRegex.test(message);
+    });
+    if (result2)
+      connectors.push({ id });
+  });
   const body = {
     message,
     model: context.USER_CONFIG.COHERE_CHAT_MODEL,
     stream: onStream != null,
     preamble,
     chat_history: contentsTemp,
-    // 'connectors': [{ 'id': 'web-search' }],
+    ...connectors.length && { connectors },
     ...context.USER_CONFIG.COHERE_API_EXTRA_PARAMS
   };
   const controller = new AbortController();

@@ -35,6 +35,14 @@ export async function requestCompletionsFromCohereAI(message, history, context, 
         continue;
     }
   }
+  let connectors = [];
+  Object.entries(context.USER_CONFIG.COHERE_CONNECT_TRIGGER).forEach(([id, triggers]) => {
+    const result = triggers.some((trigger) => {
+      const triggerRegex = new RegExp(trigger, 'i');
+      return triggerRegex.test(message);
+    });
+    if (result) connectors.push({ id });
+  });
 
   const body = {
     message,
@@ -42,7 +50,7 @@ export async function requestCompletionsFromCohereAI(message, history, context, 
     stream: onStream != null,
     preamble,
     chat_history: contentsTemp,
-    // 'connectors': [{ 'id': 'web-search' }],
+    ...(connectors.length && { connectors }),
     ...context.USER_CONFIG.COHERE_API_EXTRA_PARAMS,
   };
   const controller = new AbortController();

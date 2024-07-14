@@ -243,6 +243,10 @@ class Environment {
   COHERE_API_BASE = 'https://api.cohere.com/v1';
   // cohere api model
   COHERE_CHAT_MODEL = 'command-r-plus';
+
+  COHERE_CONNECT_TRIGGER = {};
+  // COHERE_CONNECT_TRIGGER = { "web-search": ['^search', '搜一下'] };
+  
 }
 
 

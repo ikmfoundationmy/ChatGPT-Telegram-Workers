@@ -16,6 +16,7 @@ export class Stream {
     const iter = this.response.body;
     for await (const chunk of iter) {
       for (const line of lineDecoder.decode(chunk)) {
+        // console.log('decode line: ', line.toString('utf-8').replace(/\r$/, '\\r').replace(/\n$/, '\\n'));
         const sse = this.decoder.decode(line);
         if (sse) yield sse;
       }
@@ -59,38 +60,23 @@ export class Stream {
 }
 class SSEDecoder {
   constructor() {
-    this.event = null;
-    this.data = [];
-    this.chunks = [];
+    // this.event = null;
+    // this.data = '';
   }
   decode(line) {
     if (line.endsWith('\r')) {
       line = line.substring(0, line.length - 1);
     }
-    if (!line) {
-      // empty line and we didn't previously encounter any messages
-      if (!this.event && !this.data.length) return null;
-      const sse = {
-        event: this.event,
-        data: this.data.join('\n'),
-        raw: this.chunks,
-      };
-      this.event = null;
-      this.data = [];
-      this.chunks = [];
-      return sse;
-    }
-    this.chunks.push(line);
-    // cohere return complete data lines
-    let type = identifyType(line, SSEDecoder.TYPE_REGEXP);
-    if (line.startsWith(' ')) {
-      line = line.substring(1);
-    }
-    // return blocks of type 'text-generation' or 'stream-end' (including complete messages, token consumption, and references etc.)
-    if (type === 'text-generation' || type === 'stream-end') {
-      this.data.push(line);
-    } else {
-      this.event = line;
+    // cohere may return two adjacent complete JSON string blocks at once, instead of one before and one after.
+    // so it needs to return the non-empty data in each iteration without splicing
+    if (line) {
+        let type = identifyType(line, SSEDecoder.TYPE_REGEXP);
+        // return blocks of type 'text-generation' or 'stream-end' (including complete messages, token consumption, and references etc.)
+        const sse = { event: line, data: line, raw: line };
+        if (type === 'text-generation' || type === 'stream-end') {
+          sse.event = null;
+        } else sse.data = '';
+        return sse;
     }
     return null;
   }
