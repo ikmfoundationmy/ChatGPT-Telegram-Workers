@@ -63,7 +63,7 @@ export async function requestCompletionsFromOpenAI(message, history, context, on
   let model = context.CURRENT_CHAT_CONTEXT.PROCESS_INFO['MODEL'];
   let messages = [{ role: 'user', content: message }];
   if (context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILEURL) {
-    model = context.USER_CONFIG.OPENAI_VISION_MODEL;
+    model = context.CURRENT_CHAT_CONTEXT.PROCESS_INFO.MODEL;
     messages[0].content = [{
       "type": "text",
       "text": message || 'what is this?'  // cluade-3-haiku model 图像识别必须带文本

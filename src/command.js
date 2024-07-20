@@ -700,6 +700,9 @@ async function commandEcho(message, command, subcommand, context) {
  */
 export async function handleCommandMessage(message, context) {
   if (!message.text) {
+    const acceptType = ['document', 'photo', 'image', 'voice', 'audio'];
+    const isContainFile = acceptType.some((key) => key in message);
+    if (!isContainFile) return sendMessageToTelegramWithContext(context)('No question found');
     return null;
   }
   if (ENV.DEV_MODE) {

@@ -4,9 +4,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1720956317;
+  BUILD_TIMESTAMP = 1721470593;
   // 当前版本 commit id
-  BUILD_VERSION = "5af18be";
+  BUILD_VERSION = "2135ae1";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -125,7 +125,7 @@ var Environment = class {
         }
       ],
       audio: [
-        // 后续若出现模型能直接audio:text对话 则可加上指定模型, 去掉流程中的text:text
+        // 后若出现模型能直接audio:text对话 则可加上指定模型, 去掉流程中的text:text
         {
           // 默认TYPE为 消息类型:text
           // TYPE: 'audio:text',
@@ -145,7 +145,7 @@ var Environment = class {
           // TYPE: 'image:text',
           // PROVIDER_SOURCE: 'default',
           // AI_PROVIDER: 'openai',
-          MODEL: "gpt-4o"
+          // 模型默认环境变量中的OPENAI_VISION_MODEL,
         }
       ]
     },
@@ -1605,7 +1605,7 @@ async function requestCompletionsFromOpenAI(message, history, context, onStream)
   let model = context.CURRENT_CHAT_CONTEXT.PROCESS_INFO["MODEL"];
   let messages = [{ role: "user", content: message }];
   if (context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILEURL) {
-    model = context.USER_CONFIG.OPENAI_VISION_MODEL;
+    model = context.CURRENT_CHAT_CONTEXT.PROCESS_INFO.MODEL;
     messages[0].content = [{
       "type": "text",
       "text": message || "what is this?"
@@ -2372,6 +2372,8 @@ async function loadHistory(key, context) {
   });
   const counter = await tokensCounter();
   const trimHistory = (list, initLength, maxLength, maxToken) => {
+    if (context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILEURL)
+      maxLength = 2;
     if (list.length > maxLength) {
       list = list.splice(list.length - maxLength);
     }
@@ -2472,18 +2474,19 @@ async function requestCompletionsFromLLM(text, context, llm, modifier, onStream)
   const historyKey = context.SHARE_CONTEXT.chatHistoryKey;
   const readStartTime = performance.now();
   let history = { real: [], original: [] };
-  if (!context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEXT && !context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILEURL) {
-    history = await loadHistory(historyKey, context);
-    const readTime = ((performance.now() - readStartTime) / 1e3).toFixed(2);
-    console.log(`readHistoryTime: ${readTime}s`);
-    if (modifier) {
-      const modifierData = modifier(history, text);
-      history = modifierData.history;
-      text = modifierData.text;
-    }
+  history = await loadHistory(historyKey, context);
+  const readTime = ((performance.now() - readStartTime) / 1e3).toFixed(2);
+  console.log(`readHistoryTime: ${readTime}s`);
+  if (modifier) {
+    const modifierData = modifier(history, text);
+    history = modifierData.history;
+    text = modifierData.text;
   }
   const { real: realHistory, original: originalHistory } = history;
   const answer = await llm(text, realHistory, context, onStream);
+  if (context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILEURL) {
+    text = "[A FILE] " + text;
+  }
   if (!historyDisable) {
     originalHistory.push({ role: "user", content: text || "", cosplay: context.SHARE_CONTEXT.role || "" });
     originalHistory.push({ role: "assistant", content: answer, cosplay: context.SHARE_CONTEXT.role || "" });
@@ -3142,6 +3145,10 @@ async function commandEcho(message, command, subcommand, context) {
 }
 async function handleCommandMessage(message, context) {
   if (!message.text) {
+    const acceptType = ["document", "photo", "image", "voice", "audio"];
+    const isContainFile = acceptType.some((key) => key in message);
+    if (!isContainFile)
+      return sendMessageToTelegramWithContext2(context)("No question found");
     return null;
   }
   if (ENV.DEV_MODE) {

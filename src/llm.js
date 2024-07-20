@@ -66,6 +66,8 @@ async function loadHistory(key, context) {
   const counter = await tokensCounter();
 
   const trimHistory = (list, initLength, maxLength, maxToken) => {
+    // 文件类型的消息只关联两条历史消息
+    if (context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILEURL) maxLength = 2;
     // 历史记录超出长度需要裁剪
     if (list.length > maxLength) {
       list = list.splice(list.length - maxLength);
@@ -198,18 +200,21 @@ async function requestCompletionsFromLLM(text, context, llm, modifier, onStream)
   const historyKey = context.SHARE_CONTEXT.chatHistoryKey;
   const readStartTime = performance.now();
   let history = { real: [], original: [] };
-  if (!context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEXT && !context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILEURL ) {
-    history = await loadHistory(historyKey, context);
-    const readTime = ((performance.now() - readStartTime) / 1000).toFixed(2);
-      console.log(`readHistoryTime: ${readTime}s`);
-    if (modifier) {
-      const modifierData = modifier(history, text);
-      history = modifierData.history;
-      text = modifierData.text;
-    }
+
+  history = await loadHistory(historyKey, context);
+  const readTime = ((performance.now() - readStartTime) / 1000).toFixed(2);
+  console.log(`readHistoryTime: ${readTime}s`);
+  if (modifier) {
+    const modifierData = modifier(history, text);
+    history = modifierData.history;
+    text = modifierData.text;
   }
+
   const { real: realHistory, original: originalHistory } = history;
   const answer = await llm(text, realHistory, context, onStream);
+  if (context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.FILEURL) {
+    text = '[A FILE] ' + text;
+  }
   if (!historyDisable) {
     originalHistory.push({role: 'user', content: text || '', cosplay: context.SHARE_CONTEXT.role || ''});
     originalHistory.push({role: 'assistant', content: answer, cosplay: context.SHARE_CONTEXT.role || ''});

@@ -140,7 +140,7 @@ class Environment {
         },
       ],
       audio: [
-        // 后续若出现模型能直接audio:text对话 则可加上指定模型, 去掉流程中的text:text
+        // 后若出现模型能直接audio:text对话 则可加上指定模型, 去掉流程中的text:text
         {
           // 默认TYPE为 消息类型:text
           // TYPE: 'audio:text',
@@ -160,7 +160,7 @@ class Environment {
           // TYPE: 'image:text',
           // PROVIDER_SOURCE: 'default',
           // AI_PROVIDER: 'openai',
-          MODEL: 'gpt-4o',
+          // 模型默认环境变量中的OPENAI_VISION_MODEL,
         },
       ],
     },
