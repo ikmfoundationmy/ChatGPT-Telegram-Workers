@@ -280,6 +280,16 @@ async function commandGenerateImg(message, command, subcommand, context) {
   }
   try {
     setTimeout(() => sendChatActionToTelegramWithContext(context)('upload_photo').catch(console.error), 0);
+    const PROCESS_INFO = {
+      TYPE: 'text:image',
+      PROVIDER_SOURCE: 'default',
+      AI_PROVIDER: ENV.AI_IMAGE_PROVIDER,
+      MODEL: context.USER_CONFIG.DALL_E_MODEL,
+    };
+    if (!context.CURRENT_CHAT_CONTEXT) {
+      context.CURRENT_CHAT_CONTEXT = {};
+    }
+    context.CURRENT_CHAT_CONTEXT.PROCESS_INFO = PROCESS_INFO;
     const gen = loadImageGen(context);
     if (!gen) {
       return sendMessageToTelegramWithContext(context)(`ERROR: Image generator not found`);
@@ -287,8 +297,8 @@ async function commandGenerateImg(message, command, subcommand, context) {
     const startTime = performance.now();
     const img = await gen(subcommand, context);
     if (typeof img === 'string') {
-      const provider = (context.USER_CONFIG.AI_PROVIDER == 'auto' ? 'openai' : context.USER_CONFIG.AI_PROVIDER).toUpperCase();
-      let model = 'dall-e-2';
+      const provider = (context.USER_CONFIG.AI_IMAGE_PROVIDER == 'auto' ? 'openai' : context.USER_CONFIG.AI_PROVIDER).toUpperCase();
+      let model = PROCESS_INFO.MODEL;
       if (provider == 'OPENAI') {
         model = context.USER_CONFIG.DALL_E_MODEL
           + ' ' + context.USER_CONFIG.DALL_E_IMAGE_QUALITY
@@ -301,7 +311,7 @@ async function commandGenerateImg(message, command, subcommand, context) {
       if (!context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO) {
         context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO = {}
       }
-      context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO = (CURRENT_CHAT_CONTEXT.MIDDLE_INFO || '') + `${model} ${time}s`;
+      context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO = `${time}s\n>${model}`;
     }
     
     return sendPhotoToTelegramWithContext(context)(img);

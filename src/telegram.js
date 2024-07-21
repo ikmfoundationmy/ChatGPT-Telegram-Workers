@@ -53,7 +53,7 @@ export async function sendMessageToTelegram(message, token, context) {
 
   let origin_msg = message;
   let info = '';
-  const step = context.PROCESS_INFO?.STEP.split('/') || [0, 0];
+  const step = context.PROCESS_INFO?.STEP?.split('/') || [0, 0];
   const escapeContent = (parse_mode = chatContext?.parse_mode) => {
     info = context.MIDDLE_INFO?.TEMP_INFO?.trim() || '';
     if (step[0] < step[1] && !ENV.HIDE_MIDDLE_MESSAGE) {
@@ -207,7 +207,7 @@ export async function sendPhotoToTelegram(photo, token, context) {
     // let info = '>' + (context.MIDDLE_INFO.TEMP_INFO).replace('\n', '\n>');
     // info = escape(info, 'info');
     body.parse_mode = 'MarkdownV2';
-    let info = '>' + context?.PROCESS_INFO?.['MODEL'] + '\n' + context.MIDDLE_INFO.TEXT + '\n' ;
+    let info = '>' + context.MIDDLE_INFO.TEMP_INFO + (context.MIDDLE_INFO.TEXT || '') + '\n';
     body.caption = escape(info) + `[原始图片](${photo})`;
     body = JSON.stringify(body);
     headers['Content-Type'] = 'application/json';

@@ -4,9 +4,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1721470593;
+  BUILD_TIMESTAMP = 1721560800;
   // 当前版本 commit id
-  BUILD_VERSION = "2135ae1";
+  BUILD_VERSION = "c496861";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -1113,7 +1113,7 @@ async function sendMessageToTelegram(message, token, context) {
   };
   let origin_msg = message;
   let info = "";
-  const step = context.PROCESS_INFO?.STEP.split("/") || [0, 0];
+  const step = context.PROCESS_INFO?.STEP?.split("/") || [0, 0];
   const escapeContent = (parse_mode = chatContext?.parse_mode) => {
     info = context.MIDDLE_INFO?.TEMP_INFO?.trim() || "";
     if (step[0] < step[1] && !ENV.HIDE_MIDDLE_MESSAGE) {
@@ -1232,7 +1232,7 @@ async function sendPhotoToTelegram(photo, token, context) {
       }
     }
     body.parse_mode = "MarkdownV2";
-    let info = ">" + context?.PROCESS_INFO?.["MODEL"] + "\n" + context.MIDDLE_INFO.TEXT + "\n";
+    let info = ">" + context.MIDDLE_INFO.TEMP_INFO + (context.MIDDLE_INFO.TEXT || "") + "\n";
     body.caption = escape(info) + `[\u539F\u59CB\u56FE\u7247](${photo})`;
     body = JSON.stringify(body);
     headers["Content-Type"] = "application/json";
@@ -2881,6 +2881,16 @@ async function commandGenerateImg(message, command, subcommand, context) {
   }
   try {
     setTimeout(() => sendChatActionToTelegramWithContext(context)("upload_photo").catch(console.error), 0);
+    const PROCESS_INFO = {
+      TYPE: "text:image",
+      PROVIDER_SOURCE: "default",
+      AI_PROVIDER: ENV.AI_IMAGE_PROVIDER,
+      MODEL: context.USER_CONFIG.DALL_E_MODEL
+    };
+    if (!context.CURRENT_CHAT_CONTEXT) {
+      context.CURRENT_CHAT_CONTEXT = {};
+    }
+    context.CURRENT_CHAT_CONTEXT.PROCESS_INFO = PROCESS_INFO;
     const gen = loadImageGen(context);
     if (!gen) {
       return sendMessageToTelegramWithContext2(context)(`ERROR: Image generator not found`);
@@ -2888,8 +2898,8 @@ async function commandGenerateImg(message, command, subcommand, context) {
     const startTime = performance.now();
     const img = await gen(subcommand, context);
     if (typeof img === "string") {
-      const provider = (context.USER_CONFIG.AI_PROVIDER == "auto" ? "openai" : context.USER_CONFIG.AI_PROVIDER).toUpperCase();
-      let model = "dall-e-2";
+      const provider = (context.USER_CONFIG.AI_IMAGE_PROVIDER == "auto" ? "openai" : context.USER_CONFIG.AI_PROVIDER).toUpperCase();
+      let model = PROCESS_INFO.MODEL;
       if (provider == "OPENAI") {
         model = context.USER_CONFIG.DALL_E_MODEL + " " + context.USER_CONFIG.DALL_E_IMAGE_QUALITY + " " + context.USER_CONFIG.DALL_E_IMAGE_STYLE + " " + context.USER_CONFIG.DALL_E_IMAGE_SIZE;
       } else if (provider == "WORKERS") {
@@ -2899,7 +2909,8 @@ async function commandGenerateImg(message, command, subcommand, context) {
       if (!context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO) {
         context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO = {};
       }
-      context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO = (CURRENT_CHAT_CONTEXT.MIDDLE_INFO || "") + `${model} ${time}s`;
+      context.CURRENT_CHAT_CONTEXT.MIDDLE_INFO.TEMP_INFO = `${time}s
+>${model}`;
     }
     return sendPhotoToTelegramWithContext(context)(img);
   } catch (e) {
