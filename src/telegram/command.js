@@ -430,7 +430,7 @@ async function commandSystem(message, command, subcommand, context) {
         msg += `USER_CONFIG: ${JSON.stringify(config, null, 2)}\n`;
         msg += `CHAT_CONTEXT: ${JSON.stringify(context.CURRENT_CHAT_CONTEXT, null, 2)}\n`;
         msg += `SHARE_CONTEXT: ${JSON.stringify(shareCtx, null, 2)}\n`;
-        msg += CUSTOM_TINFO(context.USER_CONFIG) + '\n'+ '</pre>';
+        msg += '</pre>';
     }
     context.CURRENT_CHAT_CONTEXT.parse_mode = 'HTML';
     return sendMessageToTelegramWithContext(context)(msg);

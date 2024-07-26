@@ -435,12 +435,11 @@ export async function getFileInfo(file_id, token) {
   }
   
   /**
-   * 获取TG文件
+   * 直链获取文件
    * @param {string} filePath
-   * @param {string} token
    * @return {Promise<Response>}
    */
   export async function getFile(fullPath) {
-    return fetchWithRetry(fullPath);
+    return fetch(fullPath);
   }
   

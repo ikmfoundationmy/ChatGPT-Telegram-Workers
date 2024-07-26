@@ -44,7 +44,6 @@ export class Stream {
                     continue;
                 }
                 if (data) {
-                    // console.log(JSON.stringify(data));
                     yield data;
                 }
             }

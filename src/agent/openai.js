@@ -150,43 +150,4 @@ export async function requestTranscriptionFromOpenAI(audio, file_name, context) 
   } else {
     return { ok: false, message: await resp.text() };
   }
-    
-  
-}
-  
-/**
- * 更新当前机器人的用量统计
- * @param {object} usage
- * @param {Context} context
- * @return {Promise<void>}
- */
-async function updateBotUsage(usage, context) {
-  if (!ENV.ENABLE_USAGE_STATISTICS) {
-    return;
-  }
-
-  let dbValue;
-  try {
-    dbValue = JSON.parse(await DATABASE.get(context.SHARE_CONTEXT.usageKey) || '{}');
-  } catch {
-    dbValue = '';
-  }
-
-  if (!dbValue) {
-    dbValue = {
-      tokens: {
-        total: 0,
-        chats: {},
-      },
-    };
-  }
-
-  dbValue.tokens.total += usage?.total_tokens ?? 0;
-  if (!dbValue.tokens.chats[context.SHARE_CONTEXT.chatId]) {
-    dbValue.tokens.chats[context.SHARE_CONTEXT.chatId] = usage?.total_tokens ?? 0;
-  } else {
-    dbValue.tokens.chats[context.SHARE_CONTEXT.chatId] += usage?.total_tokens ?? 0;
-  }
-
-  await DATABASE.put(context.SHARE_CONTEXT.usageKey, JSON.stringify(dbValue));
 }
