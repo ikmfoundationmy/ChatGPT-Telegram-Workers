@@ -6,7 +6,6 @@ RUN apk update && apk add --no-cache git
 RUN npm install
 
 COPY index.js ./
-ENV DOMAIN "http://localhost"
 VOLUME /app
 EXPOSE 8787
 

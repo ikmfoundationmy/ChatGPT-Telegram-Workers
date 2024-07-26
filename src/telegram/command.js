@@ -1,5 +1,5 @@
 import "../types/context.js"
-import {CONST, CUSTOM_COMMAND, DATABASE, ENV, mergeEnvironment} from '../config/env.js';
+import {CONST, CUSTOM_COMMAND, CUSTOM_COMMAND_DESCRIPTION, DATABASE, ENV, mergeEnvironment} from '../config/env.js';
 import {
     getChatRoleWithContext,
     sendChatActionToTelegramWithContext,
@@ -158,15 +158,15 @@ async function commandGenerateImg(message, command, subcommand, context) {
  * @return {Promise<Response>}
  */
 async function commandGetHelp(message, command, subcommand, context) {
-  const helpMsg =
-    ENV.I18N.command.help.summary +
-    '```markdown\n' +
-    Object.keys(commandHandlers)
-      .map((key) => `${key}：${ENV.I18N.command.help[key.substring(1)]}`)
-      .join('\n') +
-    '\n```';
-  context.CURRENT_CHAT_CONTEXT.parse_mode = 'MarkdownV2';
-  return sendMessageToTelegramWithContext(context)(helpMsg);
+    let helpMsg = ENV.I18N.command.help.summary + '\n';
+    helpMsg += Object.keys(commandHandlers)
+            .map((key) => `${key}：${ENV.I18N.command.help[key.substring(1)]}`)
+            .join('\n');
+    helpMsg += Object.keys(CUSTOM_COMMAND)
+            .filter((key) => !!CUSTOM_COMMAND_DESCRIPTION[key])
+            .map((key) => `${key}：${CUSTOM_COMMAND_DESCRIPTION[key]}`)
+            .join('\n');
+    return sendMessageToTelegramWithContext(context)(helpMsg);
 }
 
 /**
@@ -229,6 +229,9 @@ async function commandUpdateUserConfig(message, command, subcommand, context, pr
   if (ENV.LOCK_USER_CONFIG_KEYS.includes(key)) {
     return sendMessageToTelegramWithContext(context)(`Key ${key} is locked`);
   }
+  if (!Object.keys(context.USER_CONFIG).includes(key)) {
+    return sendMessageToTelegramWithContext(context)(`Key ${key} not found`);
+  }
   try {
     mergeEnvironment(context.USER_CONFIG, {
       [key]: value,
@@ -259,11 +262,16 @@ async function commandUpdateUserConfig(message, command, subcommand, context, pr
 async function commandUpdateUserConfigs(message, command, subcommand, context, processUpdate = false) {
     try {
         const values = JSON.parse(subcommand);
+        const configKeys = Object.keys(context.USER_CONFIG);
         for (const ent of Object.entries(values)) {
             const [key, value] = ent;
             if (ENV.LOCK_USER_CONFIG_KEYS.includes(key)) {
                 return sendMessageToTelegramWithContext(context)(`Key ${key} is locked`);
             }
+            if (!configKeys.includes(key)) {
+                return sendMessageToTelegramWithContext(context)(`Key ${key} not found`);
+            }
+            context.USER_CONFIG.DEFINE_KEYS.push(key);
             mergeEnvironment(context.USER_CONFIG, {
                 [key]: value,
             })
@@ -349,11 +357,7 @@ async function commandClearUserConfig(message, command, subcommand, context) {
  * @return {Promise<Response>}
  */
 async function commandFetchUpdate(message, command, subcommand, context) {
-    const config = {
-        headers: {
-            'User-Agent': CONST.USER_AGENT,
-        },
-    };
+
     const current = {
         ts: ENV.BUILD_TIMESTAMP,
         sha: ENV.BUILD_VERSION,
@@ -378,40 +382,6 @@ async function commandFetchUpdate(message, command, subcommand, context) {
         return sendMessageToTelegramWithContext(context)(`Current version: ${current.sha}(${current.ts}) is up to date`);
     }
 }
-
-/**
- * /usage 获得使用统计
- *
- * @param {TelegramMessage} message
- * @param {string} command
- * @param {string} subcommand
- * @param {Context} context
- * @return {Promise<Response>}
- */
-async function commandUsage(message, command, subcommand, context) {
-    if (!ENV.ENABLE_USAGE_STATISTICS) {
-      return sendMessageToTelegramWithContext(context)(ENV.I18N.command.usage.usage_not_open);
-    }
-  const usage = JSON.parse(await DATABASE.get(context.SHARE_CONTEXT.usageKey) || '{}');
-    let text = ENV.I18N.command.usage.current_usage;
-    if (usage?.tokens) {
-      const {tokens} = usage;
-      const sortedChats = Object.keys(tokens.chats || {}).sort((a, b) => tokens.chats[b] - tokens.chats[a]);
-  
-      text += ENV.I18N.command.usage.total_usage(tokens.total);
-      for (let i = 0; i < Math.min(sortedChats.length, 30); i++) {
-        text += `\n  - ${sortedChats[i]}: ${tokens.chats[sortedChats[i]]} tokens`;
-      }
-      if (sortedChats.length === 0) {
-        text += '0 tokens';
-      } else if (sortedChats.length > 30) {
-        text += '\n  ...';
-      }
-    } else {
-      text += ENV.I18N.command.usage.no_usage;
-    }
-    return sendMessageToTelegramWithContext(context)(text);
-  }
 
 
 /**

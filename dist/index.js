@@ -38,8 +38,10 @@ var UserConfig = class {
   // Azure API Key
   AZURE_API_KEY = null;
   // Azure Completions API
+  // https://RESOURCE_NAME.openai.azure.com/openai/deployments/MODEL_NAME/chat/completions?api-version=VERSION_NAME
   AZURE_PROXY_URL = null;
   // Azure DallE API
+  // https://RESOURCE_NAME.openai.azure.com/openai/deployments/MODEL_NAME/images/generations?api-version=VERSION_NAME
   AZURE_DALLE_API = null;
   // -- Workers 配置 --
   //
@@ -127,9 +129,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1721994754;
+  BUILD_TIMESTAMP = 1721999049;
   // 当前版本 commit id
-  BUILD_VERSION = "ef057ae";
+  BUILD_VERSION = "661bb28";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -236,10 +238,10 @@ var ENV = new Environment();
 var DATABASE2 = null;
 var API_GUARD = null;
 var CUSTOM_COMMAND = {};
+var CUSTOM_COMMAND_DESCRIPTION = {};
 var CONST = {
   PASSWORD_KEY: "chat_history_password",
-  GROUP_TYPES: ["group", "supergroup"],
-  USER_AGENT: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.2 Safari/605.1.15"
+  GROUP_TYPES: ["group", "supergroup"]
 };
 var ENV_TYPES = {
   SYSTEM_INIT_MESSAGE: "string",
@@ -308,10 +310,12 @@ function initEnv(env, i18n2) {
   DATABASE2 = env.DATABASE;
   API_GUARD = env.API_GUARD;
   const customCommandPrefix = "CUSTOM_COMMAND_";
+  const customCommandDescriptionPrefix = "COMMAND_DESCRIPTION_";
   for (const key of Object.keys(env)) {
     if (key.startsWith(customCommandPrefix)) {
       const cmd = key.substring(customCommandPrefix.length);
       CUSTOM_COMMAND["/" + cmd] = env[key];
+      CUSTOM_COMMAND_DESCRIPTION["/" + cmd] = env[customCommandDescriptionPrefix + cmd];
     }
   }
   mergeEnvironment(ENV, env);
@@ -345,7 +349,7 @@ function initEnv(env, i18n2) {
 
 // src/config/context.js
 function trimUserConfig(userConfig) {
-  const config = {
+  const config2 = {
     ...userConfig
   };
   const keysSet = new Set(userConfig.DEFINE_KEYS);
@@ -353,12 +357,12 @@ function trimUserConfig(userConfig) {
     keysSet.delete(key);
   }
   keysSet.add("DEFINE_KEYS");
-  for (const key of Object.keys(config)) {
+  for (const key of Object.keys(config2)) {
     if (!keysSet.has(key)) {
-      delete config[key];
+      delete config2[key];
     }
   }
-  return config;
+  return config2;
 }
 var ShareContext = class {
   currentBotId = null;
@@ -1078,13 +1082,6 @@ var SSEDecoder = class {
     return [str, "", ""];
   }
 };
-var JSONLDecoder = class {
-  constructor() {
-  }
-  decode(line) {
-    return line;
-  }
-};
 function openaiSseJsonParser(sse) {
   if (sse.data.startsWith("[DONE]")) {
     return { finish: true };
@@ -1099,16 +1096,20 @@ function openaiSseJsonParser(sse) {
   return {};
 }
 function cohereSseJsonParser(sse) {
-  try {
-    const res = JSON.parse(sse);
-    return {
-      finish: res.is_finished,
-      data: res
-    };
-  } catch (e) {
-    console.error(e, sse);
-    const finish = sse.startsWith('{"is_finished":true');
-    return { finish };
+  switch (sse.event) {
+    case "text-generation":
+      try {
+        return { data: JSON.parse(sse.data) };
+      } catch (e) {
+        console.error(e, sse.data);
+        return {};
+      }
+    case "stream-start":
+      return {};
+    case "stream-end":
+      return { finish: true };
+    default:
+      return {};
   }
 }
 function anthropicSseJsonParser(sse) {
@@ -1492,8 +1493,7 @@ async function requestCompletionsFromGeminiAI(message, prompt, history, context,
   const resp = await fetch(url, {
     method: "POST",
     headers: {
-      "Content-Type": "application/json",
-      "User-Agent": CONST.USER_AGENT
+      "Content-Type": "application/json"
     },
     body: JSON.stringify({ contents })
   });
@@ -1540,7 +1540,7 @@ async function requestCompletionsFromCohereAI(message, prompt, history, context,
   const header = {
     "Authorization": `Bearer ${context.USER_CONFIG.COHERE_API_KEY}`,
     "Content-Type": "application/json",
-    "Accept": "application/json"
+    "Accept": onStream !== null ? "text/event-stream" : "application/json"
   };
   const roleMap = {
     "assistant": "CHATBOT",
@@ -1573,13 +1573,10 @@ async function requestCompletionsFromCohereAI(message, prompt, history, context,
   }
   const options = {};
   options.streamBuilder = function(r, c) {
-    return new Stream(r, c, new JSONLDecoder(), cohereSseJsonParser);
+    return new Stream(r, c, null, cohereSseJsonParser);
   };
   options.contentExtractor = function(data) {
-    if (data?.event_type === "text-generation") {
-      return data?.text;
-    }
-    return null;
+    return data?.text;
   };
   options.fullContentExtractor = function(data) {
     return data?.text;
@@ -1740,9 +1737,9 @@ function currentChatModel(agentName, context) {
       return null;
   }
 }
-function customInfo(config) {
-  let AI_PROVIDER = config.AI_PROVIDER;
-  if (config.AI_PROVIDER === "auto") {
+function customInfo(config2) {
+  let AI_PROVIDER = config2.AI_PROVIDER;
+  if (config2.AI_PROVIDER === "auto") {
     AI_PROVIDER = "openai";
   }
   let CHAT_MODEL = "";
@@ -1750,20 +1747,20 @@ function customInfo(config) {
     case "openai":
     case "azure":
     default:
-      CHAT_MODEL = config.OPENAI_CHAT_MODEL;
+      CHAT_MODEL = config2.OPENAI_CHAT_MODEL;
       break;
     case "workers":
-      CHAT_MODEL = config.WORKERS_CHAT_MODEL;
+      CHAT_MODEL = config2.WORKERS_CHAT_MODEL;
       break;
     case "gemini":
-      CHAT_MODEL = config.GOOGLE_CHAT_MODEL;
+      CHAT_MODEL = config2.GOOGLE_CHAT_MODEL;
       break;
     case "mistral":
-      CHAT_MODEL = config.MISTRAL_CHAT_MODEL;
+      CHAT_MODEL = config2.MISTRAL_CHAT_MODEL;
       break;
   }
-  let info = `MODE: ${config.CURRENT_MODE}`;
-  const PROCESS = config.MODES[config.CURRENT_MODE] || [];
+  let info = `MODE: ${config2.CURRENT_MODE}`;
+  const PROCESS = config2.MODES[config2.CURRENT_MODE] || [];
   for (const [k, v] of Object.entries(PROCESS)) {
     info += `
 - ${k}
@@ -2192,8 +2189,9 @@ async function commandGenerateImg(message, command, subcommand, context) {
   }
 }
 async function commandGetHelp(message, command, subcommand, context) {
-  const helpMsg = ENV.I18N.command.help.summary + "```markdown\n" + Object.keys(commandHandlers).map((key) => `${key}\uFF1A${ENV.I18N.command.help[key.substring(1)]}`).join("\n") + "\n```";
-  context.CURRENT_CHAT_CONTEXT.parse_mode = "MarkdownV2";
+  let helpMsg = ENV.I18N.command.help.summary + "\n";
+  helpMsg += Object.keys(commandHandlers).map((key) => `${key}\uFF1A${ENV.I18N.command.help[key.substring(1)]}`).join("\n");
+  helpMsg += Object.keys(CUSTOM_COMMAND).filter((key) => !!CUSTOM_COMMAND_DESCRIPTION[key]).map((key) => `${key}\uFF1A${CUSTOM_COMMAND_DESCRIPTION[key]}`).join("\n");
   return sendMessageToTelegramWithContext2(context)(helpMsg);
 }
 async function commandCreateNewChatContext(message, command, subcommand, context) {
@@ -2237,6 +2235,9 @@ async function commandUpdateUserConfig(message, command, subcommand, context, pr
   if (ENV.LOCK_USER_CONFIG_KEYS.includes(key)) {
     return sendMessageToTelegramWithContext2(context)(`Key ${key} is locked`);
   }
+  if (!Object.keys(context.USER_CONFIG).includes(key)) {
+    return sendMessageToTelegramWithContext2(context)(`Key ${key} not found`);
+  }
   try {
     mergeEnvironment(context.USER_CONFIG, {
       [key]: value
@@ -2257,11 +2258,16 @@ async function commandUpdateUserConfig(message, command, subcommand, context, pr
 async function commandUpdateUserConfigs(message, command, subcommand, context, processUpdate = false) {
   try {
     const values = JSON.parse(subcommand);
+    const configKeys = Object.keys(context.USER_CONFIG);
     for (const ent of Object.entries(values)) {
       const [key, value] = ent;
       if (ENV.LOCK_USER_CONFIG_KEYS.includes(key)) {
         return sendMessageToTelegramWithContext2(context)(`Key ${key} is locked`);
       }
+      if (!configKeys.includes(key)) {
+        return sendMessageToTelegramWithContext2(context)(`Key ${key} not found`);
+      }
+      context.USER_CONFIG.DEFINE_KEYS.push(key);
       mergeEnvironment(context.USER_CONFIG, {
         [key]: value
       });
@@ -2314,11 +2320,6 @@ async function commandClearUserConfig(message, command, subcommand, context) {
   }
 }
 async function commandFetchUpdate(message, command, subcommand, context) {
-  const config = {
-    headers: {
-      "User-Agent": CONST.USER_AGENT
-    }
-  };
   const current = {
     ts: ENV.BUILD_TIMESTAMP,
     sha: ENV.BUILD_VERSION
@@ -2364,9 +2365,9 @@ async function commandSystem(message, command, subcommand, context) {
     context.USER_CONFIG.MISTRAL_API_KEY = "******";
     context.USER_CONFIG.COHERE_API_KEY = "******";
     context.USER_CONFIG.ANTHROPIC_API_KEY = "******";
-    const config = trimUserConfig(context.USER_CONFIG);
+    const config2 = trimUserConfig(context.USER_CONFIG);
     msg = "<pre>\n" + msg;
-    msg += `USER_CONFIG: ${JSON.stringify(config, null, 2)}
+    msg += `USER_CONFIG: ${JSON.stringify(config2, null, 2)}
 `;
     msg += `CHAT_CONTEXT: ${JSON.stringify(context.CURRENT_CHAT_CONTEXT, null, 2)}
 `;
@@ -3170,6 +3171,9 @@ var zh_hans_default = { "env": { "system_init_message": "\u4F60\u662F\u4E00\u4E2
 // src/i18n/zh-hant.js
 var zh_hant_default = { "env": { "system_init_message": "\u4F60\u662F\u4E00\u500B\u5F97\u529B\u7684\u52A9\u624B" }, "command": { "help": { "summary": "\u7576\u524D\u652F\u6301\u7684\u547D\u4EE4\u5982\u4E0B\uFF1A\n", "help": "\u7372\u53D6\u547D\u4EE4\u5E6B\u52A9", "new": "\u958B\u59CB\u4E00\u500B\u65B0\u5C0D\u8A71", "start": "\u7372\u53D6\u60A8\u7684ID\u4E26\u958B\u59CB\u4E00\u500B\u65B0\u5C0D\u8A71", "img": "\u751F\u6210\u5716\u7247\uFF0C\u5B8C\u6574\u547D\u4EE4\u683C\u5F0F\u70BA`/img \u5716\u7247\u63CF\u8FF0`\uFF0C\u4F8B\u5982`/img \u6D77\u7058\u6708\u5149`", "version": "\u7372\u53D6\u7576\u524D\u7248\u672C\u865F\u78BA\u8A8D\u662F\u5426\u9700\u8981\u66F4\u65B0", "setenv": "\u8A2D\u7F6E\u7528\u6236\u914D\u7F6E\uFF0C\u5B8C\u6574\u547D\u4EE4\u683C\u5F0F\u70BA/setenv KEY=VALUE", "setenvs": '\u6279\u91CF\u8A2D\u7F6E\u7528\u6237\u914D\u7F6E, \u547D\u4EE4\u5B8C\u6574\u683C\u5F0F\u70BA /setenvs {"KEY1": "VALUE1", "KEY2": "VALUE2"}', "delenv": "\u522A\u9664\u7528\u6236\u914D\u7F6E\uFF0C\u5B8C\u6574\u547D\u4EE4\u683C\u5F0F\u70BA/delenv KEY", "clearenv": "\u6E05\u9664\u6240\u6709\u7528\u6236\u914D\u7F6E", "system": "\u67E5\u770B\u4E00\u4E9B\u7CFB\u7D71\u4FE1\u606F", "redo": "\u91CD\u505A\u4E0A\u4E00\u6B21\u7684\u5C0D\u8A71 /redo \u52A0\u4FEE\u6539\u904E\u7684\u5167\u5BB9 \u6216\u8005 \u76F4\u63A5 /redo", "echo": "\u56DE\u663E\u6D88\u606F", "mode": "\u914D\u7F6E\u9805\u683C\u5F0F\u932F\u8AA4: \u547D\u4EE4\u683C\u5F0F\u70BA /mode NAME, \u5F53NAME=all\u65F6, \u67E5\u770B\u6240\u6709mode" }, "new": { "new_chat_start": "\u958B\u59CB\u4E00\u500B\u65B0\u5C0D\u8A71" } } };
 
+// src/i18n/pt.js
+var pt_default = { "env": { "system_init_message": "Voc\xEA \xE9 um assistente \xFAtil" }, "command": { "help": { "summary": "Os seguintes comandos s\xE3o suportados atualmente:\n", "help": "Obter ajuda sobre comandos", "new": "Iniciar uma nova conversa", "start": "Obter seu ID e iniciar uma nova conversa", "img": "Gerar uma imagem, o formato completo do comando \xE9 `/img descri\xE7\xE3o da imagem`, por exemplo `/img praia ao luar`", "version": "Obter o n\xFAmero da vers\xE3o atual para determinar se \xE9 necess\xE1rio atualizar", "setenv": "Definir configura\xE7\xE3o do usu\xE1rio, o formato completo do comando \xE9 /setenv CHAVE=VALOR", "setenvs": 'Definir configura\xE7\xF5es do usu\xE1rio em lote, o formato completo do comando \xE9 /setenvs {"CHAVE1": "VALOR1", "CHAVE2": "VALOR2"}', "delenv": "Excluir configura\xE7\xE3o do usu\xE1rio, o formato completo do comando \xE9 /delenv CHAVE", "clearenv": "Limpar todas as configura\xE7\xF5es do usu\xE1rio", "system": "Ver algumas informa\xE7\xF5es do sistema", "redo": "Refazer a \xFAltima conversa, /redo com conte\xFAdo modificado ou diretamente /redo", "echo": "Repetir a mensagem" }, "new": { "new_chat_start": "Uma nova conversa foi iniciada" } } };
+
 // src/i18n/en.js
 var en_default = { "env": { "system_init_message": "You are a helpful assistant" }, "command": { "help": { "summary": "The following commands are currently supported:\n", "help": "Get command help", "new": "Start a new conversation", "start": "Get your ID and start a new conversation", "img": "Generate an image, the complete command format is `/img image description`, for example `/img beach at moonlight`", "version": "Get the current version number to determine whether to update", "setenv": "Set user configuration, the complete command format is /setenv KEY=VALUE", "setenvs": 'Batch set user configurations, the full format of the command is /setenvs {"KEY1": "VALUE1", "KEY2": "VALUE2"}', "delenv": "Delete user configuration, the complete command format is /delenv KEY", "clearenv": "Clear all user configuration", "system": "View some system information", "redo": "Redo the last conversation, /redo with modified content or directly /redo", "echo": "Echo the message", "mode": "Configuration entry format error: the full format of the command is /mode NAME, when NAME=all, view all modes" }, "new": { "new_chat_start": "A new conversation has started" } } };
 
@@ -3185,8 +3189,13 @@ function i18n(lang) {
     case "zh-mo":
     case "zh-hant":
       return zh_hant_default;
+    case "pt":
+    case "pt-br":
+      return pt_default;
     case "en":
     case "en-us":
+      return en_default;
+    default:
       return en_default;
   }
 }

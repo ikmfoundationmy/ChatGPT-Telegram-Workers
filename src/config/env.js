@@ -47,8 +47,10 @@ export class UserConfig {
   // Azure API Key
   AZURE_API_KEY = null;
   // Azure Completions API
+    // https://RESOURCE_NAME.openai.azure.com/openai/deployments/MODEL_NAME/chat/completions?api-version=VERSION_NAME
   AZURE_PROXY_URL = null;
   // Azure DallE API
+    // https://RESOURCE_NAME.openai.azure.com/openai/deployments/MODEL_NAME/images/generations?api-version=VERSION_NAME
   AZURE_DALLE_API = null;
 
   // -- Workers 配置 --
@@ -274,11 +276,11 @@ export let DATABASE = null;
 export let API_GUARD = null;
 
 export const CUSTOM_COMMAND = {};
+export const CUSTOM_COMMAND_DESCRIPTION = {};
 
 export const CONST = {
     PASSWORD_KEY: 'chat_history_password',
     GROUP_TYPES: ['group', 'supergroup'],
-    USER_AGENT: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.2 Safari/605.1.15',
 };
 
 const ENV_TYPES = {
@@ -362,10 +364,12 @@ export function initEnv(env, i18n) {
 
     // 绑定自定义命令
     const customCommandPrefix = 'CUSTOM_COMMAND_';
+    const customCommandDescriptionPrefix = 'COMMAND_DESCRIPTION_';
     for (const key of Object.keys(env)) {
         if (key.startsWith(customCommandPrefix)) {
             const cmd = key.substring(customCommandPrefix.length);
             CUSTOM_COMMAND['/' + cmd] = env[key];
+            CUSTOM_COMMAND_DESCRIPTION['/' + cmd] = env[customCommandDescriptionPrefix + cmd];
         }
     }
 
