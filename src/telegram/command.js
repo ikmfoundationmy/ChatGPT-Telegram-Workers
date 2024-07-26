@@ -118,8 +118,8 @@ const commandHandlers = {
  * @return {Promise<Response>}
  */
 async function commandGenerateImg(message, command, subcommand, context) {
-  if (subcommand==='') {
-    return sendMessageToTelegramWithContext(context)(ENV.I18N.command.img.help);
+  if (!subcommand.trim()) {
+    return sendMessageToTelegramWithContext(context)(ENV.I18N.command.help.img);
   }
   try {
     setTimeout(() => sendChatActionToTelegramWithContext(context)('upload_photo').catch(console.error), 0);
@@ -133,7 +133,6 @@ async function commandGenerateImg(message, command, subcommand, context) {
     if (!context.CURRENT_CHAT_CONTEXT) {
       context.CURRENT_CHAT_CONTEXT = {};
     }
-    // context.CURRENT_CHAT_CONTEXT.PROCESS_INFO = PROCESS_INFO;
     ENV._MIDDLEINFO.process_info = PROCESS_INFO;
     const gen = loadImageGen(context)?.request;
     if (!gen) {
@@ -212,10 +211,10 @@ async function commandUpdateUserConfig(message, command, subcommand, context, pr
       context.CURRENT_CHAT_CONTEXT.parse_mode = 'HTML';
       return sendMessageToTelegramWithContext(context)(msg);
     } else if (!subcommand) {
-      return sendMessageToTelegramWithContext(context)(ENV.I18N.command.mode.help);
+      return sendMessageToTelegramWithContext(context)(ENV.I18N.command.help.mode);
     }
     if (!context.USER_CONFIG.MODES?.[subcommand]) {
-      const msg = ENV.I18N.command.setenv.update_config_error(new Error(`mode \`${subcommand}\` not exist`));
+      const msg = `mode \`${subcommand}\` not exist`;
       return sendMessageToTelegramWithContext(context)(msg);
     }
     subcommand = `CURRENT_MODE=${subcommand}`;
@@ -260,41 +259,44 @@ async function commandUpdateUserConfig(message, command, subcommand, context, pr
  * @return {Promise<Response>}
  */
 async function commandUpdateUserConfigs(message, command, subcommand, context, processUpdate = false) {
-    try {
-        const values = JSON.parse(subcommand);
-        const configKeys = Object.keys(context.USER_CONFIG);
-        for (const ent of Object.entries(values)) {
-            const [key, value] = ent;
-            if (ENV.LOCK_USER_CONFIG_KEYS.includes(key)) {
-                return sendMessageToTelegramWithContext(context)(`Key ${key} is locked`);
-            }
-            if (!configKeys.includes(key)) {
-                return sendMessageToTelegramWithContext(context)(`Key ${key} not found`);
-            }
-            context.USER_CONFIG.DEFINE_KEYS.push(key);
-            mergeEnvironment(context.USER_CONFIG, {
-                [key]: value,
-            })
-            if (processUpdate) {
-              ENV._MIDDLEINFO.updateProcess(context.USER_CONFIG, key, value);
-              continue;
-            }
-            context.USER_CONFIG.DEFINE_KEYS.push(key);
-            console.log("Update user config: ", key, context.USER_CONFIG[key]);
-        }
-        if (processUpdate) {
-          return null;
-        }
-        
-        context.USER_CONFIG.DEFINE_KEYS = Array.from(new Set(context.USER_CONFIG.DEFINE_KEYS));
-        await DATABASE.put(
-            context.SHARE_CONTEXT.configStoreKey,
-            JSON.stringify(trimUserConfig(trimUserConfig(context.USER_CONFIG))),
-        );
-        return sendMessageToTelegramWithContext(context)('Update user config success');
-    } catch (e) {
-        return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`);
+  try {
+    if (!subcommand) {
+      return sendMessageToTelegramWithContext(context)(ENV.I18N.command.help.setenvs);
     }
+    const values = JSON.parse(subcommand);
+    const configKeys = Object.keys(context.USER_CONFIG);
+    for (const ent of Object.entries(values)) {
+      const [key, value] = ent;
+      if (ENV.LOCK_USER_CONFIG_KEYS.includes(key)) {
+        return sendMessageToTelegramWithContext(context)(`Key ${key} is locked`);
+      }
+      if (!configKeys.includes(key)) {
+        return sendMessageToTelegramWithContext(context)(`Key ${key} not found`);
+      }
+      context.USER_CONFIG.DEFINE_KEYS.push(key);
+      mergeEnvironment(context.USER_CONFIG, {
+        [key]: value,
+      })
+      if (processUpdate) {
+        ENV._MIDDLEINFO.updateProcess(context.USER_CONFIG, key, value);
+        continue;
+      }
+      context.USER_CONFIG.DEFINE_KEYS.push(key);
+      console.log("Update user config: ", key, context.USER_CONFIG[key]);
+    }
+    if (processUpdate) {
+      return null;
+    }
+
+    context.USER_CONFIG.DEFINE_KEYS = Array.from(new Set(context.USER_CONFIG.DEFINE_KEYS));
+    await DATABASE.put(
+      context.SHARE_CONTEXT.configStoreKey,
+      JSON.stringify(trimUserConfig(trimUserConfig(context.USER_CONFIG))),
+    );
+    return sendMessageToTelegramWithContext(context)('Update user config success');
+  } catch (e) {
+    return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`);
+  }
 }
 
 /**
@@ -307,6 +309,9 @@ async function commandUpdateUserConfigs(message, command, subcommand, context, p
  * @return {Promise<Response>}
  */
 async function commandDeleteUserConfig(message, command, subcommand, context) {
+  if (!subcommand) {
+    return sendMessageToTelegramWithContext(context)(ENV.I18N.command.help.delenv)
+  }
     if (ENV.LOCK_USER_CONFIG_KEYS.includes(subcommand)) {
         const msg = `Key ${subcommand} is locked`;
         return sendMessageToTelegramWithContext(context)(msg);
@@ -335,7 +340,10 @@ async function commandDeleteUserConfig(message, command, subcommand, context) {
  * @return {Promise<Response>}
  */
 async function commandClearUserConfig(message, command, subcommand, context) {
-    try {
+  try {
+    if (subcommand.trim() !== "true") {
+        return sendMessageToTelegramWithContext(context)('Please sure that you want clear all config, send `/clearenv true`');
+      }
         await DATABASE.put(
             context.SHARE_CONTEXT.configStoreKey,
             JSON.stringify({}),
@@ -358,29 +366,25 @@ async function commandClearUserConfig(message, command, subcommand, context) {
  */
 async function commandFetchUpdate(message, command, subcommand, context) {
 
-    const current = {
-        ts: ENV.BUILD_TIMESTAMP,
-        sha: ENV.BUILD_VERSION,
-    };
+  const current = {
+      ts: ENV.BUILD_TIMESTAMP,
+      sha: ENV.BUILD_VERSION,
+  };
 
-    const repo = `https://raw.githubusercontent.com/TBXark/ChatGPT-Telegram-Workers/${ENV.UPDATE_BRANCH}`;
-    const ts = `${repo}/dist/timestamp`;
-    const info = `${repo}/dist/buildinfo.json`;
-
-    let online = await fetch(info, config)
-        .then((r) => r.json())
-        .catch(() => null);
-    if (!online) {
-        online = await fetch(ts, config).then((r) => r.text())
-            .then((ts) => ({ts: Number(ts.trim()), sha: 'unknown'}))
-            .catch(() => ({ts: 0, sha: 'unknown'}));
-    }
-
-    if (current.ts < online.ts) {
-        return sendMessageToTelegramWithContext(context)(`New version detected: ${online.sha}(${online.ts})\nCurrent version: ${current.sha}(${current.ts})`);
-    } else {
-        return sendMessageToTelegramWithContext(context)(`Current version: ${current.sha}(${current.ts}) is up to date`);
-    }
+  try {
+      const info = `https://raw.githubusercontent.com/TBXark/ChatGPT-Telegram-Workers/${ENV.UPDATE_BRANCH}/dist/buildinfo.json`;
+      const online = await fetch(info).then((r) => r.json())
+      const timeFormat = (ts) => {
+          return new Date(ts * 1000).toLocaleString('en-US', {})
+      }
+      if (current.ts < online.ts) {
+          return sendMessageToTelegramWithContext(context)(`New version detected: ${online.sha}(${timeFormat(online.ts)})\nCurrent version: ${current.sha}(${timeFormat(current.ts)})`);
+      } else {
+          return sendMessageToTelegramWithContext(context)(`Current version: ${current.sha}(${timeFormat(current.ts)}) is up to date`);
+      }
+  } catch (e) {
+      return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`);
+  }
 }
 
 
