@@ -7,7 +7,7 @@ RUN npm install
 
 COPY index.js ./
 ENV DOMAIN "http://localhost"
-VOLUME /app/config
+VOLUME /app
 EXPOSE 8787
 
 CMD [ "node", "index.js" ]

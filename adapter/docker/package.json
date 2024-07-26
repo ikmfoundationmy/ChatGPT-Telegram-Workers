@@ -11,7 +11,7 @@
   "license": "MIT",
   "dependencies": {
     "chatgpt-telegram-workers": "github:adolphnov/ChatGPT-Telegram-Workers#test",
-    "cloudflare-worker-adapter": "github:TBXark/cloudflare-worker-adapter#f22387f28f74275571d1712477622d57cf389cd3"
+    "cloudflare-worker-adapter": "github:adolphnov/cloudflare-worker-adapter"
   },
   "devDependencies": {
     "esbuild": "^0.17.12"

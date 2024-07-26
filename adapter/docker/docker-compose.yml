@@ -6,12 +6,13 @@ services:
       # dockerfile: ./adapter/docker/Dockerfile
     image: adolphnov/gptworker:latest
     ports:
-      - "0.0.0.0:8787:8787"
+      - "8787:8787"
     volumes:
-      - ./config:/app/config
+      - ./config.toml:/app/config.toml
     environment:
-      - DOMAIN=${DOMAIN}
       - REDIS_URL=redis://redis:6379
+      # 设置为空时读取请求的host作为DOMAIN
+      - DOMAIN=""
     depends_on:
       - redis
     restart: unless-stopped
