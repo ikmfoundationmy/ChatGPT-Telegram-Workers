@@ -96,6 +96,10 @@ export async function requestChatCompletions(url, header, body, context, onStrea
     if (ENV.CHAT_COMPLETE_API_TIMEOUT > 0) {
         timeoutID = setTimeout(() => controller.abort(), ENV.CHAT_COMPLETE_API_TIMEOUT);
     }
+    
+    if (ENV.DEBUG_MODE){
+    console.log(`uri:\n${url}\nheader:\n${JSON.stringify(header)}\nbody:\n${JSON.stringify(body, null, 2)}`);
+    }
 
     const resp = await fetchWithRetry(url, {
         method: 'POST',
