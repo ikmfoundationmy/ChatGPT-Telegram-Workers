@@ -22,7 +22,7 @@ const {default: worker} = await import('chatgpt-telegram-workers');
 
 adapter.startServer(
     8787,
-    '127.0.0.1',
+    '0.0.0.0',
     './config/config.toml',
     {DATABASE: cache},
     {server: process.env.DOMAIN},
