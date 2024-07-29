@@ -98,7 +98,7 @@ export async function requestChatCompletions(url, header, body, context, onStrea
     }
     
     if (ENV.DEBUG_MODE){
-    console.log(`uri:\n${url}\nheader:\n${JSON.stringify(header)}\nbody:\n${JSON.stringify(body, null, 2)}`);
+    console.log(`url:\n${url}\nheader:\n${JSON.stringify(header)}\nbody:\n${JSON.stringify(body, null, 2)}`);
     }
 
     const resp = await fetchWithRetry(url, {
@@ -119,7 +119,7 @@ export async function requestChatCompletions(url, header, body, context, onStrea
       const stream = options.streamBuilder(resp, controller);
       let contentFull = '';
       let lengthDelta = 0;
-      let updateStep = 25;
+      let updateStep = 15;
       let msgPromise = null;
       let lastChunk = null;
       let usage = null;
@@ -134,7 +134,7 @@ export async function requestChatCompletions(url, header, body, context, onStrea
           if (lastChunk) contentFull = contentFull + lastChunk;
           if (lastChunk && lengthDelta > updateStep) {
             lengthDelta = 0;
-            updateStep += 10;
+            updateStep += 25;
             if (!msgPromise || (await Promise.race([msgPromise, immediatePromise])) !== 'immediate') {
               msgPromise = onStream(`${contentFull}●`);
             }
@@ -147,7 +147,7 @@ export async function requestChatCompletions(url, header, body, context, onStrea
       contentFull += lastChunk;
       if (ENV.GPT3_TOKENS_COUNT && usage) {
           onResult?.(result);
-          ENV._MIDDLEINFO.tokenUpdate({ prompt: usage?.prompt_tokens ?? 0, completion: usage?.completion_tokens ?? 0 })
+          ENV.IFO.setToken(usage?.prompt_tokens ?? 0,usage?.completion_tokens ?? 0);
       }
 
       await msgPromise;

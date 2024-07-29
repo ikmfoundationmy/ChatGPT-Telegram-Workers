@@ -1,10 +1,12 @@
 import { ENV } from "./env.js";
+import { getFileInfo } from "../telegram/telegram.js";
+
 /**
  * 
  * @param {TelegramMessage} message 
  * @returns {MsgInfo}
  */
-function extractMessageType(message) {
+async function extractMessageType(message, botToken) {
   let msg = message;
   const acceptType = ['photo', 'image', 'voice', 'audio', 'text'];
   let msgType = acceptType.find((key) => key in msg);
@@ -43,7 +45,17 @@ function extractMessageType(message) {
   } else {
     file_id = msg[fileType]?.file_id || null;
   }
-  return { msgType, fileType, hasText: !!(message.text || msg.text || message.caption || msg.caption), file_id };
+  const info = { msgType, fileType, /*hasText: !!(message.text || msg.text || message.caption || msg.caption),*/ file_url: null, msgText: message.text || message.caption }
+  if (file_id) {
+    const file_info = await getFileInfo(file_id, botToken);
+    if (!file_info.file_path) {
+      console.log('[FILE FAILED]: ' + msgType);
+      throw new Error("file url get failed.");
+    }
+    info.file_url = `${ENV.TELEGRAM_API_DOMAIN}/file/bot${botToken}/${file_info.file_path}`;
+  }
+  // console.log('file url:', file_url);
+  return info;
 }
 
 /**
@@ -51,127 +63,108 @@ function extractMessageType(message) {
  * @return {*}
  */
 export class MiddleInfo {
-  constructor(message, context) {
-    this.process_start_time = new Date();
-    this._token_info = { prompt: 0, completion: 0 }; // token信息
-    this.elapsed_sec = 0; // 当前流程消耗秒数
-
-    this.mode_name = context?.CURRENT_MODE || 'default'; // 当前模式名
-    this.current_step_index = 0;
-    this.orignal_msg_info = extractMessageType(message);
-    MiddleInfo.initProcesses.call(this, context);
-    this.process_info = null; // 流程初始化时加载
-    this.original_text = message.text || (message.caption ? 'caption: ' + message.caption : ''); // 原始消息文本
-    this.file_uri = ''; // 原始消息文件uri
-    this.file_raw = ''; // 原始消息文件
-
-    this.prestep_text = ''; // 上一步生成的文本
-    this.prestep_file_uri = ''; // 上一步生成的文件uri
-    this.prestep_file_raw = ''; // 上一步生成的文件原数据
+  constructor (USER_CONFIG, msg_info) {
+    this.process_start_time = [new Date()];
+    this.token_info = [];
+    this.process_info = {};
+    this.step_index = 0;
+    // const msg_info = await extractMessageType(message, currentBotToken);
+    this.file = [{
+      type: msg_info.fileType,
+      url: msg_info.file_url,
+      raw: null,
+      text: msg_info.text,
+    }];
+    this.msg_type = msg_info.msgType; // tg消息类型 text audio image
+    this._bp_config = { ...USER_CONFIG }; // 备份用户配置
+    this.mode_name = USER_CONFIG.CURRENT_MODE;
+    this.model = null;
   }
 
-  tokenUpdate(token_info) {
-    if (ENV.ENABLE_SHOWINFO && ENV.ENABLE_SHOWTOKENINFO) {
-      this._token_info = token_info;
-    }
-  }
-  isLastStep() {
-    if (!this.process_info) {
-      return true;
-    }
-    return this.processes.length == this.current_step_index;
+  static async initInfo(message, { USER_CONFIG, SHARE_CONTEXT: { currentBotToken } }) {
+    const msg_info = await extractMessageType(message, currentBotToken);
+    return new MiddleInfo(USER_CONFIG, msg_info);
   }
 
-  isFirstStep() {
-    if (!this.process_info) {
-      return true;
-    }
-    return this.current_step_index === 1;
+  setToken(prompt, complete) {
+    this.token_info[this.step_index] = { prompt, complete };
+  }
+
+  get process_count() {
+    return this._bp_config.MODES?.[this.mode_name]?.[this.msg_type]?.length ?? 1;
+  }
+
+  get isLastStep() {
+    return this.process_count === this.step_index;
+  }
+
+  get isFirstStep() {
+    return this.step_index === 1;
   }
 
   get message_title() {
-    if (!this.process_info) {
+    if (!this.model || this.step_index === 0) {
       return '';
     }
-    const stepInfo = this.processes.length > 1 ? `[STEP ${this.current_step_index}/${this.processes.length}]\n` : '';
+    const step_count = this.process_count;
+    const stepInfo = step_count > 1 ? `[STEP ${this.step_index}/${step_count}]\n` : '';
     if (!ENV.ENABLE_SHOWINFO) {
       return stepInfo.trim();
     }
-    const showToken = ENV.ENABLE_SHOWTOKENINFO;
-    const line1Format = '{model} {time}';
-    const line2Format = 'Token: {prompt} | {completion}';
-    return (
-      stepInfo +
-      (showToken && this._token_info.prompt ? line1Format + '\n' + line2Format : line1Format)
-        .replace('{model}', this.process_info.MODEL)
-        .replace('{time}', ((new Date() - this.process_start_time) / 1000).toFixed(1) + 's')
-        .replace('{prompt}', this._token_info.prompt)
-        .replace('{comcompletionpl}', this._token_info.completion)
-    );
+    const time = ((new Date() - this.process_start_time[this.step_index]) / 1000).toFixed(1);
+    let info = stepInfo + `${this.model} ${time}s`
+    if (ENV.ENABLE_SHOWTOKENINFO && this.token_info[this.step_index]) {
+      info += `\nToken: ${Object.values(this.token_info[this.step_index]).join(' | ')}`;
+    }
+    return info;
   }
-  static initProcesses(USER_CONFIG) {
-    const msgType = this.orignal_msg_info?.msgType;
-    if (this.mode_name && msgType) {
-      const defaultModeInfo = { text: [{}], image: [{}], audio: [{}, { TYPE:'text:text'}] };
-      this.processes = (USER_CONFIG.MODES[this.mode_name]?.[msgType] || defaultModeInfo[msgType]).map((i) => ({
-        ...i,
-      }));
+  get lastStepHasFile() {
+    return !!(this.file[this.step_index - 1].url || this.file[this.step_index - 1].raw);
+  }
+  get lastStep() {
+    return {
+      url: this.file[this.step_index - 1].url,
+      raw: this.file[this.step_index - 1].raw,
+      text: this.file[this.step_index - 1].text,
     }
   }
-  updateProcess(USER_CONFIG, k, v) {
-    // 流程优先级高于用户配置, 以下场景出现临时修改配置未能生效: 修改模型数据，但MODE中已指定模型
-    switch (k) {
-      case 'CURRENT_MODE':
-        this.mode_name = v;
-        MiddleInfo.initProcesses.call(this, USER_CONFIG);
+  get provider() {
+    return this._bp_config.PROVIDERS?.[this.process_info['PROVIDER']] || null;
+  }
+  setFile(file, index = this.step_index) {
+    this.file[index] = file;
+  }
+
+  // 仅缓存model信息 为后续info提供数据
+  config(name, value = null) {
+    switch (name) {
+      case 'model':
+        if (this.step_index === 0 || !this.model) this.model = value;
+        return this.model;
         break;
-      case 'AI_PROVIDER':
-      case 'ROLE': // TODO
-        this.processes[this.current_step_index][k] = v; // 目前修改流程时机仅在未初始化时，故直接修改总流程
+      case 'mode':
+        this.mode_name = value;
+        return this.mode_name;
         break;
+      case 'prompt':
+        return ENV.PROMPT[this.process_info?.PROMPT] || value;
       default:
+        return this.process_info[name] || value;
         break;
     }
   }
-  initProcess(USER_CONFIG) {
-    this.startTime = new Date();
-    this.process_info = this.processes[this.current_step_index];
-    this.current_step_index++;
-    if (!this.process_info?.TYPE) {
-      this.process_info.TYPE = `${this.orignal_msg_info.msgType}:text`;
-    }
 
-    if (!this.process_info?.AI_PROVIDER) {
-      this.process_info.AI_PROVIDER = USER_CONFIG.AI_PROVIDER === 'auto' ? 'openai' : USER_CONFIG.AI_PROVIDER;
-    }
+  // recoverUserConfig(user_config) {
+  //   user_config = { ...(this._bp_config) };
+  // }
 
-    const provider_up = this.process_info.AI_PROVIDER.toUpperCase();
-    const provider_source = USER_CONFIG.PROVIDER_SOURCES[this.process_info.PROVIDER_SOURCE || 'default'];
-    this.process_info.PROXY_URL = provider_source?.['PROXY_URL'] || USER_CONFIG?.[`${provider_up}_API_BASE`];
-
-    this.process_info.API_KEY = provider_source?.['API_KEY'] || USER_CONFIG?.[`${provider_up}_API_KEY`];
-    if (!this.process_info?.MODEL) {
-      switch (this.process_info.TYPE) {
-        case 'text:text':
-          this.process_info.MODEL = USER_CONFIG[`${provider_up}_CHAT_MODEL`] || USER_CONFIG.CHAT_MODEL;
-          break;
-        case 'text:image':
-          this.process_info.MODEL = USER_CONFIG[`${provider_up}_IMAGE_MODEL`] || USER_CONFIG.DALL_E_MODEL;
-          break;
-        case 'audio:text':
-          this.process_info.MODEL = USER_CONFIG[`${provider_up}_STT_MODEL`] || USER_CONFIG.OPENAI_STT_MODEL;
-          break;
-        case 'image:text':
-          this.process_info.MODEL = USER_CONFIG[`${provider_up}_VISION_MODEL`] || USER_CONFIG.OPENAI_VISION_MODEL;
-          break;
-        case 'text:audio':
-          this.process_info.MODEL = USER_CONFIG[`${provider_up}_TTS_MODEL`] || USER_CONFIG.OPENAI_TTS_MODEL;
-          break;
-        case 'audio:audio':
-        default:
-          throw new Error('unsupported type');
-      }
-    }
-    console.log(`Init step ${this.current_step_index} success.`);
+  initProcess() {
+    this.process_start_time.push(new Date());
+    this.step_index++;
+    this.token_info[this.current_step_index] = null;
+    this.process_info = { ...(this._bp_config.MODES?.[this.mode_name]?.[this.msg_type]?.[this.step_index - 1] || {}) }
+    // 为第一个流程且模型参数被修改则使用现有模型
+    this.model = (this.current_step_index == 1 && this.model) ? this.model : this.process_info.MODEL;
+    console.log(`Init step ${this.step_index} success.`);
   }
 }

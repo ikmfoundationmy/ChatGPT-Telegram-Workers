@@ -61,8 +61,6 @@ try {
   console.log(e);
 }
 
-
-// 延迟加载 ../main.js， 防止ENV过早初始化
 adapter.startServer(
     config.port || 8787,
     config.host || '0.0.0.0',

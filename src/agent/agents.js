@@ -150,14 +150,16 @@ export function customInfo(config) {
  * @return {ChatAgent | null}
  */
 export function loadChatLLM(context) {
+    const AI_PROVIDER = ENV.INFO.config('AI_PROVIDER', context.USER_CONFIG.AI_PROVIDER);
     for (const llm of chatLlmAgents) {
-        if (llm.name === (ENV._MIDDLEINFO.process_info?.AI_PROVIDER || context.USER_CONFIG.AI_PROVIDER)) {
+        if (llm.name === AI_PROVIDER) {
             return llm;
         }
     }
     // 找不到指定的AI，使用第一个可用的AI
     for (const llm of chatLlmAgents) {
         if (llm.enable(context)) {
+            context.USER_CONFIG.AI_PROVIDER = llm.name;
             return llm;
         }
     }
@@ -182,18 +184,19 @@ export const visionLlmAgents = [
  * @return {ChatAgent | null}
  */
 export function loadVisionLLM(context) {
-  for (const llm of visionLlmAgents) {
-      if (llm.name === ENV._MIDDLEINFO.process_info.AI_PROVIDER) {
-          return llm;
-      }
-  }
-  // 找不到指定的AI，使用第一个可用的AI
-  for (const llm of chatLlmAgents) {
-      if (llm.enable(context)) {
-          return llm;
-      }
-  }
-  return null;
+    const AI_PROVIDER = ENV.INFO.config('AI_PROVIDER', context.USER_CONFIG.AI_PROVIDER);
+    for (const llm of visionLlmAgents) {
+        if (llm.name === AI_PROVIDER) {
+            return llm;
+        }
+    }
+    // 找不到指定的AI，使用第一个可用的AI
+    for (const llm of chatLlmAgents) {
+        if (llm.enable(context)) {
+            return llm;
+        }
+    }
+    return null;
 }
 
 
@@ -213,18 +216,19 @@ export const audioLlmAgents = [
  * @return {ChatAgent | null}
  */
 export function loadAudioLLM(context) {
-  for (const llm of audioLlmAgents) {
-      if (llm.name === ENV._MIDDLEINFO.process_info.AI_PROVIDER) {
-          return llm;
-      }
-  }
-  // 找不到指定的AI，使用第一个可用的AI
-  for (const llm of audioLlmAgents) {
-      if (llm.enable(context)) {
-          return llm;
-      }
-  }
-  return null;
+    const AI_PROVIDER = ENV.INFO.config('AI_PROVIDER', context.USER_CONFIG.AI_PROVIDER);
+    for (const llm of audioLlmAgents) {
+        if (llm.name === AI_PROVIDER) {
+            return llm;
+        }
+    }
+    // 找不到指定的AI，使用第一个可用的AI
+    for (const llm of audioLlmAgents) {
+        if (llm.enable(context)) {
+            return llm;
+        }
+    }
+    return null;
 }
 
 
@@ -269,8 +273,9 @@ export const imageGenAgents = [
  * @return {ImageAgent | null}
  */
 export function loadImageGen(context) {
+    const AI_IMAGE_PROVIDER = ENV.INFO.config('AI_IMAGE_PROVIDER', context.USER_CONFIG.AI_IMAGE_PROVIDER);
     for (const imgGen of imageGenAgents) {
-        if (imgGen.name === context.USER_CONFIG.AI_IMAGE_PROVIDER) {
+        if (imgGen.name === AI_IMAGE_PROVIDER) {
             return imgGen;
         }
     }

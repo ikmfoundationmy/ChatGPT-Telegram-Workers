@@ -1,6 +1,6 @@
 import {CONST, DATABASE, ENV} from '../config/env.js';
 import {Context} from '../config/context.js';
-import {getBot, sendMessageToTelegramWithContext, sendPhotoToTelegramWithContext, getFileInfo, getFile} from './telegram.js';
+import { getBot, sendMessageToTelegramWithContext, sendPhotoToTelegramWithContext, sendChatActionToTelegramWithContext, getFile } from './telegram.js';
 import {handleCommandMessage} from './command.js';
 import {errorToString} from '../utils/utils.js';
 import { chatViaFileWithLLM, chatWithLLM } from '../agent/llm.js';
@@ -159,7 +159,7 @@ async function msgHandlePrivateMessage(message, context) {
   // 聊天中简化命令
   const chatMsgKey = Object.keys(ENV.CHAT_MESSAGE_TRIGGER).find((key) => message.text.startsWith(key));
   if (chatMsgKey) {
-    message.text = message.text.replace(chatMsgKey, ENV.CHAT_MESSAGE_TRIGGER[chatMsgKey] + '!');
+    message.text = message.text.replace(chatMsgKey, ENV.CHAT_MESSAGE_TRIGGER[chatMsgKey]);
   }
   return null;
 }
@@ -287,11 +287,16 @@ async function msgIgnoreSpecificMessage(message, context) {
  * @param {Context} context
  * @return {Promise<Response>}
  */
-function msgInitMiddleInfo(message, context) {
+async function msgInitMiddleInfo(message, context) {
   try {
-    ENV._MIDDLEINFO = new MiddleInfo(message, context.USER_CONFIG);
+    ENV.INFO = await MiddleInfo.initInfo(message, context);
+    if (ENV.INFO.msg_type && ENV.INFO.msg_type !== 'text') {
+      const msg = await sendMessageToTelegramWithContext(context)('file url get success.').then((r) => r.json());
+      context.CURRENT_CHAT_CONTEXT.message_id = msg.result.message_id;
+    }
     return null;
   } catch (e) {
+    console.log(e.message);
     return sendMessageToTelegramWithContext(context)(e.message);
   }
 }
@@ -315,81 +320,26 @@ async function msgHandleCommand(message, context) {
  * @param {Context} context
  * @return {Promise<Response>}
  */
-async function msgHandleFile(message, fileType, context) {
+async function msgHandleFile(context) {
   if (!context.CURRENT_CHAT_CONTEXT.message_id) {
     const msg = await sendMessageToTelegramWithContext(context)('...').then((r) => r.json());
     context.CURRENT_CHAT_CONTEXT.message_id = msg.result.message_id;
     context.CURRENT_CHAT_CONTEXT.reply_markup = null;
   }
-  let file = null,
-    file_name = '',
-    file_url = '';
-  let errorMsg = '';
-  if (!ENV._MIDDLEINFO.prestep_file_uri && !ENV._MIDDLEINFO.prestep_file_raw) {
-    const info = await getFileInfo(ENV._MIDDLEINFO.orignal_msg_info.file_id, context.SHARE_CONTEXT.currentBotToken);
-    if (!info.ok) {
-      console.log('[FILE FAILED]: ' + msgType);
-      await sendMessageToTelegramWithContext(context)(`GET FILE_PATH ERROR: ${info.description}`);
-      return new Response('Handle file msg error', { status: 200 });
+  let { url, raw } = ENV.INFO.lastStep;
+  const file_name = url?.split('/').pop();
+  if (!raw && ENV.INFO.msg_type !== 'image' || (ENV.INFO.msg_type === 'image' && (ENV.LOAD_IMAGE_FILE || context.USER_CONFIG.OPENAI_VISION_MODEL.startsWith('claude')))) {
+    const file_resp = await getFile(url);
+    if (file_resp.status !== 200) {
+      throw new Error(`Get file failed: ${await file_resp.text()}`)
     }
-    sendMessageToTelegramWithContext(context)('File info done.');
-    file_name = info.file_path.split('/').pop();
-    file_url = `${ENV.TELEGRAM_API_DOMAIN}/file/bot${context.SHARE_CONTEXT.currentBotToken}/${info.file_path}`;
-    console.log('File url:', file_url);
-
-    if (fileType != 'photo' || fileType == 'photo' && (ENV.LOAD_IMAGE_FILE || ENV._MIDDLEINFO.process_info.MODEL.startsWith('claude'))) {
-      const file_resp = await getFile(file_url);
-      if (file_resp.status !== 200) {
-        errorMsg = `[FILE][FAILED] Get file: ${await file_resp.text()}`;
-        console.log(`${errorMsg}`);
-      }
-      file = await file_resp.blob();
+    raw = await file_resp.blob();
+    if (ENV.INFO.msg_type === 'image') {
+      raw = `data:image/jpeg;base64,${Buffer.from(await raw.arrayBuffer()).toString('base64')}`;
     }
-  } else {
-    file = ENV._MIDDLEINFO.prestep_file_raw;
-    file_url = ENV._MIDDLEINFO.prestep_file_uri;
-    file_name = ENV._MIDDLEINFO.prestep_file_uri.split('/').pop();
+    ENV.INFO.setFile({ raw }, ENV.INFO.step_index - 1);
   }
-
-  const start = performance.now();
-  // console.log(JSON.stringify(message.voice,null,2))
-  if (ENV._MIDDLEINFO.isFirstStep()) {
-    ENV._MIDDLEINFO.file_uri = file_url;
-    ENV._MIDDLEINFO.file_raw = file;
-  } else if (ENV._MIDDLEINFO.isLastStep()) {
-    ENV._MIDDLEINFO.prestep_file_uri = file_url;
-    ENV._MIDDLEINFO.prestep_file_raw = file;
-  }
-
-  try {
-    switch (fileType) {
-      case 'photo':
-      case 'image':
-        if (errorMsg) break;
-        if (ENV.LOAD_IMAGE_FILE || ENV._MIDDLEINFO.process_info.MODEL.startsWith('claude')) {
-          sendMessageToTelegramWithContext(context)('Image load success.');
-          file = `data:image/jpeg;base64,${Buffer.from(await file.arrayBuffer()).toString('base64')}`;
-          if (ENV._MIDDLEINFO.isFirstStep()) {
-            ENV._MIDDLEINFO.file_raw = file;
-          } else if (!ENV._MIDDLEINFO.isLastStep()) {
-            ENV._MIDDLEINFO.prestep_file_raw = file;
-          }
-        }
-        console.log(`[FILE DONE] ${fileType}: ${((performance.now() - start) / 1000).toFixed(2)}s`);
-        return {file, file_name};
-      case 'voice':
-      case 'audio': {
-        if (errorMsg) break;
-        return { file, file_name };
-      }
-    }
-  } catch (e) {
-    console.error(e);
-  }
-  if (errorMsg) {
-    return sendMessageToTelegramWithContext(context)(errorMsg);
-  }
-  return new Response('Handle file msg failed', { status: 200 });
+  return { raw, file_name };
 }
 
 /**
@@ -401,11 +351,6 @@ async function msgHandleFile(message, fileType, context) {
  */
 async function msgChatWithLLM(message, context) {
 
-  // 消息类型优先级: 图片-音频-文本
-  const { fileType } = ENV._MIDDLEINFO.orignal_msg_info;
-
-  console.log('[FILE]: ' + fileType);
-
   // 与LLM交互
   try {
     let text = (message.text || message.caption || '').trim();
@@ -414,35 +359,12 @@ async function msgChatWithLLM(message, context) {
     }
 
     let result = null;
-    const HANDLE_PROCESS = ENV._MIDDLEINFO.processes;
-    const clearPreStepInfo = (type) => {
-      switch (type) {
-        case 'text:text':
-        case 'text:image':
-        case 'text:audio':
-          ENV._MIDDLEINFO.prestep_file_uri = '';
-          ENV._MIDDLEINFO.prestep_file_raw = '';
-          break;
-        case 'audio:text':
-        case 'image:text':
-          ENV._MIDDLEINFO.prestep_text = '';
-          break;
-        default:
-          break;
-      }
-    };
-    for ( const _ of HANDLE_PROCESS) {
+    for (let i = 0; i < ENV.INFO.process_count; i++) {
       if (result && result instanceof Response) {
         return result;
       }
-      ENV._MIDDLEINFO.initProcess(context.USER_CONFIG);
-      clearPreStepInfo(ENV._MIDDLEINFO.process_info.TYPE);
-      // 每个流程独立消息
-      if (context.CURRENT_CHAT_CONTEXT.message_id && !ENV.HIDE_MIDDLE_MESSAGE) {
-        context.CURRENT_CHAT_CONTEXT.message_id = null;
-      }
-
-      switch (ENV._MIDDLEINFO.process_info.TYPE) {
+      ENV.INFO.initProcess();
+      switch (ENV.INFO.process_info.TYPE || `${ENV.INFO.msg_type}:text`) {
         case 'text:text':
           result = await chatWithLLM(text, context, null);
           break;
@@ -451,11 +373,10 @@ async function msgChatWithLLM(message, context) {
           if (!gen) {
             return sendMessageToTelegramWithContext(context)(`ERROR: Image generator not found`);
           }
-          result = await gen(ENV._MIDDLEINFO.prestep_text || text, context);
-          if (!ENV._MIDDLEINFO.isLastStep()) {
-            if (typeof result === 'string') {
-              ENV._MIDDLEINFO.prestep_file_uri = result;
-            } else ENV._MIDDLEINFO.prestep_file_raw = result;
+          setTimeout(() => sendChatActionToTelegramWithContext(context)('upload_photo').catch(console.error), 0);
+          result = await gen(ENV.INFO.lastStep.text || text, context);
+          if (!ENV.INFO.isLastStep) {
+            ENV.INFO.setFile((typeof result === 'string') ? { url: result } : { raw: result });
           }
           const response = await sendPhotoToTelegramWithContext(context)(result);
           if (response.status != 200) {
@@ -463,17 +384,22 @@ async function msgChatWithLLM(message, context) {
           }
           break;
         case 'audio:text':
-          const { file, file_name } = await msgHandleFile(message, fileType, context);
-          result = await chatViaFileWithLLM(file, file_name, context);
+          const { raw, file_name } = await msgHandleFile(context);
+          result = await chatViaFileWithLLM(raw, file_name, context);
           break;
         case 'image:text':
-          await msgHandleFile(message, fileType, context);
+          await msgHandleFile(context);
           result = await chatWithLLM(text, context, null, loadVisionLLM);
           break;
         case 'audio:audio':
         case 'text:audio':
         default:
           return sendMessageToTelegramWithContext(context)('unsupported type');
+      }
+
+      // 每个流程独立消息
+      if (context.CURRENT_CHAT_CONTEXT.message_id && !ENV.HIDE_MIDDLE_MESSAGE) {
+        context.CURRENT_CHAT_CONTEXT.message_id = null;
       }
     }
   } catch (e) {
@@ -537,7 +463,7 @@ export async function handleMessage(request) {
         // 过滤不支持的消息(抛出异常结束消息处理：支持文本、音频、图片消息)
         msgFilterUnsupportedMessage,
         // 处理私人消息
-        // msgHandlePrivateMessage,
+        msgHandlePrivateMessage,
         // 处理群消息，判断是否需要响应此条消息
         msgHandleGroupMessage,
         // 过滤非白名单用户

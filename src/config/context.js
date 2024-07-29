@@ -175,8 +175,6 @@ export class Context {
             groupAdminKey = `group_admin:${id}`;
         }
 
-        
-
         this.SHARE_CONTEXT.chatHistoryKey = historyKey;
         this.SHARE_CONTEXT.chatLastMessageIdKey = `last_message_id:${historyKey}`;
         this.SHARE_CONTEXT.configStoreKey = configStoreKey;
@@ -194,7 +192,15 @@ export class Context {
     async initContext(message) {
         // 按顺序初始化上下文
         const chatId = message?.chat?.id;
-        const replyId = CONST.GROUP_TYPES.includes(message.chat?.type) ? message.message_id : null;
+        let replyId = CONST.GROUP_TYPES.includes(message.chat?.type) ? message.message_id : null;
+        // 回复提及的消息
+        if (ENV.EXTRA_MESSAGE_CONTEXT
+            && ENV.ENABLE_REPLY_TO_MENTION
+            && CONST.GROUP_TYPES.includes(message.chat?.type)
+            && message?.reply_to_message
+            && this.SHARE_CONTEXT.currentBotId !== `${message?.reply_to_message?.from?.id}`) {
+            replyId = message.reply_to_message.message_id;
+        }
         this._initChatContext(chatId, replyId);
         // console.log(this.CURRENT_CHAT_CONTEXT);
         await this._initShareContext(message);
@@ -202,6 +208,5 @@ export class Context {
         // await this._initUserConfig(this.SHARE_CONTEXT.configStoreKey);
         // console.log(this.USER_CONFIG);
     }
-
 }
 

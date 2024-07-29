@@ -46,12 +46,12 @@ export async function sendMessageToTelegram(message, token, context) {
       ...context,
       message_id: Array.isArray(context.message_id) ? 0 : context.message_id,
     };
-    const limit = 4096;
+    const limit = 4000;
     let origin_msg = message;
     let info = '';
     const escapeContent = (parse_mode = chatContext?.parse_mode) => {
-      info = ENV._MIDDLEINFO.message_title;
-      if (!ENV._MIDDLEINFO.isLastStep()) {
+      info = ENV.INFO?.message_title;
+      if (!ENV.INFO.isLastStep && ENV.INFO.step_index !==0 || origin_msg.length > limit) {
         chatContext.parse_mode = null;
         message = info ? info + '\n\n' + origin_msg : origin_msg;
         chatContext.entities = [
@@ -64,12 +64,12 @@ export async function sendMessageToTelegram(message, token, context) {
       } else {
         message = info ? (info + '\n' + origin_msg) : origin_msg;
       }
-      if (parse_mode !== 'MarkdownV2' /*&& message.length > limit*/) {
+      if (parse_mode === null /*&& message.length > limit*/) {
         info = info ? info + '\n' : '';
         chatContext.entities = [
           { type: 'code', offset: 0, length: info.length },
           { type: 'blockquote', offset: 0, length: info.length },
-        ]
+        ];
       }
     }
     if (message.length <= limit) {
@@ -78,29 +78,33 @@ export async function sendMessageToTelegram(message, token, context) {
       if (resp.status === 200) {
         return resp;
       } else {
-        // console.log(await resp.text())
-        // console.log('message send error:\n', message);
-        // console.log('original message:\n', origin_msg);
         chatContext.parse_mode = null;
         context.parse_mode = null;
-        message = origin_msg;
+        info = ENV.INFO?.message_title;
+        // message = '```plaintext\n' + (info ? info + '\n\n' + origin_msg : origin_msg) + '\n```'
+        message = info ? info + '\n\n' + origin_msg : origin_msg;
+        chatContext.entities = [
+          { type: 'code', offset: 0, length: message.length },
+          { type: 'blockquote', offset: 0, length: message.length },
+        ];
         resp = await sendMessage(message, token, chatContext)
-        if (resp.status !== 200) {
-          chatContext.entities = []
-          return await sendMessage(message, token, chatContext);
-        }
-        console.log('sec request ok')
+        // if (resp.status !== 200) {
+        //   chatContext.entities = []
+        //   return await sendMessage(message, token, chatContext);
+        // }
+        // console.log('sec request ok')
         return resp;
       }
     }
     chatContext.parse_mode = null;
-    if (!chatContext.entities) {
-      chatContext.entities = [
-        { type: 'code', offset: 0, length: info.length },
-        { type: 'blockquote', offset: 0, length: info.length },
-      ]
-    }
-    escapeContent();
+    info = ENV.INFO?.message_title;
+    message = info ? info + '\n\n' + origin_msg : origin_msg;
+    // chatContext.entities = [
+    //   { type: 'code', offset: 0, length: info.length },
+    //   { type: 'blockquote', offset: 0, length: info.length },
+    // ];
+
+    // escapeContent();
     if (!Array.isArray(context.message_id)){
       context.message_id = [context.message_id];
     }
@@ -121,8 +125,10 @@ export async function sendMessageToTelegram(message, token, context) {
       }
   
       const msg = message.slice(i, Math.min(i + limit, message.length));
-      chatContext.entities[0].length = msg.length;
-      chatContext.entities[1].length = msg.length;
+      chatContext.entities = [
+        { type: 'code', offset: 0, length: msg.length },
+        { type: 'blockquote', offset: 0, length: msg.length },
+      ];
   
       let resp = await sendMessage(msg, token, chatContext);
       if (resp.status == 429) {
@@ -195,9 +201,13 @@ export async function sendPhotoToTelegram(photo, token, context) {
         body[key] = context[key];
       }
     }
-    body.parse_mode = 'MarkdownV2';
-    let info = '>`' + ENV._MIDDLEINFO.message_title + '`\n';
+    // delete body.parse_mode;
+    let info = ENV.INFO.message_title;
     body.caption = escape(info) + `[原始图片](${photo})`;
+    // body.entities = [
+    //   { type: 'code', offset: 0, length: body.caption.length },
+    //   { type: 'blockquote', offset: 0, length: body.caption.length },
+    // ];
     body = JSON.stringify(body);
     headers['Content-Type'] = 'application/json';
   } else {
@@ -209,19 +219,11 @@ export async function sendPhotoToTelegram(photo, token, context) {
       }
     }
   }
-  const resp = await fetchWithRetry(url, {
+  return fetchWithRetry(url, {
     method: 'POST',
     headers,
     body,
   });
-  if (resp.status === 400) {
-    console.log(await resp.text());
-    body = JSON.parse(body);
-    delete body.parse_mode;
-    option.body = JSON.stringify(body);
-    return fetchWithRetry(url, option);
-  }
-  return resp;
 }
 
 

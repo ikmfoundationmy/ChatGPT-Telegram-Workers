@@ -25,6 +25,7 @@ export function isCohereAIEnable(context) {
  */
 export async function requestCompletionsFromCohereAI(message, prompt, history, context, onStream) {
     const url = `${context.USER_CONFIG.COHERE_API_BASE}/chat`;
+    const model = ENV.INFO.config('model', context.USER_CONFIG.COHERE_CHAT_MODEL);
     const header = {
         'Authorization': `Bearer ${context.USER_CONFIG.COHERE_API_KEY}`,
         'Content-Type': 'application/json',
@@ -48,7 +49,7 @@ export async function requestCompletionsFromCohereAI(message, prompt, history, c
 
     const body = {
         message,
-        model: context.USER_CONFIG.COHERE_CHAT_MODEL,
+        model,
         stream: onStream != null,
         preamble: prompt,
         chat_history: history.map((msg) => {

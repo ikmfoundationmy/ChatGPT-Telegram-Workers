@@ -33,19 +33,19 @@ export function isOpenAIEnable(context) {
  * @return {Promise<string>}
  */
 export async function requestCompletionsFromOpenAI(message, prompt, history, context, onStream) {
-    const url = `${ENV._MIDDLEINFO.process_info.PROXY_URL}/chat/completions`;
+  const { PROXY_URL = context.USER_CONFIG.OPENAI_API_BASE, API_KEY = openAIKeyFromContext(context) } = ENV.INFO.provider || {};
+  const url = `${PROXY_URL}/chat/completions`;
+  const model = ENV.INFO.config('model', context.USER_CONFIG.OPENAI_CHAT_MODEL);
+  const extra_params = ENV.INFO.config('extra_params', context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS);
   const messages = [{ role: 'user', content: message }];
-  const firstStepWithFile = ENV._MIDDLEINFO.current_step_index == 1 && (ENV._MIDDLEINFO.file_raw || ENV._MIDDLEINFO.file_uri);
-  const otherStepWithFile = ENV._MIDDLEINFO.current_step_index !== 1 && (ENV._MIDDLEINFO.prestep_file_raw || ENV._MIDDLEINFO.prestep_file_uri);
   // 优先取原始文件兼容claude
-
-  if (firstStepWithFile || otherStepWithFile) {
+  if (ENV.INFO.lastStepHasFile) {
         messages[0].content = [{
           "type": "text",
-          "text": message || 'what is this?'  // cluade-3-haiku model 图像识别必须带文本
+          "text": message || '解读一下这长图片?'  // cluade model 图像识别必须带文本
         }, {
           "type": "image_url", "image_url": {
-            "url": firstStepWithFile || otherStepWithFile
+            "url": ENV.INFO.lastStep.raw || ENV.INFO.lastStep.url
           }
         }];
     }
@@ -55,8 +55,8 @@ export async function requestCompletionsFromOpenAI(message, prompt, history, con
         messages.unshift({role: context.USER_CONFIG.SYSTEM_INIT_MESSAGE_ROLE, content: prompt})
     }
     const body = {
-        model: ENV._MIDDLEINFO.process_info.MODEL,
-        ...context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS,
+        model,
+        ...extra_params,
         messages,
         stream: onStream != null,
         ...(!!onStream && ENV.ENABLE_SHOWTOKENINFO &&{ stream_options: { include_usage: true } }),
@@ -64,7 +64,7 @@ export async function requestCompletionsFromOpenAI(message, prompt, history, con
 
     const header = {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${openAIKeyFromContext(context)}`,
+        'Authorization': `Bearer ${API_KEY}`,
     };
 
     return requestChatCompletions(url, header, body, context, onStream);
@@ -80,32 +80,33 @@ export async function requestCompletionsFromOpenAI(message, prompt, history, con
  * @return {Promise<string>}
  */
 export async function requestImageFromOpenAI(prompt, context) {
-  // 以命令触发时，无process_info全量信息
-    const url = `${ENV._MIDDLEINFO.process_info.PROXY_URL || context.USER_CONFIG.OPENAI_API_BASE}/images/generations`;
-    const header = {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${openAIKeyFromContext(context)}`,
-    };
-    const body = {
-        prompt: prompt,
-        n: 1,
-        size: context.USER_CONFIG.DALL_E_IMAGE_SIZE,
-        model: context.USER_CONFIG.DALL_E_MODEL,
-    };
-    if (body.model === 'dall-e-3') {
-        body.quality = context.USER_CONFIG.DALL_E_IMAGE_QUALITY;
-        body.style = context.USER_CONFIG.DALL_E_IMAGE_STYLE;
-    }
-    const resp = await fetch(url, {
-        method: 'POST',
-        headers: header,
-        body: JSON.stringify(body),
-    }).then((res) => res.json());
+  const { PROXY_URL = context.USER_CONFIG.OPENAI_API_BASE, API_KEY = openAIKeyFromContext(context) } = ENV.INFO.provider || {};
+  const model = ENV.INFO.config('model', context.USER_CONFIG.DALL_E_MODEL);
+  const url = `${PROXY_URL}/images/generations`;
+  const header = {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${API_KEY}`,
+  };
+  const body = {
+    prompt: prompt,
+    n: 1,
+    size: context.USER_CONFIG.DALL_E_IMAGE_SIZE,
+    model: model,
+  };
+  if (body.model === 'dall-e-3') {
+    body.quality = context.USER_CONFIG.DALL_E_IMAGE_QUALITY;
+    body.style = context.USER_CONFIG.DALL_E_IMAGE_STYLE;
+  }
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: header,
+    body: JSON.stringify(body),
+  }).then((res) => res.json());
 
-    if (resp.error?.message) {
-        throw new Error(resp.error.message);
-    }
-    return resp?.data?.[0]?.url;
+  if (resp.error?.message) {
+    throw new Error(resp.error.message);
+  }
+  return resp?.data?.[0]?.url;
 }
 
 
@@ -118,15 +119,17 @@ export async function requestImageFromOpenAI(prompt, context) {
  * @return {Promise<Response>}
  */
 export async function requestTranscriptionFromOpenAI(audio, file_name, context) {
-  const url = `${context.USER_CONFIG.OPENAI_API_BASE}/audio/transcriptions`;
+  const { PROXY_URL = context.USER_CONFIG.OPENAI_API_BASE, API_KEY = openAIKeyFromContext(context) } = ENV.INFO.provider || {};
+  const model = ENV.INFO.config('model', context.USER_CONFIG.OPENAI_STT_MODEL);
+  const url = `${PROXY_URL}/audio/transcriptions`;
   const header = {
     // 'Content-Type': 'multipart/form-data',
-    'Authorization': `Bearer ${openAIKeyFromContext(context)}`,
+    'Authorization': `Bearer ${API_KEY}`,
     'Accept': 'application/json',
   };
   const formData = new FormData();
   formData.append('file', audio, file_name);
-  formData.append('model', ENV._MIDDLEINFO.process_info.MODEL);
+  formData.append('model', model);
   if (context.USER_CONFIG.OPENAI_STT_EXTRA_PARAMS) {
     Object.entries(context.USER_CONFIG.OPENAI_STT_EXTRA_PARAMS).forEach(([k, v]) => {
       formData.append(k, v);

@@ -4,8 +4,8 @@
 
 ## KV配置
 
-| KEY      | 特殊说明                                 |
-|:---------|--------------------------------------|
+| KEY      | 特殊说明                                                       |
+| :------- | -------------------------------------------------------------- |
 | DATABASE | 先新建KV，新建的时候名字随意，然后绑定的时候必须设定为DATABASE |
 
 ## 系统配置
@@ -16,26 +16,42 @@
 
 ### 基础配置
 
-| KEY                       | 名称        | 默认值      | 描述              |
-|---------------------------|-----------|----------|-----------------|
-| LANGUAGE                  | 语言        | `zh-cn`  | 设置语言            |
-| UPDATE_BRANCH             | 更新分支      | `master` | 检查更新的分支         |
+| KEY                       | 名称            | 默认值   | 描述                      |
+| ------------------------- | --------------- | -------- | ------------------------- |
+| LANGUAGE                  | 语言            | `zh-cn`  | 设置语言                  |
+| UPDATE_BRANCH             | 更新分支        | `master` | 检查更新的分支            |
 | CHAT_COMPLETE_API_TIMEOUT | 聊天完成API超时 | `0`      | AI对话API的超时时间（秒） |
 
 ### Telegram配置
 
-| KEY                       | 名称             | 默认值                         | 描述                                      |
-|---------------------------|----------------|-----------------------------|-----------------------------------------|
-| TELEGRAM_API_DOMAIN       | Telegram API域名 | `https://api.telegram.org/` | Telegram API的域名                         |
-| TELEGRAM_AVAILABLE_TOKENS | 可用的Telegram令牌  | `''//()`                    | 允许访问的Telegram Token，设置时以逗号分隔            |
-| DEFAULT_PARSE_MODE        | 默认解析模式         | `Markdown`                  | 默认消息解析模式                                |
-| I_AM_A_GENEROUS_PERSON    | 允许所有人使用        | `false`                     | 是否允许所有人使用                               |
-| CHAT_WHITE_LIST           | 聊天白名单          | `''//(array string)`        | 允许使用的聊天ID白名单                            |
-| LOCK_USER_CONFIG_KEYS     | 锁定的用户配置键       | 默认值为所有API的URL               | 防止被替换导致token泄露的配置键                      |
-| TELEGRAM_BOT_NAME         | Telegram机器人名称  | `''//(array string)`        | 允许访问的Telegram Token对应的Bot Name，设置时以逗号分隔 |
-| CHAT_GROUP_WHITE_LIST     | 群组白名单          | `''//(array string)`        | 允许使用的群组ID白名单                            |
-| GROUP_CHAT_BOT_ENABLE     | 群组机器人开关        | `true`                      | 是否启用群组机器人                               |
-| GROUP_CHAT_BOT_SHARE_MODE | 群组机器人共享模式      | `false`                     | 开启后同个群组的人使用同一个聊天上下文                     |
+| KEY                       | 名称                 | 默认值                            | 描述                                                      |
+| ------------------------- | -------------------- | --------------------------------- | --------------------------------------------------------- |
+| TELEGRAM_API_DOMAIN       | Telegram API域名     | `https://api.telegram.org/`       | Telegram API的域名                                        |
+| TELEGRAM_AVAILABLE_TOKENS | 可用的Telegram令牌   | `''//()`                          | 允许访问的Telegram Token，设置时以逗号分隔                |
+| DEFAULT_PARSE_MODE        | 默认解析模式         | `Markdown`                        | 默认消息解析模式                                          |
+| I_AM_A_GENEROUS_PERSON    | 允许所有人使用       | `false`                           | 是否允许所有人使用                                        |
+| CHAT_WHITE_LIST           | 聊天白名单           | `''//(array string)`              | 允许使用的聊天ID白名单                                    |
+| LOCK_USER_CONFIG_KEYS     | 锁定的用户配置键     | 默认值为所有API的URL              | 防止被替换导致token泄露的配置键                           |
+| TELEGRAM_BOT_NAME         | Telegram机器人名称   | `''//(array string)`              | 允许访问的Telegram Token对应的Bot Name，设置时以逗号分隔  |
+| CHAT_GROUP_WHITE_LIST     | 群组白名单           | `''//(array string)`              | 允许使用的群组ID白名单                                    |
+| GROUP_CHAT_BOT_ENABLE     | 群组机器人开关       | `true`                            | 是否启用群组机器人                                        |
+| GROUP_CHAT_BOT_SHARE_MODE | 群组机器人共享模式   | `false`                           | 开启后同个群组的人使用同一个聊天上下文                    |
+| ---                       | ---                  | ---                               | ---                                                       |
+| 以下为新增变量        |                      |                                   |                                                           |
+| COHERE_CONNECT_TRIGGER    | cohere增加connector  | `{}(object)`                      | cohere模型增加web-search选项进行网页查询，速度较慢        |
+| ENABLE_FILE               | 开启文件读取功能     | `false`                           | 开启时可读取音频文件与图片文件                            |
+| LOAD_IMAGE_FILE           | 下载图片文件         | `true`                            | 默认开启，防止机器人token泄露,（文件大小建议不要超过10M） |
+| ENABLE_REPLY_TO_MENTION   | 回复对象为被提及的人 | `false`                           | 当回复他人并触发机器人则回复对象为提及的人                |
+| IGNORE_TEXT               | 忽略文本             | `''`                              | 以关键字开头不会触发机器人对话                            |
+| ENABLE_SHOWINFO           | 开启附加信息         | `false`                           | 开启时，会在消息中插入模型数据与对话时间                  |
+| ENABLE_SHOWTOKENINFO      | 开启TOKEN信息显示    | `false`                           | 开启时，尝试读取结果中的token信息并显示在消息中           |
+| HIDE_MIDDLE_MESSAGE       | 隐藏中间信息         | `false`                           | 在多流程中，开启只会发送最后一步的结果                    |
+| CHAT_MESSAGE_TRIGGER      | 对话触发关键词       | `{}(object)`                      | 将关键词替换成对应的文本，可以简化某些操作                |
+| PROMPT                    | 提示词               | `{}(object)`                      | 使用set命令时会自动替换SYSTEM_INIT_MESSAGE                |
+| MAPPING_KEY               | /set命令 变量键      | `'-p:SYSTEM_INIT_MESSAGE...'`     | 简化修改变量的操作                                        |
+| MAPPING_VALUE             | /set命令 变量值      | `'g4:gpt-4o\|rp+:command-r-plus'` | 简化修改变量的操作                                        |
+|                           |                      |                                   |                                                           |
+
 
 > IMPORTANT: 必须把群ID加到白名单`CHAT_GROUP_WHITE_LIST`才能使用, 否则任何人都可以把你的机器人加到群组中，然后消耗你的配额。
 
@@ -45,23 +61,23 @@
 
 ### 历史记录配置
 
-| KEY                | 名称       | 默认值    | 描述                 |
-|--------------------|----------|--------|--------------------|
+| KEY                | 名称             | 默认值 | 描述                             |
+| ------------------ | ---------------- | ------ | -------------------------------- |
 | AUTO_TRIM_HISTORY  | 自动裁剪历史记录 | `true` | 为避免4096字符限制，自动裁剪消息 |
-| MAX_HISTORY_LENGTH | 最大历史记录长度 | `20`   | 保留的最大历史记录条数        |
-| MAX_TOKEN_LENGTH   | 最大令牌长度   | `2048` | 历史记录的最大令牌长度        |
+| MAX_HISTORY_LENGTH | 最大历史记录长度 | `20`   | 保留的最大历史记录条数           |
+| MAX_TOKEN_LENGTH   | 最大令牌长度     | `2048` | 历史记录的最大令牌长度           |
 
 ### 特性开关
 
-| KEY                   | 名称       | 默认值                  | 描述              |
-|-----------------------|----------|----------------------|-----------------|
-| HIDE_COMMAND_BUTTONS  | 隐藏命令按钮   | `''//(array string)` | 修改后需要重新init     |
-| SHOW_REPLY_BUTTON     | 显示快捷回复按钮 | `false`              | 是否显示快捷回复按钮      |
-| EXTRA_MESSAGE_CONTEXT | 额外消息上下文  | `false`              | 引用的消息也会假如上下文    |
-| STREAM_MODE           | 流模式      | `true`               | 打字机模式           |
-| SAFE_MODE             | 安全模式     | `true`               | 开启后会保存最新一条消息的ID |
-| DEBUG_MODE            | 调试模式     | `false`              | 开启后会保存最新一条消息    |
-| DEV_MODE              | 开发模式     | `false`              | 开启后会展示更多调试信息    |
+| KEY                   | 名称             | 默认值               | 描述                         |
+| --------------------- | ---------------- | -------------------- | ---------------------------- |
+| HIDE_COMMAND_BUTTONS  | 隐藏命令按钮     | `''//(array string)` | 修改后需要重新init           |
+| SHOW_REPLY_BUTTON     | 显示快捷回复按钮 | `false`              | 是否显示快捷回复按钮         |
+| EXTRA_MESSAGE_CONTEXT | 额外消息上下文   | `false`              | 引用的消息也会假如上下文     |
+| STREAM_MODE           | 流模式           | `true`               | 打字机模式                   |
+| SAFE_MODE             | 安全模式         | `true`               | 开启后会保存最新一条消息的ID |
+| DEBUG_MODE            | 调试模式         | `false`              | 开启后会保存最新一条消息     |
+| DEV_MODE              | 开发模式         | `false`              | 开启后会展示更多调试信息     |
 
 ## 用户配置
 
@@ -69,25 +85,25 @@
 
 ### 通用配置
 
-| KEY                      | 名称          | 默认值         | 描述                                                                     |
-|--------------------------|-------------|-------------|------------------------------------------------------------------------|
-| AI_PROVIDER              | AI提供商       | `auto`      | 可选值 `auto, openai, azure, workers, gemini, mistral, cohere, anthropic` |
-| AI_IMAGE_PROVIDER        | AI图片提供商     | `auto`      | 可选值 `auto, openai, azure, workers`                                     |
-| SYSTEM_INIT_MESSAGE      | 全局默认初始化消息   | `你是一个得力的助手` | 根据绑定的语言自动选择默认值                                                         |
-| SYSTEM_INIT_MESSAGE_ROLE | 全局默认初始化消息角色 | `system`    |                                                                        |
+| KEY                      | 名称                   | 默认值               | 描述                                                                      |
+| ------------------------ | ---------------------- | -------------------- | ------------------------------------------------------------------------- |
+| AI_PROVIDER              | AI提供商               | `auto`               | 可选值 `auto, openai, azure, workers, gemini, mistral, cohere, anthropic` |
+| AI_IMAGE_PROVIDER        | AI图片提供商           | `auto`               | 可选值 `auto, openai, azure, workers`                                     |
+| SYSTEM_INIT_MESSAGE      | 全局默认初始化消息     | `你是一个得力的助手` | 根据绑定的语言自动选择默认值                                              |
+| SYSTEM_INIT_MESSAGE_ROLE | 全局默认初始化消息角色 | `system`             |                                                                           |
 
 ### OpenAI
 
-| KEY                     | 名称                      | 默认值                         |
-|-------------------------|-------------------------|-----------------------------|
+| KEY                     | 名称                    | 默认值                      |
+| ----------------------- | ----------------------- | --------------------------- |
 | OPENAI_API_KEY          | OpenAI API Key          | `''//(array string)`        |
-| OPENAI_CHAT_MODEL       | OpenAI的模型名称             | `gpt-3.5-turbo`             |
+| OPENAI_CHAT_MODEL       | OpenAI的模型名称        | `gpt-4o-mini`             |
 | OPENAI_API_BASE         | OpenAI API BASE         | `https://api.openai.com/v1` |
 | OPENAI_API_EXTRA_PARAMS | OpenAI API Extra Params | `{}`                        |
-| DALL_E_MODEL            | DALL-E的模型名称             | `dall-e-2`                  |
-| DALL_E_IMAGE_SIZE       | DALL-E图片尺寸              | `512x512`                   |
-| DALL_E_IMAGE_QUALITY    | DALL-E图片质量              | `standard`                  |
-| DALL_E_IMAGE_STYLE      | DALL-E图片风格              | `vivid`                     |
+| DALL_E_MODEL            | DALL-E的模型名称        | `dall-e-3`                  |
+| DALL_E_IMAGE_SIZE       | DALL-E图片尺寸          | `1024x1024`                   |
+| DALL_E_IMAGE_QUALITY    | DALL-E图片质量          | `standard`                  |
+| DALL_E_IMAGE_STYLE      | DALL-E图片风格          | `vivid`                     |
 
 ### Azure OpenAI
 
@@ -95,71 +111,71 @@
 
 > AZURE_DALLE_API `https://RESOURCE_NAME.openai.azure.com/openai/deployments/MODEL_NAME/images/generations?api-version=VERSION_NAME`
 
-| KEY                      | 名称                      | 默认值                                                        |
-|--------------------------|-------------------------|------------------------------------------------------------|
-| AZURE_API_KEY            | Azure API Key           | `null`                                                     |
-| AZURE_PROXY_URL    | Azure Completions API   | `null`                                                     |
-| AZURE_DALLE_API          | Azure DallE API         | `null`                                                     |
+| KEY             | 名称                  | 默认值 |
+| --------------- | --------------------- | ------ |
+| AZURE_API_KEY   | Azure API Key         | `null` |
+| AZURE_PROXY_URL | Azure Completions API | `null` |
+| AZURE_DALLE_API | Azure DallE API       | `null` |
 
 
 ### Workers
 
-| KEY                      | 名称                      | 默认值                                                        |
-|--------------------------|-------------------------|------------------------------------------------------------|
-| CLOUDFLARE_ACCOUNT_ID    | Cloudflare Account ID   | `null`                                                     |
-| CLOUDFLARE_TOKEN         | Cloudflare Token        | `null`                                                     |
-| WORKERS_CHAT_MODEL       | Text Generation Model   | `@cf/mistral/mistral-7b-instruct-v0.1 `                    |
-| WORKERS_IMAGE_MODEL      | Text-to-Image Model     | `@cf/stabilityai/stable-diffusion-xl-base-1.0`             |
+| KEY                   | 名称                  | 默认值                                         |
+| --------------------- | --------------------- | ---------------------------------------------- |
+| CLOUDFLARE_ACCOUNT_ID | Cloudflare Account ID | `null`                                         |
+| CLOUDFLARE_TOKEN      | Cloudflare Token      | `null`                                         |
+| WORKERS_CHAT_MODEL    | Text Generation Model | `@cf/mistral/mistral-7b-instruct-v0.1 `        |
+| WORKERS_IMAGE_MODEL   | Text-to-Image Model   | `@cf/stabilityai/stable-diffusion-xl-base-1.0` |
 
 ### Gemini
 
 cloudflare workers 暂时不支持访问
 
-| KEY                      | 名称                      | 默认值                                                        |
-|--------------------------|-------------------------|------------------------------------------------------------|
-| GOOGLE_API_KEY           | Google Gemini API Key   | `null`                                                     |
-| GOOGLE_COMPLETIONS_API   | Google Gemini API       | `https://generativelanguage.googleapis.com/v1beta/models/` |
-| GOOGLE_COMPLETIONS_MODEL | Google Gemini Model     | `gemini-pro`                                               |
+| KEY                      | 名称                  | 默认值                                                     |
+| ------------------------ | --------------------- | ---------------------------------------------------------- |
+| GOOGLE_API_KEY           | Google Gemini API Key | `null`                                                     |
+| GOOGLE_COMPLETIONS_API   | Google Gemini API     | `https://generativelanguage.googleapis.com/v1beta/models/` |
+| GOOGLE_COMPLETIONS_MODEL | Google Gemini Model   | `gemini-pro`                                               |
 
 ### Mistral
 
-| KEY                      | 名称                      | 默认值                                                        |
-|--------------------------|-------------------------|------------------------------------------------------------|
-| MISTRAL_API_KEY          | Mistral API Key         | `null`                                                     |
-| MISTRAL_API_BASE         | Mistral API Base        | `https://api.mistral.ai/v1`                                |
-| MISTRAL_CHAT_MODEL       | Mistral API Model       | `mistral-tiny`                                             |
+| KEY                | 名称              | 默认值                      |
+| ------------------ | ----------------- | --------------------------- |
+| MISTRAL_API_KEY    | Mistral API Key   | `null`                      |
+| MISTRAL_API_BASE   | Mistral API Base  | `https://api.mistral.ai/v1` |
+| MISTRAL_CHAT_MODEL | Mistral API Model | `mistral-tiny`              |
 
 ### Cohere
 
-| KEY                      | 名称                      | 默认值                                                        |
-|--------------------------|-------------------------|------------------------------------------------------------|
-| COHERE_API_KEY           | Cohere API Key          | `null`                                                     |
-| COHERE_API_BASE          | Cohere API Base         | `https://api.cohere.com/v1`                                |
-| COHERE_CHAT_MODEL        | Cohere API Model        | `command-r-plus`                                           |
+| KEY               | 名称             | 默认值                      |
+| ----------------- | ---------------- | --------------------------- |
+| COHERE_API_KEY    | Cohere API Key   | `null`                      |
+| COHERE_API_BASE   | Cohere API Base  | `https://api.cohere.com/v1` |
+| COHERE_CHAT_MODEL | Cohere API Model | `command-r-plus`            |
 
 ### Anthropic
 
-| KEY                      | 名称                      | 默认值                                                        |
-|--------------------------|-------------------------|------------------------------------------------------------|
-| ANTHROPIC_API_KEY        | Anthropic API Key       | `null`                                                     |
-| ANTHROPIC_API_BASE       | Anthropic API Base      | `https://api.anthropic.com/v1`                             |
-| ANTHROPIC_CHAT_MODEL     | Anthropic API Model     | `claude-3-haiku-20240307`                                  |
+| KEY                  | 名称                | 默认值                         |
+| -------------------- | ------------------- | ------------------------------ |
+| ANTHROPIC_API_KEY    | Anthropic API Key   | `null`                         |
+| ANTHROPIC_API_BASE   | Anthropic API Base  | `https://api.anthropic.com/v1` |
+| ANTHROPIC_CHAT_MODEL | Anthropic API Model | `claude-3-haiku-20240307`      |
 
 ## 支持命令
 
-| 命令         | 说明                        | 示例                                              |
-|:-----------|:--------------------------|:------------------------------------------------|
-| `/help`    | 获取命令帮助                    | `/help`                                         |
-| `/new`     | 发起新的对话                    | `/new`                                          |
-| `/start`   | 获取你的ID，并发起新的对话            | `/start`                                        |
-| `/img`     | 生成一张图片                    | `/img 图片描述`                                     |
-| `/version` | 获取当前版本号，判断是否需要更新          | `/version`                                      |
-| `/setenv`  | 设置用户配置, 详情见`用户配置`         | `/setenv KEY=VALUE`                             |
-| `/setenvs` | 批量设置用户配置, 详情见`用户配置`       | `/setenvs {"KEY1": "VALUE1", "KEY2": "VALUE2"}` |
-| `/delenv`  | 删除用户配置                    | `/delenv KEY`                                   |
-| `/system`  | 查看当前一些系统信息                | `/system`                                       |
-| `/redo`    | 修改上一个提问或者换一个回答            | `/redo 修改过的内容` 或者 `/redo`                       |
-| `/echo`    | 回显消息,仅开发模式可用              | `/echo`                                         |
+| 命令       | 说明                               | 示例                                            |
+| :--------- | :--------------------------------- | :---------------------------------------------- |
+| `/help`    | 获取命令帮助                       | `/help`                                         |
+| `/new`     | 发起新的对话                       | `/new`                                          |
+| `/start`   | 获取你的ID，并发起新的对话         | `/start`                                        |
+| `/img`     | 生成一张图片                       | `/img 图片描述`                                 |
+| `/version` | 获取当前版本号，判断是否需要更新   | `/version`                                      |
+| `/setenv`  | 设置用户配置, 详情见`用户配置`     | `/setenv KEY=VALUE`                             |
+| `/setenvs` | 批量设置用户配置, 详情见`用户配置` | `/setenvs {"KEY1": "VALUE1", "KEY2": "VALUE2"}` |
+| `/delenv`  | 删除用户配置                       | `/delenv KEY`                                   |
+| `/system`  | 查看当前一些系统信息               | `/system`                                       |
+| `/redo`    | 修改上一个提问或者换一个回答       | `/redo 修改过的内容` 或者 `/redo`               |
+| `/echo`    | 回显消息,仅开发模式可用            | `/echo`                                         |
 
 ## 自定义命令
 
@@ -169,13 +185,13 @@ cloudflare workers 暂时不支持访问
 
 下面是一些自定义指令例子
 
-| 指令                     | 值                                                                          |
-|------------------------|----------------------------------------------------------------------------|
-| CUSTOM_COMMAND_azure   | `/setenvs {"AI_PROVIDER": "azure"}`                                        |
-| CUSTOM_COMMAND_workers | `/setenvs {"AI_PROVIDER": "workers"}`                                      |
-| CUSTOM_COMMAND_gpt3    | `/setenvs {"AI_PROVIDER": "openai", "OPENAI_CHAT_MODEL": "gpt-3.5-turbo"}` |
-| CUSTOM_COMMAND_gpt4    | `/setenvs {"AI_PROVIDER": "openai", "OPENAI_CHAT_MODEL": "gpt-4"}`         |
-| CUSTOM_COMMAND_cn2en   | `/setenvs {"SYSTEM_INIT_MESSAGE": "你是一个翻译下面将我说的话都翻译成英文"}`                  |
+| 指令                   | 值                                                                           |
+| ---------------------- | ---------------------------------------------------------------------------- |
+| CUSTOM_COMMAND_azure   | `/setenvs {"AI_PROVIDER": "azure"}`                                          |
+| CUSTOM_COMMAND_workers | `/setenvs {"AI_PROVIDER": "workers"}`                                        |
+| CUSTOM_COMMAND_gpt3    | `/setenvs {"AI_PROVIDER": "openai", "OPENAI_CHAT_MODEL": "gpt-3.5-turbo"}`   |
+| CUSTOM_COMMAND_gpt4    | `/setenvs {"AI_PROVIDER": "openai", "OPENAI_CHAT_MODEL": "gpt-4"}`           |
+| CUSTOM_COMMAND_cn2en   | `/setenvs {"SYSTEM_INIT_MESSAGE": "你是一个翻译下面将我说的话都翻译成英文"}` |
 
 如果你是用toml进行配置，可以使用下面的方式：
 
@@ -193,13 +209,13 @@ CUSTOM_COMMAND_cn2en = '/setenvs {"SYSTEM_INIT_MESSAGE": "你是一个翻译下�
 
 下面是一些自定义指令帮助信息例子
 
-| 指令描述                        | 值                              |
-|-----------------------------|--------------------------------|
+| 指令描述                    | 值                                   |
+| --------------------------- | ------------------------------------ |
 | COMMAND_DESCRIPTION_azure   | `切换AI提供商为Azure`                |
 | COMMAND_DESCRIPTION_workers | `切换AI提供商为Workers`              |
 | COMMAND_DESCRIPTION_gpt3    | `切换AI提供商为OpenAI GPT-3.5 Turbo` |
 | COMMAND_DESCRIPTION_gpt4    | `切换AI提供商为OpenAI GPT-4`         |
-| COMMAND_DESCRIPTION_cn2en   | `将对话内容翻译成英文`                   |
+| COMMAND_DESCRIPTION_cn2en   | `将对话内容翻译成英文`               |
 
 如果你是用toml进行配置，可以使用下面的方式：
 

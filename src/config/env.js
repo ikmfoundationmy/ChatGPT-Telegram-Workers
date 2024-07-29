@@ -1,5 +1,6 @@
 import '../types/i18n.js';
 import '../types/context.js';
+import PROMPT from "../prompt/prompt.js";;
 
 /**
  * @class
@@ -34,9 +35,9 @@ export class UserConfig {
   // -- DALLE 配置 --
   //
   // DALL-E的模型名称
-  DALL_E_MODEL = 'dall-e-2';
+  DALL_E_MODEL = 'dall-e-3';
   // DALL-E图片尺寸
-  DALL_E_IMAGE_SIZE = '512x512';
+  DALL_E_IMAGE_SIZE = '1024x1024';
   // DALL-E图片质量
   DALL_E_IMAGE_QUALITY = 'standard';
   // DALL-E图片风格
@@ -69,7 +70,7 @@ export class UserConfig {
   // Google Gemini API Key
   GOOGLE_API_KEY = null;
   // Google Gemini API
-  GOOGLE_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models/';
+  GOOGLE_COMPLETIONS_API = 'https://generativelanguage.googleapis.com/v1beta/models/';
   // Google Gemini Model
   GOOGLE_CHAT_MODEL = 'gemini-pro';
 
@@ -112,13 +113,13 @@ export class UserConfig {
   OPENAI_VISION_MODEL = 'gpt-4o';
   // cohere extra Params
   COHERE_API_EXTRA_PARAMS = {};
-  // 提供商来源 例如 {"foo": { PROXY_URL: "https://xxxxxx", API_KEY: "xxxxxx" }}
+  // 提供商来源 {"foo": { PROXY_URL: "https://xxxxxx", API_KEY: "xxxxxx" }}
   PROVIDER_SOURCES = {};
   MODES = {
     // TYPE: 默认为'消息类型:text' ; 消息类型分为: text audio image
     // PROVIDER_SOURCE: 默认为default
     // AI_PROVIDER: 默认为openai, 与AI对话时使用openai风格接口
-    // ROLE: 默认为SYSTEM_INIT_MESSAGE_ROLE TODO
+    // SYSTEM_INIT_MESSAGE: default
     // MODEL: 不同类型下的默认值
       // text:text, CHAT_MODEL
       // audio:text, OPENAI_STT_MODEL
@@ -160,7 +161,7 @@ class Environment {
     // 多语言支持
     LANGUAGE = 'zh-cn';
     // 检查更新的分支
-    UPDATE_BRANCH = 'master';
+    UPDATE_BRANCH = 'dev';
     // Chat Complete API Timeout
     CHAT_COMPLETE_API_TIMEOUT = 0;
 
@@ -207,7 +208,7 @@ class Environment {
     // 为了避免4096字符限制，将消息删减
     AUTO_TRIM_HISTORY = true;
     // 最大历史记录长度
-    MAX_HISTORY_LENGTH = 20;
+    MAX_HISTORY_LENGTH = 8;
     // 最大消息长度
     MAX_TOKEN_LENGTH = 2048;
 
@@ -232,7 +233,6 @@ class Environment {
     // 开发模式
     DEV_MODE = false;
 
-
     USER_CONFIG = new UserConfig();
 
     // -- EXTRA 配置 --
@@ -242,29 +242,31 @@ class Environment {
     // 
     // 是否读取文件类型消息(当前支持图片与音频)
     ENABLE_FILE = false;
-    // 是否下载图片 anthropic进行图像识别时, 需开启
-    LOAD_IMAGE_FILE = false;
+    // 是否下载图片，不开始时将以链接形式发送图片（链接包含bot token信息）
+    LOAD_IMAGE_FILE = true;
     // 群聊中回复对象默认为触发对象，开启时优先为被回复的对象
     ENABLE_REPLY_TO_MENTION = false;
     // 忽略指定文本开头的消息
     IGNORE_TEXT = '';
-    // 消息中是否显示模型、时间等额外信息
+    // 消息中是否显示模型、时间额外信息
     ENABLE_SHOWINFO = false;
-    // 对话首次长时间无响应时间
-    CHAT_TIMEOUT = 15;
     // 消息中是否显示token信息(如果有)
     ENABLE_SHOWTOKENINFO = false;
     // 多流程时, 是否隐藏中间步骤信息
     HIDE_MIDDLE_MESSAGE = false;
     // 群聊中, 指定文本触发对话, 键为触发文本, 值为替换的文本
     CHAT_MESSAGE_TRIGGER = {}
-    // CHAT_MESSAGE_TRIGGER = { ':n': '/new', ':g3': '/gpt3', ':g4': '/gpt4', ':c':'' }
+    // CHAT_MESSAGE_TRIGGER = { ':n': '/new', ':g3': '/gpt3', ':g4': '/gpt4'}
 
-    // REVSER MODE 参数
-    REVERSE_MODE = false;
-    REVERSE_TOKEN = "";
-    REVERSE_PERFIX = "";
-
+    // 提示词 修改SYSTEM_INIT_MESSAGE时使用 使用 /set 指令快速切换
+    // 可配合CHAT_MESSAGE_TRIGGER: 'role:':'/setenv SYSTEM_INIT_MESSAGE=~role'
+    // 快速修改变量:'model:':'/setenv OPENAI_CHAT_MODEL='  'pro:':'/setenv AI_PROVIDER='
+    PROMPT = PROMPT;
+    // /set 指令映射变量 | 分隔多个关系，:分隔映射
+    MAPPING_KEY = '-p:SYSTEM_INIT_MESSAGE|-n:MAX_HISTORY_LENGTH|-a:AI_PROVIDER|-ai:AI_IMAGE_PROVIDER|-om:OPENAI_CHAT_MODEL|-v:OPENAI_VISION_MODEL|-t :OPENAI_TTS_MODEL';
+    // /set 指令映射值  | 分隔多个关系，:分隔映射
+    MAPPING_VALUE = "";
+    // MAPPING_VALUE = "c35son:claude-3-5-sonnet-20240620|haiku:claude-3-haiku-20240307|g4m:gpt-4o-mini|g4:gpt-4o|rp+:command-r-plus";
 }
 
 
@@ -294,6 +296,8 @@ const ENV_TYPES = {
     MISTRAL_API_KEY: 'string',
     COHERE_API_KEY: 'string',
     ANTHROPIC_API_KEY: 'string',
+    MAPPING_KEY: 'string',
+    MAPPING_VALUE: "string",
 };
 
 function parseArray(raw) {
@@ -338,7 +342,7 @@ export function mergeEnvironment(target, source) {
                     target[key] = parseArray(source[key]);
                 } else {
                     try {
-                        target[key] = JSON.parse(source[key]);
+                        target[key] = { ...target[key], ...JSON.parse(source[key]) };
                     } catch (e) {
                         console.error(e);
                     }
@@ -377,8 +381,6 @@ export function initEnv(env, i18n) {
     mergeEnvironment(ENV, env)
     mergeEnvironment(ENV.USER_CONFIG, env)
     ENV.USER_CONFIG.DEFINE_KEYS = []
-
-
 
     // 兼容旧版配置
     {

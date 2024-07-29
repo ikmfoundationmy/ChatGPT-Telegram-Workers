@@ -25,6 +25,7 @@ export function isAnthropicAIEnable(context) {
  */
 export async function requestCompletionsFromAnthropicAI(message, prompt, history, context, onStream) {
     const url = `${context.USER_CONFIG.ANTHROPIC_API_BASE}/messages`;
+    const model = ENV.INFO.config('model', context.USER_CONFIG.ANTHROPIC_CHAT_MODEL);
     const header = {
         'x-api-key': context.USER_CONFIG.ANTHROPIC_API_KEY,
         "anthropic-version": "2023-06-01",
@@ -32,8 +33,8 @@ export async function requestCompletionsFromAnthropicAI(message, prompt, history
     };
     const body = {
         system: prompt,
-        model: context.USER_CONFIG.ANTHROPIC_CHAT_MODEL,
-        messages: [...(history || []), {role: 'user', content: message}],
+        model,
+        messages: [...(history || []), { role: 'user', content: message }],
         stream: onStream != null,
         max_tokens: ENV.MAX_TOKEN_LENGTH,
     };
