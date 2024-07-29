@@ -199,9 +199,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1722257700;
+  BUILD_TIMESTAMP = 1722259800;
   // 当前版本 commit id
-  BUILD_VERSION = "e0baa51";
+  BUILD_VERSION = "4cb7c41";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -302,7 +302,7 @@ var Environment = class {
   // 快速修改变量:'model:':'/setenv OPENAI_CHAT_MODEL='  'pro:':'/setenv AI_PROVIDER='
   PROMPT = prompt_default;
   // /set 指令映射变量 | 分隔多个关系，:分隔映射
-  MAPPING_KEY = "-p:SYSTEM_INIT_MESSAGE|-n:MAX_HISTORY_LENGTH|-a:AI_PROVIDER|-ai:AI_IMAGE_PROVIDER|-om:OPENAI_CHAT_MODEL|-v:OPENAI_VISION_MODEL|-t :OPENAI_TTS_MODEL";
+  MAPPING_KEY = "-p:SYSTEM_INIT_MESSAGE|-n:MAX_HISTORY_LENGTH|-a:AI_PROVIDER|-ai:AI_IMAGE_PROVIDER|-m:CHAT_MODEL|-v:OPENAI_VISION_MODEL|-t :OPENAI_TTS_MODEL";
   // /set 指令映射值  | 分隔多个关系，:分隔映射
   MAPPING_VALUE = "";
   // MAPPING_VALUE = "c35son:claude-3-5-sonnet-20240620|haiku:claude-3-haiku-20240307|g4m:gpt-4o-mini|g4:gpt-4o|rp+:command-r-plus";
@@ -2640,8 +2640,10 @@ async function handleCommandMessage(message, context) {
       try {
         const result = await command.fn(message, key, subcommand, context);
         console.log("[DONE] Command: " + key + " " + subcommand);
-        if (message.text.length === 0 || result instanceof Response)
+        if (result instanceof Response)
           return result;
+        if (message.text.length === 0)
+          return new Response("None question");
       } catch (e) {
         return sendMessageToTelegramWithContext(context)(e.message);
       }

@@ -659,7 +659,8 @@ export async function handleCommandMessage(message, context) {
       try {
         const result = await command.fn(message, key, subcommand, context);
         console.log('[DONE] Command: ' + key + ' ' + subcommand);
-        if (message.text.length === 0 || result instanceof Response) return result;
+        if (result instanceof Response) return result;
+        if (message.text.length === 0) return new Response('None question');
       } catch (e) {
         return sendMessageToTelegramWithContext(context)(e.message);
       }

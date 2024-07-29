@@ -263,7 +263,7 @@ class Environment {
     // 快速修改变量:'model:':'/setenv OPENAI_CHAT_MODEL='  'pro:':'/setenv AI_PROVIDER='
     PROMPT = PROMPT;
     // /set 指令映射变量 | 分隔多个关系，:分隔映射
-    MAPPING_KEY = '-p:SYSTEM_INIT_MESSAGE|-n:MAX_HISTORY_LENGTH|-a:AI_PROVIDER|-ai:AI_IMAGE_PROVIDER|-om:OPENAI_CHAT_MODEL|-v:OPENAI_VISION_MODEL|-t :OPENAI_TTS_MODEL';
+    MAPPING_KEY = '-p:SYSTEM_INIT_MESSAGE|-n:MAX_HISTORY_LENGTH|-a:AI_PROVIDER|-ai:AI_IMAGE_PROVIDER|-m:CHAT_MODEL|-v:OPENAI_VISION_MODEL|-t :OPENAI_TTS_MODEL';
     // /set 指令映射值  | 分隔多个关系，:分隔映射
     MAPPING_VALUE = "";
     // MAPPING_VALUE = "c35son:claude-3-5-sonnet-20240620|haiku:claude-3-haiku-20240307|g4m:gpt-4o-mini|g4:gpt-4o|rp+:command-r-plus";
