@@ -39,11 +39,12 @@ export function isAzureImageEnable(context) {
  */
 export async function requestCompletionsFromAzureOpenAI(message, prompt, history, context, onStream) {
     const url = context.USER_CONFIG.AZURE_PROXY_URL;
-    const messages = [...(history || []), {role: 'user', content: message}]
+    const messages = [...(history || [])]
     if (prompt) {
         messages.push({role: context.USER_CONFIG.SYSTEM_INIT_MESSAGE_ROLE, content: prompt})
     }
-    const extra_params = ENV.INFO.config('extra_params', context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS); 
+    messages.push({role: 'user', content: message})
+    const extra_params = context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS; 
     const body = {
         ...extra_params,
         messages,

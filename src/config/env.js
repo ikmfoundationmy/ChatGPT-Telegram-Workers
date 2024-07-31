@@ -35,7 +35,7 @@ export class UserConfig {
   // -- DALLE 配置 --
   //
   // DALL-E的模型名称
-  DALL_E_MODEL = 'dall-e-3';
+  OPENAI_IMAGE_MODEL = 'dall-e-3';
   // DALL-E图片尺寸
   DALL_E_IMAGE_SIZE = '1024x1024';
   // DALL-E图片质量
@@ -116,27 +116,27 @@ export class UserConfig {
   // 提供商来源 {"foo": { PROXY_URL: "https://xxxxxx", API_KEY: "xxxxxx" }}
   PROVIDER_SOURCES = {};
   MODES = {
-    // TYPE: 默认为'消息类型:text' ; 消息类型分为: text audio image
-    // PROVIDER_SOURCE: 默认为default
+    // process_type: 默认为'消息类型:text' ; 消息类型分为: text audio image
+    // privider: 默认为default
     // AI_PROVIDER: 默认为openai, 与AI对话时使用openai风格接口
-    // SYSTEM_INIT_MESSAGE: default
-    // MODEL: 不同类型下的默认值
+    // prompt: default
+    // model: 不同类型下的默认值
       // text:text, CHAT_MODEL
       // audio:text, OPENAI_STT_MODEL
       // image:text, OPENAI_VISION_MODEL
-      // text:image, DALL_E_MODEL
+      // text:image, OPENAI_IMAGE_MODEL
       // text:audio, TODO
     default: {
       text: [{}],
       audio: [
         // 后若出现模型能直接audio:text对话 则可加上指定模型, 去掉流程中的text:text
         {},
-        { TYPE: 'text:text' },
+        { process_type: 'text:text' },
       ],
       image: [{}],
     },
     'dall-e': {
-      text: [{}, { TYPE: 'text:image', ROLE: 'Illustrator' }],
+      text: [{prompt: 'dall-e'}, { process_type: 'text:image'}],
     },
   };
   CURRENT_MODE = 'default';

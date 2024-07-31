@@ -21,11 +21,12 @@ export function isMistralAIEnable(context) {
  */
 export async function requestCompletionsFromMistralAI(message, prompt, history, context, onStream) {
     const url = `${context.USER_CONFIG.MISTRAL_API_BASE}/chat/completions`;
-    const model = ENV.INFO.config('model', context.USER_CONFIG.MISTRAL_CHAT_MODEL);
-    const messages = [...(history || []), {role: 'user', content: message}]
+    const model = context.USER_CONFIG.MISTRAL_CHAT_MODEL;
+    const messages = [...(history || [])]
     if (prompt) {
         messages.push({role: context.USER_CONFIG.SYSTEM_INIT_MESSAGE_ROLE, content: prompt})
     }
+    messages.push({ role: 'user', content: message });
     const body = {
         model: model,
         messages,

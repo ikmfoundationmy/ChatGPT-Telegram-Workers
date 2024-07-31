@@ -1,6 +1,6 @@
 import {CONST, DATABASE, ENV} from '../config/env.js';
 import {Context} from '../config/context.js';
-import { getBot, sendMessageToTelegramWithContext, sendPhotoToTelegramWithContext, sendChatActionToTelegramWithContext, getFile } from './telegram.js';
+import { getBot, sendMessageToTelegramWithContext, sendPhotoToTelegramWithContext, sendChatActionToTelegramWithContext } from './telegram.js';
 import {handleCommandMessage} from './command.js';
 import {errorToString} from '../utils/utils.js';
 import { chatViaFileWithLLM, chatWithLLM } from '../agent/llm.js';
@@ -172,79 +172,90 @@ async function msgHandlePrivateMessage(message, context) {
  * @return {Promise<Response>}
  */
 async function msgHandleGroupMessage(message, context) {
-    if (!message.text && !ENV.ENABLE_FILE) {
-      return new Response('Non text message', {status: 200});
+  if (!message.text && !ENV.ENABLE_FILE) {
+    return new Response('Non text message');
+  }
+
+  // 非群组消息不作处理
+  if (!CONST.GROUP_TYPES.includes(context.SHARE_CONTEXT.chatType)) {
+    return null;
+  }
+
+  // 处理群组消息，过滤掉AT部分
+  let botName = context.SHARE_CONTEXT.currentBotName;
+
+  // 检查替换词
+  const chatMsgKey = Object.keys(ENV.CHAT_MESSAGE_TRIGGER).find((key) =>
+    (message?.text || message?.caption || '').startsWith(key),
+  );
+  if (chatMsgKey) {
+    message.text = message.text.replace(chatMsgKey, ENV.CHAT_MESSAGE_TRIGGER[chatMsgKey]);
+  }
+
+  // 存在被回复对象 被回复对象是机器人时直接返回 否则处理共享上下文
+  if (message.reply_to_message) {
+    if (`${message.reply_to_message.from.id}` === context.SHARE_CONTEXT.currentBotId) {
+      return null;
+    } else if (ENV.EXTRA_MESSAGE_CONTEXT) {
+      context.SHARE_CONTEXT.extraMessageContext = message.reply_to_message;
     }
+  }
   
-    // 非群组消息不作处理
-    if (!CONST.GROUP_TYPES.includes(context.SHARE_CONTEXT.chatType)) {
-        return null;
-    }
-  
-    // 处理群组消息，过滤掉AT部分
-    let botName = context.SHARE_CONTEXT.currentBotName;
-    if (message.reply_to_message) {
-        if (`${message.reply_to_message.from.id}` === context.SHARE_CONTEXT.currentBotId) {
-            return null;
-        } else if (ENV.EXTRA_MESSAGE_CONTEXT) {
-            context.SHARE_CONTEXT.extraMessageContext = message.reply_to_message;
-        }
-    }
-    if (!botName) {
-        const res = await getBot(context.SHARE_CONTEXT.currentBotToken);
-        context.SHARE_CONTEXT.currentBotName = res.info.bot_name;
-        botName = res.info.bot_name;
-    }
-    if (botName) {
-        let mentioned = false;
+  if (!botName) {
+    const res = await getBot(context.SHARE_CONTEXT.currentBotToken);
+    context.SHARE_CONTEXT.currentBotName = res.info.bot_name;
+    botName = res.info.bot_name;
+  }
+  if (botName) {
+    let mentioned = false;
     // Reply消息
-        const chatMsgKey = Object.keys(ENV.CHAT_MESSAGE_TRIGGER).find(key => (message?.text || '').startsWith(key));
-        if (chatMsgKey) {
-          mentioned = true;
-          message.text = message.text.replace(chatMsgKey, ENV.CHAT_MESSAGE_TRIGGER[chatMsgKey]);
-        } else if (message.entities) {
-          let content = '';
-          let offset = 0;
-          message.entities.forEach((entity) => {
-            switch (entity.type) {
-              case 'bot_command':
-                if (!mentioned) {
-                  const mention = message.text.substring(entity.offset, entity.offset + entity.length);
-                  if (mention.endsWith(botName)) {
-                    mentioned = true;
-                  }
-                  const cmd = mention
-                    .replaceAll('@' + botName, '')
-                    .replaceAll(botName, '')
-                    .trim();
-                  content += cmd;
-                  offset = entity.offset + entity.length;
-                }
-                break;
-              case 'mention':
-              case 'text_mention':
-                if (!mentioned) {
-                  const mention = message.text.substring(entity.offset, entity.offset + entity.length);
-                  if (mention === botName || mention === '@' + botName) {
-                    mentioned = true;
-                  }
-                }
-                content += message.text.substring(offset, entity.offset);
-                offset = entity.offset + entity.length;
-                break;
+    if (message.entities) {
+      let content = '';
+      let offset = 0;
+      message.entities.forEach((entity) => {
+        switch (entity.type) {
+          case 'bot_command':
+            if (!mentioned) {
+              const mention = message.text.substring(entity.offset, entity.offset + entity.length);
+              if (mention.endsWith(botName)) {
+                mentioned = true;
+              }
+              const cmd = mention
+                .replaceAll('@' + botName, '')
+                .replaceAll(botName, '')
+                .trim();
+              content += cmd;
+              offset = entity.offset + entity.length;
             }
-          });
-          content += message.text.substring(offset, message.text.length);
-          message.text = content.trim();
+            break;
+          case 'mention':
+          case 'text_mention':
+            if (!mentioned) {
+              const mention = message.text.substring(entity.offset, entity.offset + entity.length);
+              if (mention === botName || mention === '@' + botName) {
+                mentioned = true;
+              }
+            }
+            content += message.text.substring(offset, entity.offset);
+            offset = entity.offset + entity.length;
+            break;
         }
-        // 未AT机器人的消息不作处理
-        if (!mentioned) {
-            throw new Error('No mentioned')
-        } else {
-            return null;
-        }
+      });
+      content += message.text.substring(offset, message.text.length);
+      message.text = content.trim();
     }
-    throw new Error('Not set bot name');
+    if (!mentioned && chatMsgKey) {
+      // 触发关键词时调整为true
+      mentioned = true;
+    }
+    // 未AT机器人的消息不作处理
+    if (!mentioned) {
+      return new Response('No mentioned');
+    } else {
+      return null;
+    }
+  }
+  throw new Error('Not set bot name');
 }
 
 /**
@@ -270,7 +281,7 @@ async function msgInitUserConfig(message, context) {
  * @param {Context} context
  * @return {Promise<Response>}
  */
-async function msgIgnoreSpecificMessage(message, context) {
+async function msgIgnoreSpecificMessage(message) {
     if (
       ENV.IGNORE_TEXT && message?.text?.startsWith(ENV.IGNORE_TEXT)
     ) {
@@ -289,8 +300,8 @@ async function msgIgnoreSpecificMessage(message, context) {
  */
 async function msgInitMiddleInfo(message, context) {
   try {
-    ENV.INFO = await MiddleInfo.initInfo(message, context);
-    if (ENV.INFO.msg_type && ENV.INFO.msg_type !== 'text') {
+    context._info = await MiddleInfo.initInfo(message, context);
+    if (context._info.msg_type && context._info.msg_type !== 'text') {
       const msg = await sendMessageToTelegramWithContext(context)('file url get success.').then((r) => r.json());
       context.CURRENT_CHAT_CONTEXT.message_id = msg.result.message_id;
     }
@@ -314,33 +325,7 @@ async function msgHandleCommand(message, context) {
 }
 
 
-/** 
- * 处理TG文件
- * @param {TelegramMessage} message
- * @param {Context} context
- * @return {Promise<Response>}
- */
-async function msgHandleFile(context) {
-  if (!context.CURRENT_CHAT_CONTEXT.message_id) {
-    const msg = await sendMessageToTelegramWithContext(context)('...').then((r) => r.json());
-    context.CURRENT_CHAT_CONTEXT.message_id = msg.result.message_id;
-    context.CURRENT_CHAT_CONTEXT.reply_markup = null;
-  }
-  let { url, raw } = ENV.INFO.lastStep;
-  const file_name = url?.split('/').pop();
-  if (!raw && ENV.INFO.msg_type !== 'image' || (ENV.INFO.msg_type === 'image' && (ENV.LOAD_IMAGE_FILE || context.USER_CONFIG.OPENAI_VISION_MODEL.startsWith('claude')))) {
-    const file_resp = await getFile(url);
-    if (file_resp.status !== 200) {
-      throw new Error(`Get file failed: ${await file_resp.text()}`)
-    }
-    raw = await file_resp.blob();
-    if (ENV.INFO.msg_type === 'image') {
-      raw = `data:image/jpeg;base64,${Buffer.from(await raw.arrayBuffer()).toString('base64')}`;
-    }
-    ENV.INFO.setFile({ raw }, ENV.INFO.step_index - 1);
-  }
-  return { raw, file_name };
-}
+
 
 /**
  * 与llm聊天
@@ -359,36 +344,36 @@ async function msgChatWithLLM(message, context) {
     }
 
     let result = null;
-    for (let i = 0; i < ENV.INFO.process_count; i++) {
+    for (let i = 0; i < context._info.process_count; i++) {
       if (result && result instanceof Response) {
         return result;
       }
-      ENV.INFO.initProcess();
-      switch (ENV.INFO.process_info.TYPE || `${ENV.INFO.msg_type}:text`) {
+      context._info.initProcess(context.USER_CONFIG);
+      switch (context._info.process_type) {
         case 'text:text':
           result = await chatWithLLM(text, context, null);
           break;
         case 'text:image':
-          const gen = loadImageGen(context)?.request;
-          if (!gen) {
-            return sendMessageToTelegramWithContext(context)(`ERROR: Image generator not found`);
-          }
-          setTimeout(() => sendChatActionToTelegramWithContext(context)('upload_photo').catch(console.error), 0);
-          result = await gen(ENV.INFO.lastStep.text || text, context);
-          if (!ENV.INFO.isLastStep) {
-            ENV.INFO.setFile((typeof result === 'string') ? { url: result } : { raw: result });
-          }
-          const response = await sendPhotoToTelegramWithContext(context)(result);
-          if (response.status != 200) {
-            console.error(await response.text());
+          {
+            const gen = loadImageGen(context)?.request;
+            if (!gen) {
+              return sendMessageToTelegramWithContext(context)(`ERROR: Image generator not found`);
+            }
+            setTimeout(() => sendChatActionToTelegramWithContext(context)('upload_photo').catch(console.error), 0);
+            result = await gen(context._info.lastStep.text || text, context);
+            if (!context._info.isLastStep) {
+              context._info.setFile(typeof result === 'string' ? { url: result } : { raw: result });
+            }
+            const response = await sendPhotoToTelegramWithContext(context)(result);
+            if (response.status != 200) {
+              console.error(await response.text());
+            }
           }
           break;
         case 'audio:text':
-          const { raw, file_name } = await msgHandleFile(context);
-          result = await chatViaFileWithLLM(raw, file_name, context);
+          result = await chatViaFileWithLLM(context);
           break;
         case 'image:text':
-          await msgHandleFile(context);
           result = await chatWithLLM(text, context, null, loadVisionLLM);
           break;
         case 'audio:audio':

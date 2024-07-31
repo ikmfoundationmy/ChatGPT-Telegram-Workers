@@ -1,3 +1,4 @@
+/* eslint-disable no-constant-condition */
 import "../types/context.js"
 import {CONST, CUSTOM_COMMAND, CUSTOM_COMMAND_DESCRIPTION, DATABASE, ENV, mergeEnvironment} from '../config/env.js';
 import {
@@ -7,10 +8,8 @@ import {
     sendPhotoToTelegramWithContext,
 } from './telegram.js';
 import {chatWithLLM} from '../agent/llm.js';
-import {currentChatModel, currentImageModel, loadChatLLM, loadImageGen} from "../agent/agents.js";
+import {currentChatModel, currentImageModel, loadChatLLM, loadImageGen, customInfo} from "../agent/agents.js";
 import { trimUserConfig } from "../config/context.js";
-import { customInfo } from "../agent/agents.js";
-
 const commandAuthCheck = {
     default: function (chatType) {
         if (CONST.GROUP_TYPES.includes(chatType)) {
@@ -134,7 +133,6 @@ async function commandGenerateImg(message, command, subcommand, context) {
     if (!gen) {
       return sendMessageToTelegramWithContext(context)(`ERROR: Image generator not found`);
     }
-    // const startTime = performance.now();
     const img = await gen(subcommand, context);
     return sendPhotoToTelegramWithContext(context)(img);
   } catch (e) {
@@ -234,24 +232,19 @@ async function commandUpdateUserConfig(message, command, subcommand, context, pr
     return sendMessageToTelegramWithContext(context)(`Key ${key} not found`);
   }
   try {
-    // if (key === 'SYSTEM_INIT_MESSAGE' && value.startsWith('{{role}}')) {
-    //   value = context.USER_CONFIG.PROMPT[value.substring('{{role}}'.length).trim()];
-    //   if (!value) return null;
-    // }
     mergeEnvironment(context.USER_CONFIG, {
       [key]: value,
     });
     if (processUpdate) {
       if (key.endsWith('_MODEL')) {
-        ENV.INFO.config('model', value);
+        context._info.config('model', value);
       } else if (key === 'CURRENT_MODE') {
-        ENV.INFO.config('mode', value);
+        context._info.config('mode', value);
       }
       return null;
     }
     context.USER_CONFIG.DEFINE_KEYS.push(key);
     context.USER_CONFIG.DEFINE_KEYS = Array.from(new Set(context.USER_CONFIG.DEFINE_KEYS));
-    // console.log('Update user config: ', key, context.USER_CONFIG[key]);
     await DATABASE.put(context.SHARE_CONTEXT.configStoreKey, JSON.stringify(trimUserConfig(context.USER_CONFIG)));
     return sendMessageToTelegramWithContext(context)('Update user config success');
   } catch (e) {
@@ -288,9 +281,9 @@ async function commandUpdateUserConfigs(message, command, subcommand, context, p
       })
       if (processUpdate) {
         if (key.endsWith('_MODEL')) {
-          ENV.INFO.config('model', value);
+          context._info.config('model', value);
         } else if (key === 'CURRENT_MODE') {
-          ENV.INFO.config('mode', value);
+          context._info.config('mode', value);
         }
         continue;
       }
@@ -337,6 +330,7 @@ async function commandSetUserConfigs(message, command, subcommand, context) {
 
     const msgCommand = subcommand.matchAll(/(-\w+)\s+(.+?)(\s+|$)/g);
     let msg = '';
+    let hasKey = false;
 
     for (const [, k, v] of msgCommand) {
       let key = keys[k],
@@ -345,22 +339,33 @@ async function commandSetUserConfigs(message, command, subcommand, context) {
         if (ENV.LOCK_USER_CONFIG_KEYS.includes(key)) {
           return sendMessageToTelegramWithContext(context)(`Key ${key} is locked`);
         }
-        const role_perfix = '~';
-        // if (key === 'SYSTEM_INIT_MESSAGE' && v?.startsWith(role_perfix)) {
-        //   value = ENV.PROMPT[v.substring(1)];
-        //   if (!value) { await sendMessageToTelegramWithContext(context)(`${v} is not exist`); continue; }; // 静默继续向下执行
+        // if (key === 'SYSTEM_INIT_MESSAGE') {
+        //   const role_perfix = '~';
+        //   if (v?.startsWith(role_perfix)) {
+        //     value = ENV.PROMPT[v.substring(1)];
+        //     if (!value) {
+        //       msg += `>\`${v} is not exist, will use default prompt\`\n`;
+        //       value = ENV.I18N?.env?.system_init_message || 'You are a helpful assistant';
+        //     }
+        //   }
+        // } else if (key === 'CURRENT_MODE') {
+        //   if (!Object.keys(context.USER_CONFIG.MODES).includes(v)) {
+        //     return sendMessageToTelegramWithContext(context)(`mode ${v} is not exist`);
+        //   }
+        //   context._info.config('mode', value || v);
         // }
+        const role_perfix = '~';
         switch (key) {
           case 'SYSTEM_INIT_MESSAGE':
             if (v?.startsWith(role_perfix)) {
               value = ENV.PROMPT[v.substring(1)];
               if (!value) {
                 msg += `>\`${v} is not exist, will use default prompt\`\n`;
-                // await sendMessageToTelegramWithContext(context)(`>\`${v} is not exist, will use default prompt\``);
                 value = ENV.I18N?.env?.system_init_message || 'You are a helpful assistant';
                 // continue;
-              } // 静默继续向下执行
-            }
+              }  // else context._info.config('prompt', v.substring(1));
+              // 静默继续向下执行
+            }  
             break;
           case 'CHAT_MODEL':
             key = `${context.USER_CONFIG.AI_PROVIDER.toUpperCase()}_CHAT_MODEL`;
@@ -368,10 +373,14 @@ async function commandSetUserConfigs(message, command, subcommand, context) {
           case 'VISION_MODEL':
             key = `${context.USER_CONFIG.AI_PROVIDER.toUpperCase()}_VISION_MODEL`;
             break;
+          case 'STT_MODEL':
+            key = `${context.USER_CONFIG.AI_PROVIDER.toUpperCase()}_STT_MODEL`;
+            break;
           case 'CURRENT_MODE':
             if (!Object.keys(context.USER_CONFIG.MODES).includes(v)) {
               return sendMessageToTelegramWithContext(context)(`mode ${v} is not exist`);
             }
+            context._info.config('mode', v);
             break;
           default:
             break;
@@ -384,14 +393,15 @@ async function commandSetUserConfigs(message, command, subcommand, context) {
         context.USER_CONFIG.DEFINE_KEYS.push(key);
         console.log(`/set ${key || 'unknown'} ${(value || v).substring(0, 6)}...'`);
 
-        if (key.endsWith('_MODEL')) {
-          ENV.INFO.config('model', value);
-        } else if (key === 'CURRENT_MODE') {
-          ENV.INFO.config('mode', v);
-        }
+        // if (key.endsWith('_MODEL')) {
+        //   context._info.config('model', value);
+        // } else if (key === 'CURRENT_MODE') {
+        //   context._info.config('mode', v);
+        // }
       } else return sendMessageToTelegramWithContext(context)(`Mapping Key ${k} is not exist`);
+      if(!hasKey) hasKey = true;
     }
-    if (needUpdate) {
+    if (needUpdate && hasKey) {
       context.USER_CONFIG.DEFINE_KEYS = Array.from(new Set(context.USER_CONFIG.DEFINE_KEYS));
       await DATABASE.put(
         context.SHARE_CONTEXT.configStoreKey,
@@ -399,7 +409,7 @@ async function commandSetUserConfigs(message, command, subcommand, context) {
       );
       msg += '>`Update user config success`\n';
     }
-    await sendMessageToTelegramWithContext(context)(msg);
+    if (msg) await sendMessageToTelegramWithContext(context)(msg);
     return null;
   } catch (e) {
     return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`);
@@ -605,7 +615,7 @@ async function commandEcho(message, command, subcommand, context) {
  */
 export async function handleCommandMessage(message, context) {
   if (!message.text) {
-    if (!ENV.INFO.msg_type) {
+    if (!context._info.msg_type) {
       return sendMessageToTelegramWithContext(context)('Not support the message ');
     }
     return null;
@@ -652,10 +662,6 @@ export async function handleCommandMessage(message, context) {
       }
 
       const subcommand = commandLine.substring(key.length).trim();
-      // if (message.text && customKey && key.startsWith('/setenv')) {
-      //   await command.fn(message, key, subcommand, context, true);
-      //   break;
-      // }
       try {
         const result = await command.fn(message, key, subcommand, context);
         console.log('[DONE] Command: ' + key + ' ' + subcommand);

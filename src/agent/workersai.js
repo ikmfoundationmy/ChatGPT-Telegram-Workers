@@ -43,15 +43,16 @@ export async function requestCompletionsFromWorkersAI(message, prompt, history, 
 
     const id = context.USER_CONFIG.CLOUDFLARE_ACCOUNT_ID;
     const token = context.USER_CONFIG.CLOUDFLARE_TOKEN;
-    const model = ENV.INFO.config('model', context.USER_CONFIG.WORKERS_CHAT_MODEL);
+    const model = context.USER_CONFIG.WORKERS_CHAT_MODEL;
     const url = `https://api.cloudflare.com/client/v4/accounts/${id}/ai/run/${model}`;
     const header = {
         Authorization: `Bearer ${token}`
     };
-    const messages = [...(history || []), {role: 'user', content: message}]
+    const messages = [...(history || [])]
     if (prompt) {
         messages.push({role: context.USER_CONFIG.SYSTEM_INIT_MESSAGE_ROLE, content: prompt})
     }
+    messages.push({role: 'user', content: message})
     const body = {
         messages: messages,
         stream: onStream !== null,

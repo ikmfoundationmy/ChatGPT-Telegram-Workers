@@ -114,7 +114,7 @@ OPENAI_API_KEY = 'SK-1,SK-2'
 ## -- DALLE 配置 --
 ##
 ## DALL-E的模型名称
-#DALL_E_MODEL = 'dall-e-2'
+#OPENAI_IMAGE_MODEL = 'dall-e-2'
 ## DALL-E图片尺寸
 #DALL_E_IMAGE_SIZE = '512x512'
 ## DALL-E图片质量

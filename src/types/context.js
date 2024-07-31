@@ -15,7 +15,7 @@
  * @property {string} OPENAI_API_BASE
  * @property {object} OPENAI_API_EXTRA_PARAMS
  *
- * @property {string} DALL_E_MODEL
+ * @property {string} OPENAI_IMAGE_MODEL
  * @property {string} DALL_E_IMAGE_SIZE
  * @property {string} DALL_E_IMAGE_QUALITY
  * @property {string} DALL_E_IMAGE_STYLE

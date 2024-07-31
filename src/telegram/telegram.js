@@ -41,17 +41,17 @@ async function sendMessage(message, token, context) {
  * @param {CurrentChatContextType} context
  * @return {Promise<Response>}
  */
-export async function sendMessageToTelegram(message, token, context) {
+export async function sendMessageToTelegram(message, token, context, _info = null) {
     const chatContext = {
       ...context,
       message_id: Array.isArray(context.message_id) ? 0 : context.message_id,
     };
     const limit = 4000;
     let origin_msg = message;
-    let info = '';
+  let info = '';
     const escapeContent = (parse_mode = chatContext?.parse_mode) => {
-      info = ENV.INFO?.message_title;
-      if (!ENV.INFO.isLastStep && ENV.INFO.step_index !==0 || origin_msg.length > limit) {
+      info = _info?.message_title || '';
+      if (!_info?.isLastStep && _info?.step_index > 0 || origin_msg.length > limit) {
         chatContext.parse_mode = null;
         message = info ? info + '\n\n' + origin_msg : origin_msg;
         chatContext.entities = [
@@ -61,11 +61,8 @@ export async function sendMessageToTelegram(message, token, context) {
       } else if (parse_mode === 'MarkdownV2') {
         info = info ? '>`' + info + '`\n\n' : '';
         message = info + escape(origin_msg);
-      } else {
+      } else if (parse_mode === null){
         message = info ? (info + '\n' + origin_msg) : origin_msg;
-      }
-      if (parse_mode === null /*&& message.length > limit*/) {
-        info = info ? info + '\n' : '';
         chatContext.entities = [
           { type: 'code', offset: 0, length: info.length },
           { type: 'blockquote', offset: 0, length: info.length },
@@ -80,7 +77,7 @@ export async function sendMessageToTelegram(message, token, context) {
       } else {
         chatContext.parse_mode = null;
         context.parse_mode = null;
-        info = ENV.INFO?.message_title;
+        info = _info?.message_title;
         // message = '```plaintext\n' + (info ? info + '\n\n' + origin_msg : origin_msg) + '\n```'
         message = info ? info + '\n\n' + origin_msg : origin_msg;
         chatContext.entities = [
@@ -97,14 +94,8 @@ export async function sendMessageToTelegram(message, token, context) {
       }
     }
     chatContext.parse_mode = null;
-    info = ENV.INFO?.message_title;
+    info = _info?.message_title;
     message = info ? info + '\n\n' + origin_msg : origin_msg;
-    // chatContext.entities = [
-    //   { type: 'code', offset: 0, length: info.length },
-    //   { type: 'blockquote', offset: 0, length: info.length },
-    // ];
-
-    // escapeContent();
     if (!Array.isArray(context.message_id)){
       context.message_id = [context.message_id];
     }
@@ -153,7 +144,7 @@ export async function sendMessageToTelegram(message, token, context) {
  */
 export function sendMessageToTelegramWithContext(context) {
     return async (message) => {
-        return sendMessageToTelegram(message, context.SHARE_CONTEXT.currentBotToken, context.CURRENT_CHAT_CONTEXT);
+        return sendMessageToTelegram(message, context.SHARE_CONTEXT.currentBotToken, context.CURRENT_CHAT_CONTEXT, context._info);
     };
 }
 
@@ -188,7 +179,7 @@ export function deleteMessageFromTelegramWithContext(context) {
  * @param {CurrentChatContextType} context
  * @return {Promise<Response>}
  */
-export async function sendPhotoToTelegram(photo, token, context) {
+export async function sendPhotoToTelegram(photo, token, context, _info = null) {
   const url = `${ENV.TELEGRAM_API_DOMAIN}/bot${token}/sendPhoto`;
   let body;
   const headers = {};
@@ -201,13 +192,10 @@ export async function sendPhotoToTelegram(photo, token, context) {
         body[key] = context[key];
       }
     }
-    // delete body.parse_mode;
-    let info = ENV.INFO.message_title;
-    body.caption = escape(info) + `[原始图片](${photo})`;
-    // body.entities = [
-    //   { type: 'code', offset: 0, length: body.caption.length },
-    //   { type: 'blockquote', offset: 0, length: body.caption.length },
-    // ];
+    body.parse_mode = 'MarkdownV2';
+    let info = _info?.message_title || '';
+    body.caption = '`' + escape(info) + '`' + `\n[原始图片](${photo})`;
+
     body = JSON.stringify(body);
     headers['Content-Type'] = 'application/json';
   } else {
@@ -233,7 +221,7 @@ export async function sendPhotoToTelegram(photo, token, context) {
  */
 export function sendPhotoToTelegramWithContext(context) {
     return (url) => {
-        return sendPhotoToTelegram(url, context.SHARE_CONTEXT.currentBotToken, context.CURRENT_CHAT_CONTEXT);
+        return sendPhotoToTelegram(url, context.SHARE_CONTEXT.currentBotToken, context.CURRENT_CHAT_CONTEXT, context._info);
     };
 }
 
@@ -248,7 +236,7 @@ export function sendPhotoToTelegramWithContext(context) {
  * @return {Promise<Response>}
  */
 export async function sendChatActionToTelegram(action, token, chatId) {
-    return await fetchWithRetry(
+    return await fetch(
         `${ENV.TELEGRAM_API_DOMAIN}/bot${token}/sendChatAction`,
         {
             method: 'POST',
@@ -434,14 +422,5 @@ export async function getFileInfo(file_id, token) {
       };
     }
     return resp;
-  }
-  
-  /**
-   * 直链获取文件
-   * @param {string} filePath
-   * @return {Promise<Response>}
-   */
-  export async function getFile(fullPath) {
-    return fetch(fullPath);
   }
   

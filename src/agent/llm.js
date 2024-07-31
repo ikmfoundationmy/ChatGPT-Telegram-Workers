@@ -5,7 +5,8 @@ import {
     sendPhotoToTelegramWithContext,
 } from '../telegram/telegram.js';
 import {DATABASE, ENV} from '../config/env.js';
-import {loadAudioLLM, loadChatLLM} from "./agents.js";
+import { loadAudioLLM, loadChatLLM } from "./agents.js";
+import { handleFile } from "../config/middle.js";
 
 /**
  * @return {(function(string): number)}
@@ -24,7 +25,7 @@ function tokensCounter() {
  */
 async function loadHistory(context, key) {
     // 文件消息不关联历史记录
-    const historyDisable = ENV.INFO.lastStepHasFile || ENV.AUTO_TRIM_HISTORY && ENV.MAX_HISTORY_LENGTH <= 0;
+    const historyDisable = context._info.lastStepHasFile || ENV.AUTO_TRIM_HISTORY && ENV.MAX_HISTORY_LENGTH <= 0;
     // 判断是否禁用历史记录
     if (historyDisable) {
         return {real: [], original: []};
@@ -106,7 +107,7 @@ async function requestCompletionsFromLLM(text, prompt, context, llm, modifier, o
     }
     const {real: realHistory, original: originalHistory} = history;
     const answer = await llm(text, prompt, realHistory, context, onStream);
-    if (ENV.INFO.lastStepHasFile) {
+    if (context._info.lastStepHasFile) {
         text = '[A FILE] ' + text;
     }
     if (!historyDisable && answer) {
@@ -130,9 +131,13 @@ async function requestCompletionsFromLLM(text, prompt, context, llm, modifier, o
  */
 export async function chatWithLLM(text, context, modifier, pointerLLM = loadChatLLM) {
     try {
-        text = ENV.INFO.isFirstStep ? text : ENV.INFO.lastStep.text;
+        text = context._info.isFirstStep ? text : context._info.lastStep.text;
         const parseMode = context.CURRENT_CHAT_CONTEXT.parse_mode;
         try {
+            if (context._info.lastStepHasFile) {
+                const { raw } = await handleFile(context._info);
+                if (context._info.step_index === 1) context._info.setFile({ raw }, 0);
+            }
             if (!context.CURRENT_CHAT_CONTEXT.message_id) {
                 context.CURRENT_CHAT_CONTEXT.parse_mode = null;
                 const msg = await sendMessageToTelegramWithContext(context)('...').then((r) => r.json());
@@ -148,7 +153,7 @@ export async function chatWithLLM(text, context, modifier, pointerLLM = loadChat
         let nextEnableTime = null;
         if (ENV.STREAM_MODE) {
             onStream = async (text) => {
-                if (ENV.HIDE_MIDDLE_MESSAGE && !ENV.INFO.isLastStep) return;
+                if (ENV.HIDE_MIDDLE_MESSAGE && !context._info.isLastStep) return;
                 try {
                     // 判断是否需要等待
                     if (nextEnableTime && nextEnableTime > Date.now()) {
@@ -178,7 +183,7 @@ export async function chatWithLLM(text, context, modifier, pointerLLM = loadChat
         if (llm === null) {
             return sendMessageToTelegramWithContext(context)(`LLM is not enable`);
         }
-        const prompt = ENV.INFO.config('prompt', context.USER_CONFIG.SYSTEM_INIT_MESSAGE);
+        const prompt = context.USER_CONFIG.SYSTEM_INIT_MESSAGE;
         console.log(`[START] Chat via ${llm.name}`);
         const answer = await requestCompletionsFromLLM(text, prompt, context, llm, modifier, onStream);
         if (!answer) {
@@ -204,12 +209,12 @@ export async function chatWithLLM(text, context, modifier, pointerLLM = loadChat
             await new Promise((resolve) => setTimeout(resolve, nextEnableTime - Date.now()));
         }
         // 缓存LLM回答结果给后续步骤使用
-        if (!ENV.HIDE_MIDDLE_MESSAGE || ENV.INFO.isLastStep) {
+        if (!ENV.HIDE_MIDDLE_MESSAGE || context._info.isLastStep) {
             await sendMessageToTelegramWithContext(context)(answer);
 
         }
-        if (!ENV.INFO.isLastStep) {
-            ENV.INFO.setFile({text: answer});
+        if (!context._info.isLastStep) {
+            context._info.setFile({text: answer});
         }
         console.log(`[DONE] Chat via ${llm.name}`);
         return null;
@@ -224,28 +229,35 @@ export async function chatWithLLM(text, context, modifier, pointerLLM = loadChat
     }
 }
 
-export async function chatViaFileWithLLM(file, fileName, context) {
+export async function chatViaFileWithLLM(context) {
     try {
+        if (!context.CURRENT_CHAT_CONTEXT.message_id) {
+            const msg = await sendMessageToTelegramWithContext(context)('...').then((r) => r.json());
+            context.CURRENT_CHAT_CONTEXT.message_id = msg.result.message_id;
+            context.CURRENT_CHAT_CONTEXT.reply_markup = null;
+          }
+        const { raw, fileName } = await handleFile(context._info);
+        if (context._info.step_index === 1) context._info.setFile({ raw }, 0);
         const llm = loadAudioLLM(context)?.request;
         if (llm === null) {
             return sendMessageToTelegramWithContext(context)(`LLM is not enable`);
         }
         const startTime = performance.now();
-        const answer = await llm(file, fileName, context);
+        const answer = await llm(raw, fileName, context);
         if (!answer.ok) {
             console.error(answer.message);
             return sendMessageToTelegramWithContext(context)('Chat via file failed.');
         }
         console.log(`[FILE DONE] ${llm.name}: ${((performance.now() - startTime) / 1000).toFixed(1)}s`);
-        if (!ENV.INFO.isLastStep) {
+        if (!context._info.isLastStep) {
             if (answer.type === 'text') {
-                ENV.INFO.setFile({ text: answer.content });
+                context._info.setFile({ text: answer.content });
             } else if (typeof answer.content === 'string') {
-                ENV.INFO.setFile({ url: answer.content });
-            } else ENV.INFO.lastStep.raw = answer.content;
+                context._info.setFile({ url: answer.content });
+            } else context._info.lastStep.raw = answer.content;
         }
 
-        if (!ENV.HIDE_MIDDLE_MESSAGE || ENV.INFO.isLastStep
+        if (!ENV.HIDE_MIDDLE_MESSAGE || context._info.isLastStep
         ) {
             let resp = null;
             const sendHandler = { 'text': sendMessageToTelegramWithContext, 'image': sendPhotoToTelegramWithContext };

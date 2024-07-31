@@ -1,5 +1,4 @@
-import "../types/context.js"
-import {CONST} from '../config/env.js';
+import "../types/context.js";
 
 /**
  * @param {ContextType} context
@@ -21,14 +20,15 @@ export function isGeminiAIEnable(context) {
  */
 export async function requestCompletionsFromGeminiAI(message, prompt, history, context, onStream) {
     onStream = null // 暂时不支持stream模式
-    const model = ENV.INFO.config('model', context.USER_CONFIG.GOOGLE_COMPLETIONS_MODEL);
+    const model = context.USER_CONFIG.GOOGLE_COMPLETIONS_MODEL;
     const url = `${context.USER_CONFIG.GOOGLE_COMPLETIONS_API}${model}:${
         onStream ? 'streamGenerateContent' : 'generateContent'
         }?key=${context.USER_CONFIG.GOOGLE_API_KEY}`;
-    const contentsTemp = [...history || [], {role: 'user', content: message}];
+    const contentsTemp = [...history || []];
     if (prompt) {
         contentsTemp.push({role: 'assistant', content: prompt});
     }
+    contentsTemp.push({ role: 'user', content: message });
     const contents = [];
     const rolMap = {
         'assistant': 'model',

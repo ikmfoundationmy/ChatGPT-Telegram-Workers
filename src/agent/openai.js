@@ -33,41 +33,50 @@ export function isOpenAIEnable(context) {
  * @return {Promise<string>}
  */
 export async function requestCompletionsFromOpenAI(message, prompt, history, context, onStream) {
-  const { PROXY_URL = context.USER_CONFIG.OPENAI_API_BASE, API_KEY = openAIKeyFromContext(context) } = ENV.INFO.provider || {};
+  const { PROXY_URL = context.USER_CONFIG.OPENAI_API_BASE, API_KEY = openAIKeyFromContext(context) } =
+    context._info.provider || {};
   const url = `${PROXY_URL}/chat/completions`;
-  const model = ENV.INFO.config('model', context.USER_CONFIG.OPENAI_CHAT_MODEL);
-  const extra_params = ENV.INFO.config('extra_params', context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS);
-  const messages = [{ role: 'user', content: message }];
+  const model = context._info.lastStepHasFile
+    ? context.USER_CONFIG.OPENAI_VISION_MODEL
+    : context.USER_CONFIG.OPENAI_CHAT_MODEL;
+  const extra_params = context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS;
+  const messages = [...(history || [])];
+ 
+  if (prompt) {
+    messages.push({ role: context.USER_CONFIG.SYSTEM_INIT_MESSAGE_ROLE, content: prompt });
+  }
+  messages.push({ role: 'user', content: message });
   // 优先取原始文件兼容claude
-  if (ENV.INFO.lastStepHasFile) {
-        messages[0].content = [{
-          "type": "text",
-          "text": message || '解读一下这长图片?'  // cluade model 图像识别必须带文本
-        }, {
-          "type": "image_url", "image_url": {
-            "url": ENV.INFO.lastStep.raw || ENV.INFO.lastStep.url
-          }
-        }];
-    }
-    messages.unshift(...(history || []));
 
-    if (prompt) {
-        messages.unshift({role: context.USER_CONFIG.SYSTEM_INIT_MESSAGE_ROLE, content: prompt})
-    }
-    const body = {
-        model,
-        ...extra_params,
-        messages,
-        stream: onStream != null,
-        ...(!!onStream && ENV.ENABLE_SHOWTOKENINFO &&{ stream_options: { include_usage: true } }),
-    };
+  if (context._info.lastStepHasFile) {
+    messages.at(-1).content = [
+      {
+        'type': 'text',
+        'text': message || '解读一下这张图片', // cluade model 图像识别必须带文本
+      },
+      {
+        'type': 'image_url',
+        'image_url': {
+          'url': context._info.lastStep.raw || context._info.lastStep.url,
+        },
+      },
+    ];
+  }
 
-    const header = {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${API_KEY}`,
-    };
+  const body = {
+    model,
+    ...extra_params,
+    messages,
+    stream: onStream != null,
+    ...(!!onStream && ENV.ENABLE_SHOWTOKENINFO && { stream_options: { include_usage: true } }),
+  };
 
-    return requestChatCompletions(url, header, body, context, onStream);
+  const header = {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${API_KEY}`,
+  };
+
+  return requestChatCompletions(url, header, body, context, onStream);
 }
 
 
@@ -80,8 +89,8 @@ export async function requestCompletionsFromOpenAI(message, prompt, history, con
  * @return {Promise<string>}
  */
 export async function requestImageFromOpenAI(prompt, context) {
-  const { PROXY_URL = context.USER_CONFIG.OPENAI_API_BASE, API_KEY = openAIKeyFromContext(context) } = ENV.INFO.provider || {};
-  const model = ENV.INFO.config('model', context.USER_CONFIG.DALL_E_MODEL);
+  const { PROXY_URL = context.USER_CONFIG.OPENAI_API_BASE, API_KEY = openAIKeyFromContext(context) } = context._info.provider || {};
+  const model = context.USER_CONFIG.OPENAI_IMAGE_MODEL;
   const url = `${PROXY_URL}/images/generations`;
   const header = {
     'Content-Type': 'application/json',
@@ -119,8 +128,8 @@ export async function requestImageFromOpenAI(prompt, context) {
  * @return {Promise<Response>}
  */
 export async function requestTranscriptionFromOpenAI(audio, file_name, context) {
-  const { PROXY_URL = context.USER_CONFIG.OPENAI_API_BASE, API_KEY = openAIKeyFromContext(context) } = ENV.INFO.provider || {};
-  const model = ENV.INFO.config('model', context.USER_CONFIG.OPENAI_STT_MODEL);
+  const { PROXY_URL = context.USER_CONFIG.OPENAI_API_BASE, API_KEY = openAIKeyFromContext(context) } = context._info.provider || {};
+  const model = context.USER_CONFIG.OPENAI_STT_MODEL;
   const url = `${PROXY_URL}/audio/transcriptions`;
   const header = {
     // 'Content-Type': 'multipart/form-data',

@@ -140,7 +140,7 @@ function fetchWithRetryFunc() {
           if (retries < MAX_RETRIES) console.log(`[DONE] after ${MAX_RETRIES - retries} times`);
           return resp;
         }
-        const clone_resp = await resp.clone().json();
+        // const clone_resp = await resp.clone().json();
         // console.log(`${JSON.stringify(clone_resp)}`);
         if (resp.status === 429) {
           const retryAfter = (resp.headers.get('Retry-After')) || DEFAULT_RETRY_AFTER;
@@ -184,4 +184,4 @@ export function UUIDv4() {
       return v.toString(16);
   });
 }
-
+  

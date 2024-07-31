@@ -10,8 +10,7 @@ import {
     requestCompletionsFromAzureOpenAI,
     requestImageFromAzureOpenAI
 } from "./azure.js";
-import "../types/context.js"
-import { ENV } from "../config/env.js";
+import "../types/context.js";
 
 /**
  *
@@ -102,27 +101,6 @@ export function currentChatModel(agentName, context) {
  * @return {string} info
  */
 export function customInfo(config) {
-  let AI_PROVIDER = config.AI_PROVIDER;
-  if (config.AI_PROVIDER === 'auto') {
-    AI_PROVIDER = 'openai';
-  }
-  let CHAT_MODEL = '';
-  switch (AI_PROVIDER) {
-    case 'openai':
-    case 'azure':
-    default:
-      CHAT_MODEL = config.OPENAI_CHAT_MODEL;
-      break;
-    case 'workers':
-      CHAT_MODEL = config.WORKERS_CHAT_MODEL;
-      break;
-    case 'gemini':
-      CHAT_MODEL = config.GOOGLE_CHAT_MODEL;
-      break;
-    case 'mistral':
-      CHAT_MODEL = config.MISTRAL_CHAT_MODEL;
-      break;
-  }
   let info = `MODE: ${config.CURRENT_MODE}`;
   const PROCESS = config.MODES[config.CURRENT_MODE] || [];
   for (const [k, v] of Object.entries(PROCESS)) {
@@ -150,7 +128,7 @@ export function customInfo(config) {
  * @return {ChatAgent | null}
  */
 export function loadChatLLM(context) {
-    const AI_PROVIDER = ENV.INFO.config('AI_PROVIDER', context.USER_CONFIG.AI_PROVIDER);
+    const AI_PROVIDER = context.USER_CONFIG.AI_PROVIDER;
     for (const llm of chatLlmAgents) {
         if (llm.name === AI_PROVIDER) {
             return llm;
@@ -184,7 +162,7 @@ export const visionLlmAgents = [
  * @return {ChatAgent | null}
  */
 export function loadVisionLLM(context) {
-    const AI_PROVIDER = ENV.INFO.config('AI_PROVIDER', context.USER_CONFIG.AI_PROVIDER);
+    const AI_PROVIDER = context.USER_CONFIG.AI_PROVIDER;
     for (const llm of visionLlmAgents) {
         if (llm.name === AI_PROVIDER) {
             return llm;
@@ -216,7 +194,7 @@ export const audioLlmAgents = [
  * @return {ChatAgent | null}
  */
 export function loadAudioLLM(context) {
-    const AI_PROVIDER = ENV.INFO.config('AI_PROVIDER', context.USER_CONFIG.AI_PROVIDER);
+    const AI_PROVIDER = context.USER_CONFIG.AI_PROVIDER;
     for (const llm of audioLlmAgents) {
         if (llm.name === AI_PROVIDER) {
             return llm;
@@ -273,7 +251,7 @@ export const imageGenAgents = [
  * @return {ImageAgent | null}
  */
 export function loadImageGen(context) {
-    const AI_IMAGE_PROVIDER = ENV.INFO.config('AI_IMAGE_PROVIDER', context.USER_CONFIG.AI_IMAGE_PROVIDER);
+    const AI_IMAGE_PROVIDER = context.USER_CONFIG.AI_IMAGE_PROVIDER;
     for (const imgGen of imageGenAgents) {
         if (imgGen.name === AI_IMAGE_PROVIDER) {
             return imgGen;
@@ -298,7 +276,7 @@ export function currentImageModel(agentName, context) {
         case "azure":
             return "azure";
         case "openai":
-            return context.USER_CONFIG.DALL_E_MODEL;
+            return context.USER_CONFIG.OPENAI_IMAGE_MODEL;
         case "workers":
             return context.USER_CONFIG.WORKERS_IMAGE_MODEL;
         default:

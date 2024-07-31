@@ -84,7 +84,7 @@ Each user's custom configuration can only be modified by sending a message throu
 | OPENAI_CHAT_MODEL       | OpenAI Model            | `gpt-3.5-turbo`             |
 | OPENAI_API_BASE         | OpenAI API BASE         | `https://api.openai.com/v1` |
 | OPENAI_API_EXTRA_PARAMS | OpenAI API Extra Params | `{}`                        |
-| DALL_E_MODEL            | DALL-E model name.      | `dall-e-2`                  |
+| OPENAI_IMAGE_MODEL            | DALL-E model name.      | `dall-e-2`                  |
 | DALL_E_IMAGE_SIZE       | DALL-E Image size       | `512x512`                   |
 | DALL_E_IMAGE_QUALITY    | DALL-E Image quality    | `standard`                  |
 | DALL_E_IMAGE_STYLE      | DALL-E Image style      | `vivid`                     |
