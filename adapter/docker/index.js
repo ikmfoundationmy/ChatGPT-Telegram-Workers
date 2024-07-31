@@ -1,6 +1,6 @@
 import adapter from 'cloudflare-worker-adapter';
 import { RedisCache } from 'cloudflare-worker-adapter/cache/redis.js';
-// import fs from 'fs';
+import fs from 'fs';
 
 const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
 const cache = new RedisCache(redisUrl);
