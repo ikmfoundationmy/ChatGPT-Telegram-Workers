@@ -100,7 +100,7 @@ async function requestCompletionsFromLLM(text, prompt, context, llm, modifier, o
     const historyKey = context.SHARE_CONTEXT.chatHistoryKey;
     const readStartTime = performance.now();
     let history = [];
-    if (historyDisable) {
+    if (!historyDisable) {
         history = await loadHistory(historyKey);
     }
     const readTime = ((performance.now() - readStartTime) / 1000).toFixed(2);

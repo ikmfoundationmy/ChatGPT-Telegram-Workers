@@ -199,9 +199,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1722445928;
+  BUILD_TIMESTAMP = 1722446195;
   // 当前版本 commit id
-  BUILD_VERSION = "8bdb99f";
+  BUILD_VERSION = "d660199";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -2250,7 +2250,7 @@ async function requestCompletionsFromLLM(text, prompt, context, llm, modifier, o
   const historyKey = context.SHARE_CONTEXT.chatHistoryKey;
   const readStartTime = performance.now();
   let history = [];
-  if (historyDisable) {
+  if (!historyDisable) {
     history = await loadHistory(historyKey);
   }
   const readTime = ((performance.now() - readStartTime) / 1e3).toFixed(2);
