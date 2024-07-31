@@ -18,23 +18,28 @@ function tokensCounter() {
 }
 
 /**
+ * @typedef {object} HistoryItem
+ * @property {string} role
+ * @property {string} content
+ */
+/**
  * 加载历史TG消息
  *
  * @param {string} key
- * @return {Promise<Object>}
+ * @return {Promise<HistoryItem[]>}
  */
-async function loadHistory(context, key) {
-    // 文件消息不关联历史记录
-    const historyDisable = context._info.lastStepHasFile || ENV.AUTO_TRIM_HISTORY && ENV.MAX_HISTORY_LENGTH <= 0;
-    // 判断是否禁用历史记录
-    if (historyDisable) {
-        return {real: [], original: []};
-    }
+async function loadHistory(key) {
 
     // 加载历史记录
     let history = [];
     try {
-        history = JSON.parse((await DATABASE.get(key)) || '{}');
+        history = JSON.parse((await DATABASE.get(key)) || '[]');
+        history = history.map((item) => {
+            return {
+                role: item.role,
+                content: item.content,
+            };
+        });
     } catch (e) {
         console.error(e);
     }
@@ -42,30 +47,30 @@ async function loadHistory(context, key) {
         history = [];
     }
 
-    let original = JSON.parse(JSON.stringify(history));
-
     const counter = tokensCounter();
 
     const trimHistory = (list, initLength, maxLength, maxToken) => {
-        // 历史记录超出长度需要裁剪
-        if (list.length > maxLength) {
+        // 历史记录超出长度需要裁剪, 小于0不裁剪
+        if (maxLength >= 0 && list.length > maxLength) {
             list = list.splice(list.length - maxLength);
         }
-        // 处理token长度问题
-        let tokenLength = initLength;
-        for (let i = list.length - 1; i >= 0; i--) {
-            const historyItem = list[i];
-            let length = 0;
-            if (historyItem.content) {
-                length = counter(historyItem.content);
-            } else {
-                historyItem.content = '';
-            }
-            // 如果最大长度超过maxToken,裁剪history
-            tokenLength += length;
-            if (tokenLength > maxToken) {
-                list = list.splice(i + 1);
-                break;
+        // 处理token长度问题, 小于0不裁剪
+        if (maxToken >= 0) {
+            let tokenLength = initLength;
+            for (let i = list.length - 1; i >= 0; i--) {
+                const historyItem = list[i];
+                let length = 0;
+                if (historyItem.content) {
+                    length = counter(historyItem.content);
+                } else {
+                    historyItem.content = '';
+                }
+                // 如果最大长度超过maxToken,裁剪history
+                tokenLength += length;
+                if (tokenLength > maxToken) {
+                    list = list.splice(i + 1);
+                    break;
+                }
             }
         }
         return list;
@@ -74,10 +79,9 @@ async function loadHistory(context, key) {
     // 裁剪
     if (ENV.AUTO_TRIM_HISTORY && ENV.MAX_HISTORY_LENGTH > 0) {
         history = trimHistory(history, 0, ENV.MAX_HISTORY_LENGTH, ENV.MAX_TOKEN_LENGTH);
-        original = trimHistory(original, 0, ENV.MAX_HISTORY_LENGTH, ENV.MAX_TOKEN_LENGTH);
     }
 
-    return {real: history, original: original};
+    return history;
 }
 
 
@@ -86,17 +90,19 @@ async function loadHistory(context, key) {
  * @param {string} text
  * @param {string | null} prompt
  * @param {ContextType} context
- * @param {function} llm
- * @param {function} modifier
- * @param {function} onStream
+ * @param {function(string, string, HistoryItem[], ContextType, function)} llm
+ * @param {function(HistoryItem[], string)} modifier
+ * @param {function(string)} onStream
  * @return {Promise<string>}
  */
 async function requestCompletionsFromLLM(text, prompt, context, llm, modifier, onStream) {
-    const historyDisable = ENV.AUTO_TRIM_HISTORY && ENV.MAX_HISTORY_LENGTH <= 0;
+    const historyDisable = context._info.lastStepHasFile || ENV.AUTO_TRIM_HISTORY && ENV.MAX_HISTORY_LENGTH <= 0;
     const historyKey = context.SHARE_CONTEXT.chatHistoryKey;
     const readStartTime = performance.now();
-    let history = await loadHistory(context, historyKey);
-
+    let history = [];
+    if (historyDisable) {
+        history = await loadHistory(historyKey);
+    }
     const readTime = ((performance.now() - readStartTime) / 1000).toFixed(2);
     console.log(`readHistoryTime: ${readTime}s`);
 
@@ -105,15 +111,14 @@ async function requestCompletionsFromLLM(text, prompt, context, llm, modifier, o
         history = modifierData.history;
         text = modifierData.text;
     }
-    const {real: realHistory, original: originalHistory} = history;
-    const answer = await llm(text, prompt, realHistory, context, onStream);
+    const answer = await llm(text, prompt, history, context, onStream);
     if (context._info.lastStepHasFile) {
         text = '[A FILE] ' + text;
     }
     if (!historyDisable && answer) {
-        originalHistory.push({ role: 'user', content: text || '' });
-        originalHistory.push({ role: 'assistant', content: answer });
-        await DATABASE.put(historyKey, JSON.stringify(originalHistory)).catch(console.error);
+        history.push({ role: 'user', content: text || '' });
+        history.push({ role: 'assistant', content: answer });
+        await DATABASE.put(historyKey, JSON.stringify(history)).catch(console.error);
     }
     return answer;
 }
@@ -166,7 +171,7 @@ export async function chatWithLLM(text, context, modifier, pointerLLM = loadChat
                         const retryAfter = parseInt(resp.headers.get('Retry-After'));
                         if (retryAfter) {
                             nextEnableTime = Date.now() + retryAfter * 1000;
-                            return
+                            return;
                         }
                     }
                     nextEnableTime = null;

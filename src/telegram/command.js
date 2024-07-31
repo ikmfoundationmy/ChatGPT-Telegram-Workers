@@ -1,14 +1,28 @@
-/* eslint-disable no-constant-condition */
-import "../types/context.js"
-import {CONST, CUSTOM_COMMAND, CUSTOM_COMMAND_DESCRIPTION, DATABASE, ENV, mergeEnvironment} from '../config/env.js';
+import "../types/context.js";
+import {
+    CONST,
+    CUSTOM_COMMAND,
+    CUSTOM_COMMAND_DESCRIPTION,
+    DATABASE,
+    ENV,
+    ENV_KEY_MAPPER,
+    mergeEnvironment
+} from '../config/env.js';
 import {
     getChatRoleWithContext,
-    sendChatActionToTelegramWithContext,
     sendMessageToTelegramWithContext,
     sendPhotoToTelegramWithContext,
+    sendChatActionToTelegramWithContext
 } from './telegram.js';
 import {chatWithLLM} from '../agent/llm.js';
-import {currentChatModel, currentImageModel, loadChatLLM, loadImageGen, customInfo} from "../agent/agents.js";
+import {
+    chatModelKey,
+    currentChatModel,
+    currentImageModel,
+    imageModelKey,
+    loadChatLLM,
+    loadImageGen, customInfo
+} from "../agent/agents.js";
 import { trimUserConfig } from "../config/context.js";
 const commandAuthCheck = {
     default: function (chatType) {
@@ -125,7 +139,7 @@ async function commandGenerateImg(message, command, subcommand, context) {
     return sendMessageToTelegramWithContext(context)(ENV.I18N.command.help.img);
   }
   try {
-    setTimeout(() => sendChatActionToTelegramWithContext(context)('upload_photo').catch(console.error), 0);
+    
     if (!context.CURRENT_CHAT_CONTEXT) {
       context.CURRENT_CHAT_CONTEXT = {};
     }
@@ -133,6 +147,8 @@ async function commandGenerateImg(message, command, subcommand, context) {
     if (!gen) {
       return sendMessageToTelegramWithContext(context)(`ERROR: Image generator not found`);
     }
+    setTimeout(() => sendChatActionToTelegramWithContext(context)('upload_photo').catch(console.error), 0);
+    
     const img = await gen(subcommand, context);
     return sendPhotoToTelegramWithContext(context)(img);
   } catch (e) {
@@ -223,8 +239,9 @@ async function commandUpdateUserConfig(message, command, subcommand, context, pr
   if (kv === -1) {
     return sendMessageToTelegramWithContext(context)(ENV.I18N.command.help.setenv);
   }
-  const key = subcommand.slice(0, kv);
+  let key = subcommand.slice(0, kv);
   const value = subcommand.slice(kv + 1);
+  key = ENV_KEY_MAPPER[key] || key;
   if (ENV.LOCK_USER_CONFIG_KEYS.includes(key)) {
     return sendMessageToTelegramWithContext(context)(`Key ${key} is locked`);
   }
@@ -269,7 +286,8 @@ async function commandUpdateUserConfigs(message, command, subcommand, context, p
     const values = JSON.parse(subcommand);
     const configKeys = Object.keys(context.USER_CONFIG);
     for (const ent of Object.entries(values)) {
-      const [key, value] = ent;
+      let [key, value] = ent;
+      key = ENV_KEY_MAPPER[key] || key;
       if (ENV.LOCK_USER_CONFIG_KEYS.includes(key)) {
         return sendMessageToTelegramWithContext(context)(`Key ${key} is locked`);
       }
@@ -278,7 +296,7 @@ async function commandUpdateUserConfigs(message, command, subcommand, context, p
       }
       mergeEnvironment(context.USER_CONFIG, {
         [key]: value,
-      })
+      });
       if (processUpdate) {
         if (key.endsWith('_MODEL')) {
           context._info.config('model', value);
@@ -488,20 +506,20 @@ async function commandFetchUpdate(message, command, subcommand, context) {
       sha: ENV.BUILD_VERSION,
   };
 
-  try {
-      const info = `https://raw.githubusercontent.com/TBXark/ChatGPT-Telegram-Workers/${ENV.UPDATE_BRANCH}/dist/buildinfo.json`;
-      const online = await fetch(info).then((r) => r.json())
-      const timeFormat = (ts) => {
-          return new Date(ts * 1000).toLocaleString('en-US', {})
-      }
-      if (current.ts < online.ts) {
-          return sendMessageToTelegramWithContext(context)(`New version detected: ${online.sha}(${timeFormat(online.ts)})\nCurrent version: ${current.sha}(${timeFormat(current.ts)})`);
-      } else {
-          return sendMessageToTelegramWithContext(context)(`Current version: ${current.sha}(${timeFormat(current.ts)}) is up to date`);
-      }
-  } catch (e) {
-      return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`);
-  }
+    try {
+        const info = `https://raw.githubusercontent.com/TBXark/ChatGPT-Telegram-Workers/${ENV.UPDATE_BRANCH}/dist/buildinfo.json`;
+        const online = await fetch(info).then((r) => r.json());
+        const timeFormat = (ts) => {
+            return new Date(ts * 1000).toLocaleString('en-US', {});
+        };
+        if (current.ts < online.ts) {
+            return sendMessageToTelegramWithContext(context)(`New version detected: ${online.sha}(${timeFormat(online.ts)})\nCurrent version: ${current.sha}(${timeFormat(current.ts)})`);
+        } else {
+            return sendMessageToTelegramWithContext(context)(`Current version: ${current.sha}(${timeFormat(current.ts)}) is up to date`);
+        }
+    } catch (e) {
+        return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`);
+    }
 }
 
 
@@ -515,42 +533,43 @@ async function commandFetchUpdate(message, command, subcommand, context) {
  * @return {Promise<Response>}
  */
 async function commandSystem(message, command, subcommand, context) {
-    let chatAgent = loadChatLLM(context)?.name;
-    let imageAgent = loadImageGen(context)?.name;
-    let chatModel = currentChatModel(chatAgent, context)
-    let imageModel = currentImageModel(imageAgent, context)
-    let msg = `<pre>AGENT: ${
-        JSON.stringify({
-            CHAT_AGENT: chatAgent,
-            CHAT_MODEL: chatModel,
-            IMAGE_AGENT: imageAgent,
-          IMAGE_MODEL: imageModel,
-          STT_MODEL: context.USER_CONFIG.OPENAI_STT_MODEL,
-          VISION_MODEL: context.USER_CONFIG.OPENAI_VISION_MODEL,
-        }, null, 2)
-    }\n` + customInfo(context.USER_CONFIG) + '\n</pre>';
-    if (ENV.DEV_MODE) {
-        const shareCtx = {...context.SHARE_CONTEXT};
-        shareCtx.currentBotToken = '******';
-        context.USER_CONFIG.OPENAI_API_KEY = ['******'];
-        context.USER_CONFIG.AZURE_API_KEY = '******';
-        context.USER_CONFIG.AZURE_PROXY_URL = '******';
-        context.USER_CONFIG.AZURE_DALLE_API = '******';
-        context.USER_CONFIG.CLOUDFLARE_ACCOUNT_ID = '******';
-        context.USER_CONFIG.CLOUDFLARE_TOKEN = '******';
-        context.USER_CONFIG.GOOGLE_API_KEY = '******';
-        context.USER_CONFIG.MISTRAL_API_KEY = '******';
-        context.USER_CONFIG.COHERE_API_KEY = '******';
-        context.USER_CONFIG.ANTHROPIC_API_KEY = '******';
-        const config = trimUserConfig(context.USER_CONFIG);
-        msg = '<pre>\n' + msg;
-        msg += `USER_CONFIG: ${JSON.stringify(config, null, 2)}\n`;
-        msg += `CHAT_CONTEXT: ${JSON.stringify(context.CURRENT_CHAT_CONTEXT, null, 2)}\n`;
-        msg += `SHARE_CONTEXT: ${JSON.stringify(shareCtx, null, 2)}\n`;
-        msg += '</pre>';
-    }
-    context.CURRENT_CHAT_CONTEXT.parse_mode = 'HTML';
-    return sendMessageToTelegramWithContext(context)(msg);
+  let chatAgent = loadChatLLM(context)?.name;
+  let imageAgent = loadImageGen(context)?.name;
+  const agent = {
+    AI_PROVIDER: chatAgent,
+    AI_IMAGE_PROVIDER: imageAgent,
+  };
+  if (chatModelKey(chatAgent)) {
+    agent[chatModelKey(chatAgent)] = currentChatModel(chatAgent, context);
+  }
+  if (imageModelKey(imageAgent)) {
+    agent[imageModelKey(imageAgent)] = currentImageModel(imageAgent, context);
+  }
+  agent.STT_MODEL = context.USER_CONFIG.OPENAI_STT_MODEL;
+  agent.VISION_MODEL = context.USER_CONFIG.OPENAI_VISION_MODEL;
+  let msg = `<pre>AGENT: ${JSON.stringify(agent, null, 2)}\n` + customInfo(context.USER_CONFIG) + '\n</pre>';
+  if (ENV.DEV_MODE) {
+    const shareCtx = { ...context.SHARE_CONTEXT };
+    shareCtx.currentBotToken = '******';
+    context.USER_CONFIG.OPENAI_API_KEY = ['******'];
+    context.USER_CONFIG.AZURE_API_KEY = '******';
+    context.USER_CONFIG.AZURE_PROXY_URL = '******';
+    context.USER_CONFIG.AZURE_DALLE_API = '******';
+    context.USER_CONFIG.CLOUDFLARE_ACCOUNT_ID = '******';
+    context.USER_CONFIG.CLOUDFLARE_TOKEN = '******';
+    context.USER_CONFIG.GOOGLE_API_KEY = '******';
+    context.USER_CONFIG.MISTRAL_API_KEY = '******';
+    context.USER_CONFIG.COHERE_API_KEY = '******';
+    context.USER_CONFIG.ANTHROPIC_API_KEY = '******';
+    const config = trimUserConfig(context.USER_CONFIG);
+    msg = '<pre>\n' + msg;
+    msg += `USER_CONFIG: ${JSON.stringify(config, null, 2)}\n`;
+    msg += `CHAT_CONTEXT: ${JSON.stringify(context.CURRENT_CHAT_CONTEXT, null, 2)}\n`;
+    msg += `SHARE_CONTEXT: ${JSON.stringify(shareCtx, null, 2)}\n`;
+    msg += '</pre>';
+  }
+  context.CURRENT_CHAT_CONTEXT.parse_mode = 'HTML';
+  return sendMessageToTelegramWithContext(context)(msg);
 }
 
 /**
@@ -564,14 +583,13 @@ async function commandSystem(message, command, subcommand, context) {
  */
 async function commandRegenerate(message, command, subcommand, context) {
     const mf = (history, text) => {
-        const {real, original} = history;
         let nextText = text;
-        if (!real || !original || real.length === 0 || original.length === 0) {
+        if (!(history && Array.isArray(history) && history.length > 0)) {
             throw new Error('History not found');
         }
+        const historyCopy = structuredClone(history);
         while (true) {
-            const data = real.pop();
-            original.pop();
+            const data = historyCopy.pop();
             if (data === undefined || data === null) {
                 break;
             } else if (data.role === 'user') {
@@ -584,7 +602,7 @@ async function commandRegenerate(message, command, subcommand, context) {
         if (subcommand) {
             nextText = subcommand;
         }
-        return {history: {real, original}, text: nextText};
+        return {history: historyCopy, text: nextText};
     };
     return chatWithLLM(null, context, mf);
 }

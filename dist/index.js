@@ -112,6 +112,7 @@ var UserConfig = class {
   AZURE_PROXY_URL = null;
   // Azure DallE API
   // https://RESOURCE_NAME.openai.azure.com/openai/deployments/MODEL_NAME/images/generations?api-version=VERSION_NAME
+  // https://RESOURCE_NAME.openai.azure.com/openai/deployments/MODEL_NAME/images/generations?api-version=VERSION_NAME
   AZURE_DALLE_API = null;
   // -- Workers 配置 --
   //
@@ -404,11 +405,11 @@ function initEnv(env, i18n2) {
       }
       ENV.TELEGRAM_AVAILABLE_TOKENS.push(env.TELEGRAM_TOKEN);
     }
-    if (env.WORKERS_AI_MODEL) {
-      ENV.USER_CONFIG.WORKERS_CHAT_MODEL = env.WORKERS_AI_MODEL;
-    }
     if (env.OPENAI_API_DOMAIN && !ENV.OPENAI_API_BASE) {
       ENV.USER_CONFIG.OPENAI_API_BASE = `${env.OPENAI_API_DOMAIN}/v1`;
+    }
+    if (env.WORKERS_AI_MODEL && !ENV.USER_CONFIG.WORKERS_CHAT_MODEL) {
+      ENV.USER_CONFIG.WORKERS_CHAT_MODEL = env.WORKERS_AI_MODEL;
     }
     if (env.API_KEY && ENV.USER_CONFIG.OPENAI_API_KEY.length === 0) {
       ENV.USER_CONFIG.OPENAI_API_KEY = env.API_KEY.split(",");
@@ -1810,7 +1811,12 @@ var chatLlmAgents = [
 function currentChatModel(agentName, context) {
   switch (agentName) {
     case "azure":
-      return "azure";
+      try {
+        const url = new URL(context.USER_CONFIG.AZURE_COMPLETIONS_API);
+        return url.pathname.split("/")[3];
+      } catch {
+        return context.USER_CONFIG.AZURE_COMPLETIONS_API;
+      }
     case "openai":
       return context.USER_CONFIG.OPENAI_CHAT_MODEL;
     case "workers":
@@ -1823,6 +1829,26 @@ function currentChatModel(agentName, context) {
       return context.USER_CONFIG.COHERE_CHAT_MODEL;
     case "anthropic":
       return context.USER_CONFIG.ANTHROPIC_CHAT_MODEL;
+    default:
+      return null;
+  }
+}
+function chatModelKey(agentName) {
+  switch (agentName) {
+    case "azure":
+      return "AZURE_COMPLETIONS_API";
+    case "openai":
+      return "OPENAI_CHAT_MODEL";
+    case "workers":
+      return "WORKERS_CHAT_MODEL";
+    case "gemini":
+      return "GOOGLE_COMPLETIONS_MODEL";
+    case "mistral":
+      return "MISTRAL_CHAT_MODEL";
+    case "cohere":
+      return "COHERE_CHAT_MODEL";
+    case "anthropic":
+      return "ANTHROPIC_CHAT_MODEL";
     default:
       return null;
   }
@@ -1936,11 +1962,28 @@ function loadImageGen(context) {
 function currentImageModel(agentName, context) {
   switch (agentName) {
     case "azure":
-      return "azure";
+      try {
+        const url = new URL(context.USER_CONFIG.AZURE_DALLE_API);
+        return url.pathname.split("/")[3];
+      } catch {
+        return context.USER_CONFIG.AZURE_DALLE_API;
+      }
     case "openai":
       return context.USER_CONFIG.OPENAI_IMAGE_MODEL;
     case "workers":
       return context.USER_CONFIG.WORKERS_IMAGE_MODEL;
+    default:
+      return null;
+  }
+}
+function imageModelKey(agentName) {
+  switch (agentName) {
+    case "azure":
+      return "AZURE_DALLE_API";
+    case "openai":
+      return "DALL_E_MODEL";
+    case "workers":
+      return "WORKERS_IMAGE_MODEL";
     default:
       return null;
   }
@@ -2158,6 +2201,7 @@ function tokensCounter() {
     return text.length;
   };
 }
+async function loadHistory(key) {
 async function loadHistory(context, key) {
   const historyDisable = context._info.lastStepHasFile || ENV.AUTO_TRIM_HISTORY && ENV.MAX_HISTORY_LENGTH <= 0;
   if (historyDisable) {
@@ -2172,37 +2216,37 @@ async function loadHistory(context, key) {
   if (!history || !Array.isArray(history)) {
     history = [];
   }
-  let original = JSON.parse(JSON.stringify(history));
   const counter = tokensCounter();
   const trimHistory = (list, initLength, maxLength, maxToken) => {
-    if (list.length > maxLength) {
+    if (maxLength >= 0 && list.length > maxLength) {
       list = list.splice(list.length - maxLength);
     }
-    let tokenLength = initLength;
-    for (let i = list.length - 1; i >= 0; i--) {
-      const historyItem = list[i];
-      let length = 0;
-      if (historyItem.content) {
-        length = counter(historyItem.content);
-      } else {
-        historyItem.content = "";
-      }
-      tokenLength += length;
-      if (tokenLength > maxToken) {
-        list = list.splice(i + 1);
-        break;
+    if (maxToken >= 0) {
+      let tokenLength = initLength;
+      for (let i = list.length - 1; i >= 0; i--) {
+        const historyItem = list[i];
+        let length = 0;
+        if (historyItem.content) {
+          length = counter(historyItem.content);
+        } else {
+          historyItem.content = "";
+        }
+        tokenLength += length;
+        if (tokenLength > maxToken) {
+          list = list.splice(i + 1);
+          break;
+        }
       }
     }
     return list;
   };
   if (ENV.AUTO_TRIM_HISTORY && ENV.MAX_HISTORY_LENGTH > 0) {
     history = trimHistory(history, 0, ENV.MAX_HISTORY_LENGTH, ENV.MAX_TOKEN_LENGTH);
-    original = trimHistory(original, 0, ENV.MAX_HISTORY_LENGTH, ENV.MAX_TOKEN_LENGTH);
   }
-  return { real: history, original };
+  return history;
 }
 async function requestCompletionsFromLLM(text, prompt, context, llm, modifier, onStream) {
-  const historyDisable = ENV.AUTO_TRIM_HISTORY && ENV.MAX_HISTORY_LENGTH <= 0;
+  const historyDisable = context._info.lastStepHasFile || ENV.AUTO_TRIM_HISTORY && ENV.MAX_HISTORY_LENGTH <= 0;
   const historyKey = context.SHARE_CONTEXT.chatHistoryKey;
   const readStartTime = performance.now();
   let history = await loadHistory(context, historyKey);
@@ -2213,15 +2257,14 @@ async function requestCompletionsFromLLM(text, prompt, context, llm, modifier, o
     history = modifierData.history;
     text = modifierData.text;
   }
-  const { real: realHistory, original: originalHistory } = history;
-  const answer = await llm(text, prompt, realHistory, context, onStream);
+  const answer = await llm(text, prompt, history, context, onStream);
   if (context._info.lastStepHasFile) {
     text = "[A FILE] " + text;
   }
   if (!historyDisable && answer) {
-    originalHistory.push({ role: "user", content: text || "" });
-    originalHistory.push({ role: "assistant", content: answer });
-    await DATABASE.put(historyKey, JSON.stringify(originalHistory)).catch(console.error);
+    history.push({ role: "user", content: text || "" });
+    history.push({ role: "assistant", content: answer });
+    await DATABASE.put(historyKey, JSON.stringify(history)).catch(console.error);
   }
   return answer;
 }
@@ -2525,10 +2568,14 @@ async function commandUpdateUserConfig(message, command, subcommand, context, pr
   if (kv === -1) {
     return sendMessageToTelegramWithContext(context)(ENV.I18N.command.help.setenv);
   }
-  const key = subcommand.slice(0, kv);
+  let key = subcommand.slice(0, kv);
   const value = subcommand.slice(kv + 1);
+  key = ENV_KEY_MAPPER[key] || key;
   if (ENV.LOCK_USER_CONFIG_KEYS.includes(key)) {
     return sendMessageToTelegramWithContext(context)(`Key ${key} is locked`);
+  }
+  if (!Object.keys(context.USER_CONFIG).includes(key)) {
+    return sendMessageToTelegramWithContext(context)(`Key ${key} not found`);
   }
   if (!Object.keys(context.USER_CONFIG).includes(key)) {
     return sendMessageToTelegramWithContext(context)(`Key ${key} not found`);
@@ -2560,8 +2607,10 @@ async function commandUpdateUserConfigs(message, command, subcommand, context, p
     }
     const values = JSON.parse(subcommand);
     const configKeys = Object.keys(context.USER_CONFIG);
+    const configKeys = Object.keys(context.USER_CONFIG);
     for (const ent of Object.entries(values)) {
-      const [key, value] = ent;
+      let [key, value] = ent;
+      key = ENV_KEY_MAPPER[key] || key;
       if (ENV.LOCK_USER_CONFIG_KEYS.includes(key)) {
         return sendMessageToTelegramWithContext(context)(`Key ${key} is locked`);
       }
@@ -2770,14 +2819,13 @@ async function commandSystem(message, command, subcommand, context) {
 }
 async function commandRegenerate(message, command, subcommand, context) {
   const mf = (history, text) => {
-    const { real, original } = history;
     let nextText = text;
-    if (!real || !original || real.length === 0 || original.length === 0) {
+    if (!(history && Array.isArray(history) && history.length > 0)) {
       throw new Error("History not found");
     }
+    const historyCopy = structuredClone(history);
     while (true) {
-      const data = real.pop();
-      original.pop();
+      const data = historyCopy.pop();
       if (data === void 0 || data === null) {
         break;
       } else if (data.role === "user") {
@@ -2790,7 +2838,7 @@ async function commandRegenerate(message, command, subcommand, context) {
     if (subcommand) {
       nextText = subcommand;
     }
-    return { history: { real, original }, text: nextText };
+    return { history: historyCopy, text: nextText };
   };
   return chatWithLLM(null, context, mf);
 }
@@ -3385,8 +3433,13 @@ function i18n(lang) {
     case "pt":
     case "pt-br":
       return pt_default;
+    case "pt":
+    case "pt-br":
+      return pt_default;
     case "en":
     case "en-us":
+      return en_default;
+    default:
       return en_default;
     default:
       return en_default;

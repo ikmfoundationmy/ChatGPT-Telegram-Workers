@@ -115,7 +115,7 @@ export class MiddleInfo {
         text: msg_info.text,
       },
     ];
-    this._bp_config = JSON.parse(JSON.stringify(USER_CONFIG)) // 备份用户配置
+    this._bp_config = JSON.parse(JSON.stringify(USER_CONFIG)); // 备份用户配置
     this.msg_type = msg_info.msgType; // tg消息类型 text audio image
     this.process_type = null;
   }
@@ -213,10 +213,8 @@ export class MiddleInfo {
         throw new Error('unsupport type');
     }
     if (!this.model) {
-      // auto状态时无法直接读取模型 需要根据类型去判断 默认显示openai的
-      if (USER_CONFIG.AI_PROVIDER === 'auto') {
-        this.model = USER_CONFIG[`OPENAI_${chatType}_MODEL`];
-      } else this.model = USER_CONFIG[`${USER_CONFIG.AI_PROVIDER.toUpperCase()}_${chatType}_MODEL`];
+      // auto状态 / provider与模型不匹配时 无法直接读取模型 默认显示openai的模型
+      this.model = USER_CONFIG[`${USER_CONFIG.AI_PROVIDER.toUpperCase()}_${chatType}_MODEL`] || USER_CONFIG[`OPENAI_${chatType}_MODEL`];
     }
 
     // const user_keys = Object.keys(USER_CONFIG);
