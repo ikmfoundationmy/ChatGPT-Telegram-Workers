@@ -335,7 +335,7 @@ async function commandUpdateUserConfigs(message, command, subcommand, context, p
 async function commandSetUserConfigs(message, command, subcommand, context) {
   try {
     if (!subcommand) {
-      return sendMessageToTelegramWithContext(context)(ENV.I18N.command.help.setenvs);
+      return sendMessageToTelegramWithContext(context)('```plaintext\n' + ENV.I18N.command.detail.set + '\n```');
     }
     const keys = Object.fromEntries(ENV.MAPPING_KEY.split('|').map((k) => k.split(':')));
     if (keys['-u']) {

@@ -112,7 +112,6 @@ var UserConfig = class {
   AZURE_PROXY_URL = null;
   // Azure DallE API
   // https://RESOURCE_NAME.openai.azure.com/openai/deployments/MODEL_NAME/images/generations?api-version=VERSION_NAME
-  // https://RESOURCE_NAME.openai.azure.com/openai/deployments/MODEL_NAME/images/generations?api-version=VERSION_NAME
   AZURE_DALLE_API = null;
   // -- Workers 配置 --
   //
@@ -200,9 +199,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1722426808;
+  BUILD_TIMESTAMP = 1722445928;
   // 当前版本 commit id
-  BUILD_VERSION = "11e0c3a";
+  BUILD_VERSION = "8bdb99f";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -308,6 +307,11 @@ var Environment = class {
   MAPPING_VALUE = "";
   // MAPPING_VALUE = "c35son:claude-3-5-sonnet-20240620|haiku:claude-3-haiku-20240307|g4m:gpt-4o-mini|g4:gpt-4o|rp+:command-r-plus";
 };
+var ENV_KEY_MAPPER = {
+  CHAT_MODEL: "OPENAI_CHAT_MODEL",
+  API_KEY: "OPENAI_API_KEY",
+  WORKERS_AI_MODEL: "WORKERS_CHAT_MODEL"
+};
 var ENV = new Environment();
 var DATABASE = null;
 var API_GUARD = null;
@@ -327,9 +331,7 @@ var ENV_TYPES = {
   GOOGLE_API_KEY: "string",
   MISTRAL_API_KEY: "string",
   COHERE_API_KEY: "string",
-  ANTHROPIC_API_KEY: "string",
-  MAPPING_KEY: "string",
-  MAPPING_VALUE: "string"
+  ANTHROPIC_API_KEY: "string"
 };
 function parseArray(raw) {
   if (raw.startsWith("[") && raw.endsWith("]")) {
@@ -2169,10 +2171,7 @@ Token: ${Object.values(this.token_info[this.step_index]).join(" | ")}`;
         throw new Error("unsupport type");
     }
     if (!this.model) {
-      if (USER_CONFIG.AI_PROVIDER === "auto") {
-        this.model = USER_CONFIG[`OPENAI_${chatType}_MODEL`];
-      } else
-        this.model = USER_CONFIG[`${USER_CONFIG.AI_PROVIDER.toUpperCase()}_${chatType}_MODEL`];
+      this.model = USER_CONFIG[`${USER_CONFIG.AI_PROVIDER.toUpperCase()}_${chatType}_MODEL`] || USER_CONFIG[`OPENAI_${chatType}_MODEL`];
     }
     for (const [key, value] of Object.entries(this.processes[this.step_index - 1])) {
       switch (key) {
@@ -2202,14 +2201,15 @@ function tokensCounter() {
   };
 }
 async function loadHistory(key) {
-async function loadHistory(context, key) {
-  const historyDisable = context._info.lastStepHasFile || ENV.AUTO_TRIM_HISTORY && ENV.MAX_HISTORY_LENGTH <= 0;
-  if (historyDisable) {
-    return { real: [], original: [] };
-  }
   let history = [];
   try {
-    history = JSON.parse(await DATABASE.get(key) || "{}");
+    history = JSON.parse(await DATABASE.get(key) || "[]");
+    history = history.map((item) => {
+      return {
+        role: item.role,
+        content: item.content
+      };
+    });
   } catch (e) {
     console.error(e);
   }
@@ -2249,7 +2249,10 @@ async function requestCompletionsFromLLM(text, prompt, context, llm, modifier, o
   const historyDisable = context._info.lastStepHasFile || ENV.AUTO_TRIM_HISTORY && ENV.MAX_HISTORY_LENGTH <= 0;
   const historyKey = context.SHARE_CONTEXT.chatHistoryKey;
   const readStartTime = performance.now();
-  let history = await loadHistory(context, historyKey);
+  let history = [];
+  if (historyDisable) {
+    history = await loadHistory(historyKey);
+  }
   const readTime = ((performance.now() - readStartTime) / 1e3).toFixed(2);
   console.log(`readHistoryTime: ${readTime}s`);
   if (modifier) {
@@ -2506,7 +2509,6 @@ async function commandGenerateImg(message, command, subcommand, context) {
     return sendMessageToTelegramWithContext(context)(ENV.I18N.command.help.img);
   }
   try {
-    setTimeout(() => sendChatActionToTelegramWithContext(context)("upload_photo").catch(console.error), 0);
     if (!context.CURRENT_CHAT_CONTEXT) {
       context.CURRENT_CHAT_CONTEXT = {};
     }
@@ -2514,6 +2516,7 @@ async function commandGenerateImg(message, command, subcommand, context) {
     if (!gen) {
       return sendMessageToTelegramWithContext(context)(`ERROR: Image generator not found`);
     }
+    setTimeout(() => sendChatActionToTelegramWithContext(context)("upload_photo").catch(console.error), 0);
     const img = await gen(subcommand, context);
     return sendPhotoToTelegramWithContext(context)(img);
   } catch (e) {
@@ -2577,9 +2580,6 @@ async function commandUpdateUserConfig(message, command, subcommand, context, pr
   if (!Object.keys(context.USER_CONFIG).includes(key)) {
     return sendMessageToTelegramWithContext(context)(`Key ${key} not found`);
   }
-  if (!Object.keys(context.USER_CONFIG).includes(key)) {
-    return sendMessageToTelegramWithContext(context)(`Key ${key} not found`);
-  }
   try {
     mergeEnvironment(context.USER_CONFIG, {
       [key]: value
@@ -2606,7 +2606,6 @@ async function commandUpdateUserConfigs(message, command, subcommand, context, p
       return sendMessageToTelegramWithContext(context)(ENV.I18N.command.help.setenvs);
     }
     const values = JSON.parse(subcommand);
-    const configKeys = Object.keys(context.USER_CONFIG);
     const configKeys = Object.keys(context.USER_CONFIG);
     for (const ent of Object.entries(values)) {
       let [key, value] = ent;
@@ -2647,7 +2646,7 @@ async function commandUpdateUserConfigs(message, command, subcommand, context, p
 async function commandSetUserConfigs(message, command, subcommand, context) {
   try {
     if (!subcommand) {
-      return sendMessageToTelegramWithContext(context)(ENV.I18N.command.help.setenvs);
+      return sendMessageToTelegramWithContext(context)("```plaintext\n" + ENV.I18N.command.detail.set + "\n```");
     }
     const keys = Object.fromEntries(ENV.MAPPING_KEY.split("|").map((k) => k.split(":")));
     if (keys["-u"]) {
@@ -2780,16 +2779,19 @@ Current version: ${current.sha}(${timeFormat(current.ts)})`);
 async function commandSystem(message, command, subcommand, context) {
   let chatAgent = loadChatLLM(context)?.name;
   let imageAgent = loadImageGen(context)?.name;
-  let chatModel = currentChatModel(chatAgent, context);
-  let imageModel = currentImageModel(imageAgent, context);
-  let msg = `<pre>AGENT: ${JSON.stringify({
-    CHAT_AGENT: chatAgent,
-    CHAT_MODEL: chatModel,
-    IMAGE_AGENT: imageAgent,
-    IMAGE_MODEL: imageModel,
-    STT_MODEL: context.USER_CONFIG.OPENAI_STT_MODEL,
-    VISION_MODEL: context.USER_CONFIG.OPENAI_VISION_MODEL
-  }, null, 2)}
+  const agent = {
+    AI_PROVIDER: chatAgent,
+    AI_IMAGE_PROVIDER: imageAgent
+  };
+  if (chatModelKey(chatAgent)) {
+    agent[chatModelKey(chatAgent)] = currentChatModel(chatAgent, context);
+  }
+  if (imageModelKey(imageAgent)) {
+    agent[imageModelKey(imageAgent)] = currentImageModel(imageAgent, context);
+  }
+  agent.STT_MODEL = context.USER_CONFIG.OPENAI_STT_MODEL;
+  agent.VISION_MODEL = context.USER_CONFIG.OPENAI_VISION_MODEL;
+  let msg = `<pre>AGENT: ${JSON.stringify(agent, null, 2)}
 ` + customInfo(context.USER_CONFIG) + "\n</pre>";
   if (ENV.DEV_MODE) {
     const shareCtx = { ...context.SHARE_CONTEXT };
@@ -3384,14 +3386,10 @@ async function handleRequest(request) {
 }
 
 // src/i18n/zh-hans.js
-var zh_hans_default = { "env": { "system_init_message": "\u4F60\u662F\u4E00\u4E2A\u5F97\u529B\u7684\u52A9\u624B" }, "command": { "help": { "summary": "\u5F53\u524D\u652F\u6301\u4EE5\u4E0B\u547D\u4EE4:\n", "help": "\u83B7\u53D6\u547D\u4EE4\u5E2E\u52A9", "new": "\u53D1\u8D77\u65B0\u7684\u5BF9\u8BDD", "start": "\u83B7\u53D6\u4F60\u7684ID, \u5E76\u53D1\u8D77\u65B0\u7684\u5BF9\u8BDD", "img": "\u751F\u6210\u4E00\u5F20\u56FE\u7247, \u547D\u4EE4\u5B8C\u6574\u683C\u5F0F\u4E3A `/img \u56FE\u7247\u63CF\u8FF0`, \u4F8B\u5982`/img \u6708\u5149\u4E0B\u7684\u6C99\u6EE9`", "version": "\u83B7\u53D6\u5F53\u524D\u7248\u672C\u53F7, \u5224\u65AD\u662F\u5426\u9700\u8981\u66F4\u65B0", "setenv": "\u8BBE\u7F6E\u7528\u6237\u914D\u7F6E\uFF0C\u547D\u4EE4\u5B8C\u6574\u683C\u5F0F\u4E3A /setenv KEY=VALUE", "setenvs": '\u6279\u91CF\u8BBE\u7F6E\u7528\u6237\u914D\u7F6E, \u547D\u4EE4\u5B8C\u6574\u683C\u5F0F\u4E3A /setenvs {"KEY1": "VALUE1", "KEY2": "VALUE2"}', "delenv": "\u5220\u9664\u7528\u6237\u914D\u7F6E\uFF0C\u547D\u4EE4\u5B8C\u6574\u683C\u5F0F\u4E3A /delenv KEY", "clearenv": "\u6E05\u9664\u6240\u6709\u7528\u6237\u914D\u7F6E, send /clearenv true", "system": "\u67E5\u770B\u5F53\u524D\u4E00\u4E9B\u7CFB\u7EDF\u4FE1\u606F", "redo": "\u91CD\u505A\u4E0A\u4E00\u6B21\u7684\u5BF9\u8BDD, /redo \u52A0\u4FEE\u6539\u8FC7\u7684\u5185\u5BB9 \u6216\u8005 \u76F4\u63A5 /redo", "echo": "\u56DE\u663E\u6D88\u606F", "mode": "\u547D\u4EE4\u5B8C\u6574\u683C\u5F0F\u4E3A /mode NAME, \u5F53NAME=all\u65F6, \u67E5\u770B\u6240\u6709mode" }, "new": { "new_chat_start": "\u65B0\u7684\u5BF9\u8BDD\u5DF2\u7ECF\u5F00\u59CB" } } };
-
-// src/i18n/zh-hant.js
-var zh_hant_default = { "env": { "system_init_message": "\u4F60\u662F\u4E00\u500B\u5F97\u529B\u7684\u52A9\u624B" }, "command": { "help": { "summary": "\u7576\u524D\u652F\u6301\u7684\u547D\u4EE4\u5982\u4E0B\uFF1A\n", "help": "\u7372\u53D6\u547D\u4EE4\u5E6B\u52A9", "new": "\u958B\u59CB\u4E00\u500B\u65B0\u5C0D\u8A71", "start": "\u7372\u53D6\u60A8\u7684ID\u4E26\u958B\u59CB\u4E00\u500B\u65B0\u5C0D\u8A71", "img": "\u751F\u6210\u5716\u7247\uFF0C\u5B8C\u6574\u547D\u4EE4\u683C\u5F0F\u70BA`/img \u5716\u7247\u63CF\u8FF0`\uFF0C\u4F8B\u5982`/img \u6D77\u7058\u6708\u5149`", "version": "\u7372\u53D6\u7576\u524D\u7248\u672C\u865F\u78BA\u8A8D\u662F\u5426\u9700\u8981\u66F4\u65B0", "setenv": "\u8A2D\u7F6E\u7528\u6236\u914D\u7F6E\uFF0C\u5B8C\u6574\u547D\u4EE4\u683C\u5F0F\u70BA/setenv KEY=VALUE", "setenvs": '\u6279\u91CF\u8A2D\u7F6E\u7528\u6237\u914D\u7F6E, \u547D\u4EE4\u5B8C\u6574\u683C\u5F0F\u70BA /setenvs {"KEY1": "VALUE1", "KEY2": "VALUE2"}', "delenv": "\u522A\u9664\u7528\u6236\u914D\u7F6E\uFF0C\u5B8C\u6574\u547D\u4EE4\u683C\u5F0F\u70BA/delenv KEY", "clearenv": "\u6E05\u9664\u6240\u6709\u7528\u6236\u914D\u7F6E, \u53D1\u9001/clearenv true", "system": "\u67E5\u770B\u4E00\u4E9B\u7CFB\u7D71\u4FE1\u606F", "redo": "\u91CD\u505A\u4E0A\u4E00\u6B21\u7684\u5C0D\u8A71 /redo \u52A0\u4FEE\u6539\u904E\u7684\u5167\u5BB9 \u6216\u8005 \u76F4\u63A5 /redo", "echo": "\u56DE\u663E\u6D88\u606F", "mode": "\u547D\u4EE4\u683C\u5F0F\u70BA /mode NAME, \u5F53NAME=all\u65F6, \u67E5\u770B\u6240\u6709mode" }, "new": { "new_chat_start": "\u958B\u59CB\u4E00\u500B\u65B0\u5C0D\u8A71" }, "detail": { "set": `/set \u547D\u4EE4\u683C\u5F0F\u4E3A /set \u9009\u9879 \u503C [\u9009\u9879 \u503C\u2026] [-u][
-]
+var zh_hans_default = { "env": { "system_init_message": "\u4F60\u662F\u4E00\u4E2A\u5F97\u529B\u7684\u52A9\u624B" }, "command": { "help": { "summary": "\u5F53\u524D\u652F\u6301\u4EE5\u4E0B\u547D\u4EE4:\n", "help": "\u83B7\u53D6\u547D\u4EE4\u5E2E\u52A9", "new": "\u53D1\u8D77\u65B0\u7684\u5BF9\u8BDD", "start": "\u83B7\u53D6\u4F60\u7684ID, \u5E76\u53D1\u8D77\u65B0\u7684\u5BF9\u8BDD", "img": "\u751F\u6210\u4E00\u5F20\u56FE\u7247, \u547D\u4EE4\u5B8C\u6574\u683C\u5F0F\u4E3A `/img \u56FE\u7247\u63CF\u8FF0`, \u4F8B\u5982`/img \u6708\u5149\u4E0B\u7684\u6C99\u6EE9`", "version": "\u83B7\u53D6\u5F53\u524D\u7248\u672C\u53F7, \u5224\u65AD\u662F\u5426\u9700\u8981\u66F4\u65B0", "setenv": "\u8BBE\u7F6E\u7528\u6237\u914D\u7F6E\uFF0C\u547D\u4EE4\u5B8C\u6574\u683C\u5F0F\u4E3A /setenv KEY=VALUE", "setenvs": '\u6279\u91CF\u8BBE\u7F6E\u7528\u6237\u914D\u7F6E, \u547D\u4EE4\u5B8C\u6574\u683C\u5F0F\u4E3A /setenvs {"KEY1": "VALUE1", "KEY2": "VALUE2"}', "set": "/set \u547D\u4EE4\u683C\u5F0F\u4E3A /set \u9009\u9879 \u503C [\u9009\u9879 \u503C\u2026] [-u][\\n]", "delenv": "\u5220\u9664\u7528\u6237\u914D\u7F6E\uFF0C\u547D\u4EE4\u5B8C\u6574\u683C\u5F0F\u4E3A /delenv KEY", "clearenv": "\u6E05\u9664\u6240\u6709\u7528\u6237\u914D\u7F6E, send /clearenv true", "system": "\u67E5\u770B\u5F53\u524D\u4E00\u4E9B\u7CFB\u7EDF\u4FE1\u606F", "redo": "\u91CD\u505A\u4E0A\u4E00\u6B21\u7684\u5BF9\u8BDD, /redo \u52A0\u4FEE\u6539\u8FC7\u7684\u5185\u5BB9 \u6216\u8005 \u76F4\u63A5 /redo", "echo": "\u56DE\u663E\u6D88\u606F", "mode": "\u547D\u4EE4\u5B8C\u6574\u683C\u5F0F\u4E3A /mode NAME, \u5F53NAME=all\u65F6, \u67E5\u770B\u6240\u6709mode" }, "new": { "new_chat_start": "\u65B0\u7684\u5BF9\u8BDD\u5DF2\u7ECF\u5F00\u59CB" }, "detail": { "set": `/set \u547D\u4EE4\u683C\u5F0F\u4E3A /set \u9009\u9879 \u503C [\u9009\u9879 \u503C\u2026] [-u][\\n]
   \u9009\u9879\u9884\u7F6E\u5982\u4E0B\uFF1A 
   -p \u8C03\u6574 SYSTEM_INIT_MESSAGE
-  -om \u8C03\u6574 OPENAI_CHAT_MODEL
+  -m \u8C03\u6574 CHAT_MODEL
   -n \u8C03\u6574 MAX_HISTORY_LENGTH
   -a \u8C03\u6574 AI_PROVIDER
   -ai \u8C03\u6574 AI_IMAGE_PROVIDER
@@ -3401,7 +3399,32 @@ var zh_hant_default = { "env": { "system_init_message": "\u4F60\u662F\u4E00\u500
   \u53EF\u81EA\u884C\u8BBE\u7F6E MAPPING_KEY, \u4F7F\u7528\u534A\u89D2|\u8FDB\u884C\u5206\u5272,:\u5DE6\u8FB9\u4E3A\u9009\u9879\uFF0C\u53F3\u8FB9\u4E3A\u5BF9\u5E94\u53D8\u91CF
   \u53EF\u8BBE\u7F6E\u503C MAPPING_KEY \u5BF9\u67D0\u4E9B\u5E38\u7528\u503C\u8FDB\u884C\u7B80\u5199\uFF0C\u540C\u6837\u534A\u89D2|\u8FDB\u884C\u5206\u5272,:\u5DE6\u8FB9\u4E3A\u9009\u9879\uFF0C\u53F3\u8FB9\u4E3A\u5BF9\u5E94\u53D8\u91CF
   \u4F8B\u5982\uFF1AMAPPING_VALUE = 'c35son:claude-3-5-sonnet-20240620|r+:command-r-plus'
-  \u5728\u4F7F\u7528/set\u65F6\u5FEB\u901F\u8C03\u6574\u53C2\u6570: /set -om r+ -v gpt-4o
+  \u5728\u4F7F\u7528/set\u65F6\u5FEB\u901F\u8C03\u6574\u53C2\u6570: /set -m r+ -v gpt-4o
+
+  /set\u547D\u4EE4\u9ED8\u8BA4\u4E0D\u4F1A\u5C06\u4FEE\u6539\u7684\u53C2\u6570\u5B58\u50A8\uFF0C\u4EC5\u4E34\u65F6\u8C03\u6574\uFF0C\u5355\u6B21\u5BF9\u8BDD\u6709\u6548\uFF1B\u9700\u8981\u5B58\u50A8\u4FEE\u6539\u65F6\uFF0C\u8FFD\u52A0\u53C2\u6570-u
+  /set\u547D\u4EE4\u8FFD\u52A0\u6587\u672C\u5904\u7406\u65F6\uFF0C\u9700\u8981\u952E\u5165\u6362\u884C\u6765\u8FDB\u884C\u5206\u5272\uFF0C\u53E6\u8D77\u4E00\u884C\u8F93\u5165\u5BF9\u8BDD\uFF0C\u4E0D\u6362\u884C\u65F6\u7C7B\u4F3C/setenv \u65E0\u6CD5\u7EE7\u7EED\u4E0E\u6A21\u578B\u5BF9\u8BDD
+  \u9009\u9879\u4E0E\u53C2\u6570\u503C\u5747\u4E3A\u7A7A\u683C\u5206\u5272\uFF0C\u6545\u4E24\u8005\u672C\u8EAB\u4E0D\u80FD\u6709\u7A7A\u683C\uFF0C\u5426\u5219\u53EF\u80FD\u4F1A\u89E3\u6790\u51FA\u9519
+  \u8C03\u6574SYSTEM_INIT_MESSAGE\u65F6\uFF0C\u82E5\u8BBE\u7F6E\u4E86PROMPT\u53EF\u76F4\u63A5\u4F7F\u7528\u8BBE\u7F6E\u4E3A\u89D2\u8272\u540D\uFF0C\u81EA\u52A8\u586B\u5145\u89D2\u8272prompt\uFF0C\u4F8B\u5982\uFF1A
+  /set -p ~doctor -n 0
+  \u53EF\u4F7F\u7528 TRIGGER\u8FDB\u884C\u518D\u6B21\u7B80\u5316:
+  "~":"/set -p ~" \u8FD9\u6837\u5BF9\u8BDD\u65F6\u76F4\u63A5\u952E\u5165 ~doctor
+\u4ECA\u5929\u6574\u4E2A\u4EBA\u660F\u6C89\u6C89\u7684\uFF0C\u6211\u9700\u8981\u5982\u4F55\u8C03\u7406\u8EAB\u4F53\uFF1F` } } };
+
+// src/i18n/zh-hant.js
+var zh_hant_default = { "env": { "system_init_message": "\u4F60\u662F\u4E00\u500B\u5F97\u529B\u7684\u52A9\u624B" }, "command": { "help": { "summary": "\u7576\u524D\u652F\u6301\u7684\u547D\u4EE4\u5982\u4E0B\uFF1A\n", "help": "\u7372\u53D6\u547D\u4EE4\u5E6B\u52A9", "new": "\u958B\u59CB\u4E00\u500B\u65B0\u5C0D\u8A71", "start": "\u7372\u53D6\u60A8\u7684ID\u4E26\u958B\u59CB\u4E00\u500B\u65B0\u5C0D\u8A71", "img": "\u751F\u6210\u5716\u7247\uFF0C\u5B8C\u6574\u547D\u4EE4\u683C\u5F0F\u70BA`/img \u5716\u7247\u63CF\u8FF0`\uFF0C\u4F8B\u5982`/img \u6D77\u7058\u6708\u5149`", "version": "\u7372\u53D6\u7576\u524D\u7248\u672C\u865F\u78BA\u8A8D\u662F\u5426\u9700\u8981\u66F4\u65B0", "setenv": "\u8A2D\u7F6E\u7528\u6236\u914D\u7F6E\uFF0C\u5B8C\u6574\u547D\u4EE4\u683C\u5F0F\u70BA/setenv KEY=VALUE", "setenvs": '\u6279\u91CF\u8A2D\u7F6E\u7528\u6237\u914D\u7F6E, \u547D\u4EE4\u5B8C\u6574\u683C\u5F0F\u70BA /setenvs {"KEY1": "VALUE1", "KEY2": "VALUE2"}', "set": "/set \u547D\u4EE4\u683C\u5F0F\u70BA /set \u9078\u9805 \u503C [\u9078\u9805 \u503C\u2026] [-u][\\n]", "delenv": "\u522A\u9664\u7528\u6236\u914D\u7F6E\uFF0C\u5B8C\u6574\u547D\u4EE4\u683C\u5F0F\u70BA/delenv KEY", "clearenv": "\u6E05\u9664\u6240\u6709\u7528\u6236\u914D\u7F6E, \u53D1\u9001/clearenv true", "system": "\u67E5\u770B\u4E00\u4E9B\u7CFB\u7D71\u4FE1\u606F", "redo": "\u91CD\u505A\u4E0A\u4E00\u6B21\u7684\u5C0D\u8A71 /redo \u52A0\u4FEE\u6539\u904E\u7684\u5167\u5BB9 \u6216\u8005 \u76F4\u63A5 /redo", "echo": "\u56DE\u663E\u6D88\u606F", "mode": "\u547D\u4EE4\u683C\u5F0F\u70BA /mode NAME, \u5F53NAME=all\u65F6, \u67E5\u770B\u6240\u6709mode" }, "new": { "new_chat_start": "\u958B\u59CB\u4E00\u500B\u65B0\u5C0D\u8A71" }, "detail": { "set": `/set \u547D\u4EE4\u683C\u5F0F\u4E3A /set \u9009\u9879 \u503C [\u9009\u9879 \u503C\u2026] [-u][\\n]
+  \u9009\u9879\u9884\u7F6E\u5982\u4E0B\uFF1A 
+  -p \u8C03\u6574 SYSTEM_INIT_MESSAGE
+  -o \u8C03\u6574 CHAT_MODEL
+  -n \u8C03\u6574 MAX_HISTORY_LENGTH
+  -a \u8C03\u6574 AI_PROVIDER
+  -ai \u8C03\u6574 AI_IMAGE_PROVIDER
+  -v \u8C03\u6574 OPENAI_VISION_MODEL
+  -t \u8C03\u6574 OPENAI_TTS_MODEL
+  
+  \u53EF\u81EA\u884C\u8BBE\u7F6E MAPPING_KEY, \u4F7F\u7528\u534A\u89D2|\u8FDB\u884C\u5206\u5272,:\u5DE6\u8FB9\u4E3A\u9009\u9879\uFF0C\u53F3\u8FB9\u4E3A\u5BF9\u5E94\u53D8\u91CF
+  \u53EF\u8BBE\u7F6E\u503C MAPPING_KEY \u5BF9\u67D0\u4E9B\u5E38\u7528\u503C\u8FDB\u884C\u7B80\u5199\uFF0C\u540C\u6837\u534A\u89D2|\u8FDB\u884C\u5206\u5272,:\u5DE6\u8FB9\u4E3A\u9009\u9879\uFF0C\u53F3\u8FB9\u4E3A\u5BF9\u5E94\u53D8\u91CF
+  \u4F8B\u5982\uFF1AMAPPING_VALUE = 'c35son:claude-3-5-sonnet-20240620|r+:command-r-plus'
+  \u5728\u4F7F\u7528/set\u65F6\u5FEB\u901F\u8C03\u6574\u53C2\u6570: /set -m r+ -v gpt-4o
 
   /set\u547D\u4EE4\u9ED8\u8BA4\u4E0D\u4F1A\u5C06\u4FEE\u6539\u7684\u53C2\u6570\u5B58\u50A8\uFF0C\u4EC5\u4E34\u65F6\u8C03\u6574\uFF0C\u5355\u6B21\u5BF9\u8BDD\u6709\u6548\uFF1B\u9700\u8981\u5B58\u50A8\u4FEE\u6539\u65F6\uFF0C\u8FFD\u52A0\u53C2\u6570-u
   /set\u547D\u4EE4\u8FFD\u52A0\u6587\u672C\u5904\u7406\u65F6\uFF0C\u9700\u8981\u952E\u5165\u6362\u884C\u6765\u8FDB\u884C\u5206\u5272\uFF0C\u53E6\u8D77\u4E00\u884C\u8F93\u5165\u5BF9\u8BDD\uFF0C\u4E0D\u6362\u884C\u65F6\u7C7B\u4F3C/setenv \u65E0\u6CD5\u7EE7\u7EED\u4E0E\u6A21\u578B\u5BF9\u8BDD
@@ -3416,7 +3439,30 @@ var zh_hant_default = { "env": { "system_init_message": "\u4F60\u662F\u4E00\u500
 var pt_default = { "env": { "system_init_message": "Voc\xEA \xE9 um assistente \xFAtil" }, "command": { "help": { "summary": "Os seguintes comandos s\xE3o suportados atualmente:\n", "help": "Obter ajuda sobre comandos", "new": "Iniciar uma nova conversa", "start": "Obter seu ID e iniciar uma nova conversa", "img": "Gerar uma imagem, o formato completo do comando \xE9 `/img descri\xE7\xE3o da imagem`, por exemplo `/img praia ao luar`", "version": "Obter o n\xFAmero da vers\xE3o atual para determinar se \xE9 necess\xE1rio atualizar", "setenv": "Definir configura\xE7\xE3o do usu\xE1rio, o formato completo do comando \xE9 /setenv CHAVE=VALOR", "setenvs": 'Definir configura\xE7\xF5es do usu\xE1rio em lote, o formato completo do comando \xE9 /setenvs {"CHAVE1": "VALOR1", "CHAVE2": "VALOR2"}', "delenv": "Excluir configura\xE7\xE3o do usu\xE1rio, o formato completo do comando \xE9 /delenv CHAVE", "clearenv": "Limpar todas as configura\xE7\xF5es do usu\xE1rio", "system": "Ver algumas informa\xE7\xF5es do sistema", "redo": "Refazer a \xFAltima conversa, /redo com conte\xFAdo modificado ou diretamente /redo", "echo": "Repetir a mensagem" }, "new": { "new_chat_start": "Uma nova conversa foi iniciada" } } };
 
 // src/i18n/en.js
-var en_default = { "env": { "system_init_message": "You are a helpful assistant" }, "command": { "help": { "summary": "The following commands are currently supported:\n", "help": "Get command help", "new": "Start a new conversation", "start": "Get your ID and start a new conversation", "img": "Generate an image, the complete command format is `/img image description`, for example `/img beach at moonlight`", "version": "Get the current version number to determine whether to update", "setenv": "Set user configuration, the complete command format is /setenv KEY=VALUE", "setenvs": 'Batch set user configurations, the full format of the command is /setenvs {"KEY1": "VALUE1", "KEY2": "VALUE2"}', "delenv": "Delete user configuration, the complete command format is /delenv KEY", "clearenv": "Clear all user configuration, send /clearenv true", "system": "View some system information", "redo": "Redo the last conversation, /redo with modified content or directly /redo", "echo": "Echo the message", "mode": "the full format of the command is /mode NAME, when NAME=all, view all modes" }, "new": { "new_chat_start": "A new conversation has started" } } };
+var en_default = { "env": { "system_init_message": "You are a helpful assistant" }, "command": { "help": { "summary": "The following commands are currently supported:\n", "help": "Get command help", "new": "Start a new conversation", "start": "Get your ID and start a new conversation", "img": "Generate an image, the complete command format is `/img image description`, for example `/img beach at moonlight`", "version": "Get the current version number to determine whether to update", "setenv": "Set user configuration, the complete command format is /setenv KEY=VALUE", "setenvs": 'Batch set user configurations, the full format of the command is /setenvs {"KEY1": "VALUE1", "KEY2": "VALUE2"}', "set": "/set command format is /set option value [option value...] [-u][\\n]", "delenv": "Delete user configuration, the complete command format is /delenv KEY", "clearenv": "Clear all user configuration, send /clearenv true", "system": "View some system information", "redo": "Redo the last conversation, /redo with modified content or directly /redo", "echo": "Echo the message", "mode": "the full format of the command is /mode NAME, when NAME=all, view all modes" }, "new": { "new_chat_start": "A new conversation has started" }, "detail": { "set": `/set The command format is /set Option Value [Option Value...] [-u][\\n]
+ The option presets are as follows: 
+ -p Adjust SYSTEM_INIT_MESSAGE
+ -m Adjust CHAT_MODEL
+ -n Adjust MAX_ HISTORY_LENGTH
+ -a Adjust AI_PROVIDER
+ -ai Adjust AI_IMAGE_PROVIDER
+ -v Adjust OPENAI_VISION_MODEL
+ -t Adjust OPENAI_TTS_MODEL
+ 
+ You can set up the MAPPING_KEY by yourself, and use the half-corner for the MAPPING_KEY, split by half-corners,: options on the left, corresponding variables on the right 
+ Can set the value MAPPING_KEY abbreviate some commonly used values, also split by half-corners,: options on the left, corresponding variables on the right 
+ For example: MAPPING_VALUE = 'c35son:claude-3-5-sonnet-20240620|r+: command-r-plus' 
++. command-r-plus'
+ Quickly adjust parameters when using /set: /set -m r+ -v gpt-4o
+
+ /set command will not store modified parameters by default, only temporary adjustments, valid for a single conversation; when you need to store the changes, append the parameter -u
+ /set command to append the text processing, you need to type a newline to split, start a new line and type the conversation without a newline. When you type in a newline to split the dialog, you can't continue the dialog with the model without a newline, similar to /setenv 
+ Options and parameter values are split by spaces, so there can't be any spaces between the two, or else there may be parsing errors 
+ Adjustment of the SYSTEM_INIT_MESSAGE, if you have set up a PROMPT you can use the set to the role name directly to automatically fill in the role Prompt, for example: 
+ / set -p ~doctor -n 0
+ Can use TRIGGER to simplify again:
+ "~":"/set -p ~" so that when dialoguing, you can directly type ~doctor
+ Today, the whole person is lethargic, how do I need to regulate my body?` } } };
 
 // src/i18n/index.js
 function i18n(lang) {
@@ -3433,13 +3479,8 @@ function i18n(lang) {
     case "pt":
     case "pt-br":
       return pt_default;
-    case "pt":
-    case "pt-br":
-      return pt_default;
     case "en":
     case "en-us":
-      return en_default;
-    default:
       return en_default;
     default:
       return en_default;
