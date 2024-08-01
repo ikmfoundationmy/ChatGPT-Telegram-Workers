@@ -241,14 +241,14 @@ export async function chatViaFileWithLLM(context) {
             context.CURRENT_CHAT_CONTEXT.message_id = msg.result.message_id;
             context.CURRENT_CHAT_CONTEXT.reply_markup = null;
           }
-        const { raw, fileName } = await handleFile(context._info);
+        const { raw, file_name } = await handleFile(context._info);
         if (context._info.step_index === 1) context._info.setFile({ raw }, 0);
         const llm = loadAudioLLM(context)?.request;
         if (llm === null) {
             return sendMessageToTelegramWithContext(context)(`LLM is not enable`);
         }
         const startTime = performance.now();
-        const answer = await llm(raw, fileName, context);
+        const answer = await llm(raw, file_name, context);
         if (!answer.ok) {
             console.error(answer.message);
             return sendMessageToTelegramWithContext(context)('Chat via file failed.');

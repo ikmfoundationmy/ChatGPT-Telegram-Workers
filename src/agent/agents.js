@@ -177,13 +177,13 @@ export function loadChatLLM(context) {
 
 
 export const visionLlmAgents = [
-  // 当前仅实现OpenAI图像识别
-  {
-      name: "openai",
-      enable: isOpenAIEnable,
-      request: requestCompletionsFromOpenAI
-  }
-]
+    // 当前仅实现OpenAI图像识别
+    {
+        name: "openai",
+        enable: isOpenAIEnable,
+        request: requestCompletionsFromOpenAI
+    }
+];
 
 /**
  * 加载图像识别AI
@@ -209,13 +209,13 @@ export function loadVisionLLM(context) {
 
 
 export const audioLlmAgents = [
-  // 当前仅实现OpenAI音频处理
-  {
-      name: "openai",
-      enable: isOpenAIEnable,
-      request: requestTranscriptionFromOpenAI
-  }
-]
+    // 当前仅实现OpenAI音频处理
+    {
+        name: "openai",
+        enable: isOpenAIEnable,
+        request: requestTranscriptionFromOpenAI
+    }
+];
 
 /**
  * 加载音频转录AI

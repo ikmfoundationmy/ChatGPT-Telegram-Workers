@@ -136,7 +136,7 @@ export class UserConfig {
       image: [{}],
     },
     'dall-e': {
-      text: [{prompt: 'dall-e'}, { process_type: 'text:image'}],
+      text: [{ process_type: 'text:image', prompt: 'dall-e'}],
     },
   };
   CURRENT_MODE = 'default';

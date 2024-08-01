@@ -1,4 +1,4 @@
-import "../types/context.js"
+import "../types/context.js";
 import {requestChatCompletions} from "./request.js";
 import {ENV} from "../config/env.js";
 
@@ -8,7 +8,7 @@ import {ENV} from "../config/env.js";
  * @return {string|null}
  */
 function openAIKeyFromContext(context) {
-    const length = context.USER_CONFIG.OPENAI_API_KEY.length
+  const length = context.USER_CONFIG.OPENAI_API_KEY.length;
     return context.USER_CONFIG.OPENAI_API_KEY[Math.floor(Math.random() * length)];
 }
 
@@ -115,7 +115,11 @@ export async function requestImageFromOpenAI(prompt, context) {
   if (resp.error?.message) {
     throw new Error(resp.error.message);
   }
-  return resp?.data?.[0]?.url;
+  return {
+    url: resp?.data?.[0]?.url,
+    revised_prompt: resp?.data?.[0]?.revised_prompt || ''
+  };
+
 }
 
 
@@ -154,7 +158,7 @@ export async function requestTranscriptionFromOpenAI(audio, file_name, context) 
   }).catch(e => {
     console.error(e.message);
     return { ok: false, message: e.message };
-  })
+  });
   if (resp.ok) {
     resp = await resp.json();
     console.log(`Transcription: ${resp.text}`);

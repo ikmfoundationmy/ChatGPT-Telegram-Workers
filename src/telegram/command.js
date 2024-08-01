@@ -1,3 +1,4 @@
+/* eslint-disable no-constant-condition */
 import "../types/context.js";
 import {
     CONST,
@@ -179,7 +180,7 @@ async function commandGetHelp(message, command, subcommand, context) {
   context.CURRENT_CHAT_CONTEXT.entities = [
     // { type: 'code', offset: 0, length: helpMsg.length },
     { type: 'blockquote', offset: 0, length: helpMsg.length },
-  ]
+  ];
 
   return sendMessageToTelegramWithContext(context)(helpMsg);
 }
@@ -445,7 +446,7 @@ async function commandSetUserConfigs(message, command, subcommand, context) {
  */
 async function commandDeleteUserConfig(message, command, subcommand, context) {
   if (!subcommand) {
-    return sendMessageToTelegramWithContext(context)(ENV.I18N.command.help.delenv)
+    return sendMessageToTelegramWithContext(context)(ENV.I18N.command.help.delenv);
   }
     if (ENV.LOCK_USER_CONFIG_KEYS.includes(subcommand)) {
         const msg = `Key ${subcommand} is locked`;

@@ -1,6 +1,6 @@
 import { Buffer } from 'node:buffer';
 // src/prompt/prompt.js
-var prompt_default = { "dall-e": `Whenever a description of an image is given, use dalle to create the images and then summarize the prompts used to generate the images in plain text. If the user does not ask for a specific number of images, default to creating 1 caption to send to dalle that are written to be as diverse as possible. All captions sent to dalle must abide by the following policies:
+var prompt_default = { "dall-e": `Whenever a description of an image is given, use dalle to create the images and then summarize the prompts used to generate the images in plain text. Default to creating 1 caption to send to dalle that are written to be as diverse as possible. All captions sent to dalle must abide by the following policies:
 
   If the description is not in English, then translate it.
   Do not create more than 4 images, even if the user requests more.
@@ -190,7 +190,7 @@ var UserConfig = class {
       image: [{}]
     },
     "dall-e": {
-      text: [{ prompt: "dall-e" }, { process_type: "text:image" }]
+      text: [{ process_type: "text:image", prompt: "dall-e" }]
     }
   };
   CURRENT_MODE = "default";
@@ -199,9 +199,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1722446195;
+  BUILD_TIMESTAMP = 1722502124;
   // 当前版本 commit id
-  BUILD_VERSION = "d660199";
+  BUILD_VERSION = "025de13";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -783,16 +783,16 @@ async function sendMessageToTelegram(message, token, context, _info = null) {
     info = _info?.message_title || "";
     if (!_info?.isLastStep && _info?.step_index > 0 || origin_msg.length > limit) {
       chatContext.parse_mode = null;
-      message = info ? info + "\n\n" + origin_msg : origin_msg;
+      message = info && info + "\n\n" + origin_msg;
       chatContext.entities = [
         { type: "code", offset: 0, length: message.length },
         { type: "blockquote", offset: 0, length: message.length }
       ];
     } else if (parse_mode === "MarkdownV2") {
-      info = info ? ">`" + info + "`\n\n" : "";
+      info &&= ">`" + info + "`\n\n";
       message = info + escape(origin_msg);
     } else if (parse_mode === null) {
-      message = info ? info + "\n" + origin_msg : origin_msg;
+      message = info && info + "\n" + origin_msg;
       chatContext.entities = [
         { type: "code", offset: 0, length: info.length },
         { type: "blockquote", offset: 0, length: info.length }
@@ -808,7 +808,7 @@ async function sendMessageToTelegram(message, token, context, _info = null) {
       chatContext.parse_mode = null;
       context.parse_mode = null;
       info = _info?.message_title;
-      message = info ? info + "\n\n" + origin_msg : origin_msg;
+      message = info && info + "\n\n" + origin_msg;
       chatContext.entities = [
         { type: "code", offset: 0, length: message.length },
         { type: "blockquote", offset: 0, length: message.length }
@@ -819,7 +819,7 @@ async function sendMessageToTelegram(message, token, context, _info = null) {
   }
   chatContext.parse_mode = null;
   info = _info?.message_title;
-  message = info ? info + "\n\n" + origin_msg : origin_msg;
+  message = info && info + "\n\n" + origin_msg;
   if (!Array.isArray(context.message_id)) {
     context.message_id = [context.message_id];
   }
@@ -880,9 +880,9 @@ async function sendPhotoToTelegram(photo, token, context, _info = null) {
   const url = `${ENV.TELEGRAM_API_DOMAIN}/bot${token}/sendPhoto`;
   let body;
   const headers = {};
-  if (typeof photo === "string") {
+  if (typeof photo.url === "string") {
     body = {
-      photo
+      photo: photo.url
     };
     for (const key of Object.keys(context)) {
       if (context[key] !== void 0 && context[key] !== null) {
@@ -891,13 +891,14 @@ async function sendPhotoToTelegram(photo, token, context, _info = null) {
     }
     body.parse_mode = "MarkdownV2";
     let info = _info?.message_title || "";
-    body.caption = "`" + escape(info) + `\`
-[\u539F\u59CB\u56FE\u7247](${photo})`;
+    photo.revised_prompt &&= "revised prompt: " + photo.revised_prompt;
+    body.caption = ">`" + escape((info && info + "\n\n") + photo.revised_prompt) + `\`
+[\u539F\u59CB\u56FE\u7247](${photo.url})`;
     body = JSON.stringify(body);
     headers["Content-Type"] = "application/json";
   } else {
     body = new FormData();
-    body.append("photo", photo, "photo.png");
+    body.append("photo", photo.url, "photo.png");
     for (const key of Object.keys(context)) {
       if (context[key] !== void 0 && context[key] !== null) {
         body.append(key, `${context[key]}`);
@@ -911,8 +912,8 @@ async function sendPhotoToTelegram(photo, token, context, _info = null) {
   });
 }
 function sendPhotoToTelegramWithContext(context) {
-  return (url) => {
-    return sendPhotoToTelegram(url, context.SHARE_CONTEXT.currentBotToken, context.CURRENT_CHAT_CONTEXT, context._info);
+  return (img_info) => {
+    return sendPhotoToTelegram(img_info, context.SHARE_CONTEXT.currentBotToken, context.CURRENT_CHAT_CONTEXT, context._info);
   };
 }
 async function sendChatActionToTelegram(action, token, chatId) {
@@ -1455,7 +1456,10 @@ async function requestImageFromOpenAI(prompt, context) {
   if (resp.error?.message) {
     throw new Error(resp.error.message);
   }
-  return resp?.data?.[0]?.url;
+  return {
+    url: resp?.data?.[0]?.url,
+    revised_prompt: resp?.data?.[0]?.revised_prompt || ""
+  };
 }
 async function requestTranscriptionFromOpenAI(audio, file_name, context) {
   const { PROXY_URL = context.USER_CONFIG.OPENAI_API_BASE, API_KEY = openAIKeyFromContext(context) } = context._info.provider || {};
@@ -2369,7 +2373,7 @@ async function chatViaFileWithLLM(context) {
       context.CURRENT_CHAT_CONTEXT.message_id = msg.result.message_id;
       context.CURRENT_CHAT_CONTEXT.reply_markup = null;
     }
-    const { raw, fileName } = await handleFile(context._info);
+    const { raw, file_name } = await handleFile(context._info);
     if (context._info.step_index === 1)
       context._info.setFile({ raw }, 0);
     const llm = loadAudioLLM(context)?.request;
@@ -2377,7 +2381,7 @@ async function chatViaFileWithLLM(context) {
       return sendMessageToTelegramWithContext(context)(`LLM is not enable`);
     }
     const startTime = performance.now();
-    const answer = await llm(raw, fileName, context);
+    const answer = await llm(raw, file_name, context);
     if (!answer.ok) {
       console.error(answer.message);
       return sendMessageToTelegramWithContext(context)("Chat via file failed.");
