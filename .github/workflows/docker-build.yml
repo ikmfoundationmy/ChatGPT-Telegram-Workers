@@ -20,7 +20,7 @@ jobs:
           
       - name: Build & Push services
         run: |
-          docker-compose -f ./adapter/docker/docker-compose.yml build --no-cache
+          docker compose -f ./adapter/docker/docker-compose.yml build --no-cache
           COMMIT_SHA=$(git rev-parse --short HEAD)
           docker tag adolphnov/gptworker:latest adolphnov/gptworker:$COMMIT_SHA
           docker push adolphnov/gptworker:latest
