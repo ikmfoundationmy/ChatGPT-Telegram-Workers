@@ -1,5 +1,5 @@
 /* eslint-disable no-unused-vars */
-import worker from '../../../main.js';
+import worker from 'chatgpt-telegram-workers';
 import { RedisCache } from '../utils/redis.js';
 import Middle from './_middleware.js';
 import {duckduckgo_search} from '../utils/duckduckgo.js';
