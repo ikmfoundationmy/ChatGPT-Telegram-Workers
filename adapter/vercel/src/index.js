@@ -1,10 +1,12 @@
-import worker from 'chatgpt-telegram-workers'
-import { RedisCache } from '../utils/redis.js'
-import Middle from "./_middleware.js";
+/* eslint-disable no-unused-vars */
+import worker from '../../../main.js';
+import { RedisCache } from '../utils/redis.js';
+import Middle from './_middleware.js';
+import {duckduckgo_search} from '../utils/duckduckgo.js';
 
 export const config = {
   runtime: 'edge',
-}
+};
 
 // cloudflare to vercel adapter
 export default async (req, res) => {
@@ -12,51 +14,34 @@ export default async (req, res) => {
   if (result instanceof Response) {
     return result;
   }
-  const redis = new RedisCache(process.env.REDIS_URL, process.env.REDIS_TOKEN)
+  const redis = new RedisCache(process.env.REDIS_URL, process.env.REDIS_TOKEN);
   const env = {
     ...(process.env || {}),
     DATABASE: redis,
-  }
-  const body = await req.text()
+    tools: {duckduckgo_search}
+  };
+  const body = await req.text();
   const cfReq = new Request(req.url, {
     method: req.method,
     headers: req.headers,
     ...(body && { body }),
-  })
+  });
 
   // console.log(`url: ${req.url}`)
   // console.log(`body: ${JSON.stringify(req)}`);
 
-  const controller = new AbortController()
-  const signal = controller.signal
-  const timeoutId = setTimeout(() => {
-    controller.abort()
-  }, 5 * 60 * 1000)
-  const encoder = new TextEncoder()
+  const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
-      const sendFirstBeat = () => {
-        console.log('first heartbeat.')
-        controller.enqueue(encoder.encode(''))
-      }
-      const heartBeat = setTimeout(sendFirstBeat, 0)
       try {
-        const resp = await worker.fetch(cfReq, env, { signal })
-        clearTimeout(heartBeat)
-        controller.enqueue(encoder.encode(await resp.text()))
-        controller.close()
-        clearTimeout(timeoutId)
+        const resp = await worker.fetch(cfReq, env);
+        controller.enqueue(encoder.encode(await resp.text()));
+        controller.close();
       } catch (e) {
-        if (e.name === 'AbortError') {
-          console.log('请求被取消');
-        } else {
-          console.log('请求失败', e);
-        }
-        controller.close()
-        clearTimeout(timeoutId)
+        controller.close();
       }
     },
-  })
+  });
 
   return new Response(stream, {
     headers: {
@@ -64,5 +49,5 @@ export default async (req, res) => {
       'Cache-Control': 'no-cache',
       'Connection': 'keep-alive',
     },
-  })
-}
+  });
+};

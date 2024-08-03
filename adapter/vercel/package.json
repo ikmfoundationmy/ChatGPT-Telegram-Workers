@@ -12,8 +12,8 @@
   "author": "TBXark",
   "license": "MIT",
   "dependencies": {
-    "chatgpt-telegram-workers": "github:adolphnov/ChatGPT-Telegram-Workers#test",
-    "cloudflare-worker-adapter": "github:TBXark/cloudflare-worker-adapter"
+    "duck-duck-scrape": "^2.2.5",
+    "html-entities": "^2.5.2"
   },
   "devDependencies": {
     "dotenv": "^16.0.3",

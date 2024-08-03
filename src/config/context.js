@@ -52,7 +52,7 @@ class CurrentChatContext {
     message_id = null;
     reply_markup = null;
     allow_sending_without_reply = null;
-    disable_web_page_preview = null;
+    disable_web_page_preview = true;
 }
 
 /**

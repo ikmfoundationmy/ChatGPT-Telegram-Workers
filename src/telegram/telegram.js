@@ -53,7 +53,7 @@ export async function sendMessageToTelegram(message, token, context, _info = nul
     info = _info?.message_title || '';
     if ((!_info?.isLastStep && _info?.step_index > 0) || origin_msg.length > limit) {
       chatContext.parse_mode = null;
-      message = info && ( info + '\n\n' ) + origin_msg;
+      message = (info && ( info + '\n\n' )) + origin_msg;
       chatContext.entities = [
         { type: 'code', offset: 0, length: message.length },
         { type: 'blockquote', offset: 0, length: message.length },
@@ -62,7 +62,7 @@ export async function sendMessageToTelegram(message, token, context, _info = nul
       info &&= ( '>`' + info + '`\n\n' );
       message = info + escape(origin_msg);
     } else if (parse_mode === null) {
-      message = info && ( info + '\n' ) + origin_msg;
+      message = (info && ( info + '\n' )) + origin_msg;
       chatContext.entities = [
         { type: 'code', offset: 0, length: info.length },
         { type: 'blockquote', offset: 0, length: info.length },

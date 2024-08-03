@@ -6,6 +6,7 @@ import {errorToString} from '../utils/utils.js';
 import { chatViaFileWithLLM, chatWithLLM } from '../agent/llm.js';
 import { loadImageGen, loadVisionLLM } from "../agent/agents.js";
 import { MiddleInfo } from "../config/middle.js";
+import { requestCompletionsFromOpenAI } from "../agent/openai.js";
 
 import '../types/telegram.js';
 
@@ -285,7 +286,7 @@ async function msgIgnoreSpecificMessage(message) {
     if (
       ENV.IGNORE_TEXT && message?.text?.startsWith(ENV.IGNORE_TEXT)
     ) {
-      return new Response('ignore specific text', { status: 200 })
+      return new Response('ignore specific text', { status: 200 });
     }
     return null;
 }
@@ -325,8 +326,6 @@ async function msgHandleCommand(message, context) {
 }
 
 
-
-
 /**
  * 与llm聊天
  *
@@ -336,14 +335,18 @@ async function msgHandleCommand(message, context) {
  */
 async function msgChatWithLLM(message, context) {
 
-  // 与LLM交互
-  try {
-    let text = (message.text || message.caption || '').trim();
+  let text = (message.text || message.caption || '').trim();
     if (ENV.EXTRA_MESSAGE_CONTEXT && context.SHARE_CONTEXT?.extraMessageContext?.text) {
-      text = context.SHARE_CONTEXT.extraMessageContext.text || context.SHARE_CONTEXT.extraMessageContext.caption + '\n' + text;
+      text =
+        context.SHARE_CONTEXT.extraMessageContext.text ||
+        context.SHARE_CONTEXT.extraMessageContext.caption + '\n' + text;
     }
 
+  // 与LLM交互
+  try {
+
     let result = null;
+
     for (let i = 0; i < context._info.process_count; i++) {
       if (result && result instanceof Response) {
         return result;
@@ -394,6 +397,125 @@ async function msgChatWithLLM(message, context) {
 
   return new Response('success', { status: 200 });
 }
+
+// /**
+//  * 处理tool
+//  *
+//  * @param {TelegramMessage} message
+//  * @param {Context} context
+//  * @return {Promise<Response>}
+//  */
+// async function handleOpenaiFunctionCall(message, context) {
+//   try {
+//     let text = (message.text || message.caption || '').trim();
+//     if (ENV.EXTRA_MESSAGE_CONTEXT && context.SHARE_CONTEXT?.extraMessageContext?.text) {
+//       text =
+//         context.SHARE_CONTEXT.extraMessageContext.text ||
+//         context.SHARE_CONTEXT.extraMessageContext.caption + '\n' + text;
+//     }
+
+//     if (text && ENV.TOOLS && ENV.USE_TOOLS?.length > 0) {
+//       const filter_tools = ENV.USE_TOOLS.filter((i) => Object.keys(ENV.TOOLS).includes(i)).map((t) => ENV.TOOLS[t]);
+//       if (filter_tools.length > 0) {
+//         let tools = filter_tools.map((tool) => {
+//           return {
+//             'type': 'function',
+//             'function': tool.schema,
+//           };
+//         });
+
+//         //默认使用的提示词与前缀
+//         let prompt = ENV.PROMPT["tools_prompt"];
+//         let message = text;
+//         // 备份现有模型与额外配置
+//         const bp_config = {...context.USER_CONFIG};
+//         // const bp_prompt = context.USER_CONFIG.SYSTEM_INIT_MESSAGE;
+//         const bp_extra_params = { ...context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS };
+
+//         context.USER_CONFIG.OPENAI_CHAT_MODEL = context.USER_CONFIG.FUNCTION_CALL_MODEL || 'gpt-4o';
+//         if (context.USER_CONFIG.FUNCTION_CALL_BASE && context.USER_CONFIG.FUNCTION_CALL_API_KEY) {
+//           context.USER_CONFIG.OPENAI_API_BASE = context.USER_CONFIG.FUNCTION_CALL_BASE;
+//           context.USER_CONFIG.OPENAI_API_KEY = [context.USER_CONFIG.FUNCTION_CALL_API_KEY];
+//         }
+//         context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS.tools = tools;
+//         context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS.tool_choice = 'auto';
+
+//         const first_step_result = await requestCompletionsFromOpenAI(message, prompt, null, context, null, true);
+
+//         // 假定function为串行，且上一步的输出是下一步的输入
+//         first_step_result.tool_calls = first_step_result?.tool_calls?.filter((i) =>
+//           Object.keys(ENV.TOOLS).includes(i.function.name),
+//         );
+//         if (!first_step_result.tool_calls || first_step_result.tool_calls?.length === 0) {
+//           console.log('No need call function.');
+//           // return sendMessageToTelegramWithContext(context)(`Cant found function: ${function_name}`);
+//         } else {
+//           // let last_llm_result = first_step_result;
+//           // let last_func_result = null;
+//           const options = {};
+//           const exposure_vars = ['JINA_API_KEY'];
+//           exposure_vars.forEach((i) => (options[i] = context.USER_CONFIG[i]));
+//           // let function_name = null; // last_llm_result.tool_calls[0].function.name;
+//           // let function_args = null; // JSON.parse(last_llm_result.tool_calls[0].function.arguments);
+//           // for (const [i, func] of first_step_result.tool_calls.entries()) {
+            
+//           //   if (i > 0) {
+//           //     prompt = ENV.TOOLS[func.function.name].settings.before_prompt;
+//           //     message = ENV.TOOLS[func.function.name].settings.before_render(text);
+//           //     // 只保留当前需要执行的function
+//           //     context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS.tools = [
+//           //       {
+//           //         'type': 'function',
+//           //         'function': ENV.TOOLS[func.function.name].schema,
+//           //       },
+//           //     ];
+//           //     last_llm_result = await requestCompletionsFromOpenAI(message, prompt, null, ENV, null, true);
+//           //   }
+//           //   function_name = func.function.name;
+//           //   function_args = JSON.parse(last_llm_result.tool_calls[0].function.arguments);
+//           //   context._info.setCallInfo(last_llm_result.tool_calls[0].function.arguments);
+//           //   console.log("start use function: ", function_name);
+//           //   last_func_result = await ENV.TOOLS[function_name].func(function_args, options);
+//           //   if (last_func_result instanceof Response) {
+//           //     return last_func_result;
+//           //   }
+//           //   if (!last_func_result.content) {
+//           //     return sendMessageToTelegramWithContext(context)(`None response of ${function_name}`);
+//           //   }
+//           //   // console.log(last_func_result.content);
+//           //   text = last_func_result.content;
+//           // }
+
+//           const func = first_step_result.tool_calls[0].function;
+//           const function_name = func.name;
+//           const function_args = JSON.parse(func.arguments);
+//           context._info.setCallInfo(`${function_name}:\n${Object.values(function_args)}`);
+//           console.log('start use function: ', function_name);
+//           const last_func_result = await ENV.TOOLS[function_name].func(function_args, options);
+
+//           if (!last_func_result?.content?.trim()) {
+//             return sendMessageToTelegramWithContext(context)(`None response of ${function_name}`);
+//           }
+
+//             // console.log(last_func_result.content);
+//           text = last_func_result.content.trim();
+//           context.USER_CONFIG.SYSTEM_INIT_MESSAGE = ENV.TOOLS[function_name].settings?.after_prompt || bp_prompt;
+//           text = ENV.TOOLS[function_name].settings?.after_render?.(text) || text;
+//         }
+//         context.USER_CONFIG = bp_config;
+//         context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS = bp_extra_params;
+//         //
+//         delete context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS.tools;
+//         delete context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS.tool_choice;
+//       }
+//     }
+//     message.text = text;
+//     return null;
+
+//   } catch (e) {
+//     return sendMessageToTelegramWithContext(context)(e.message);
+//   }
+// }
 
 
 /**
@@ -461,6 +583,8 @@ export async function handleMessage(request) {
         msgInitMiddleInfo,
         // 处理命令消息
         msgHandleCommand,
+        // 处理function call
+        // msgHandleFunctionCall,
         // 与llm聊天
         msgChatWithLLM,
     ];

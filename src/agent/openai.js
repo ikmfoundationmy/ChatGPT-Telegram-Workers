@@ -34,9 +34,9 @@ export function isOpenAIEnable(context) {
  */
 export async function requestCompletionsFromOpenAI(message, prompt, history, context, onStream) {
   const { PROXY_URL = context.USER_CONFIG.OPENAI_API_BASE, API_KEY = openAIKeyFromContext(context) } =
-    context._info.provider || {};
+    context._info?.provider || {};
   const url = `${PROXY_URL}/chat/completions`;
-  const model = context._info.lastStepHasFile
+  const model = (context._info?.lastStepHasFile)
     ? context.USER_CONFIG.OPENAI_VISION_MODEL
     : context.USER_CONFIG.OPENAI_CHAT_MODEL;
   const extra_params = context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS;
@@ -48,7 +48,7 @@ export async function requestCompletionsFromOpenAI(message, prompt, history, con
   messages.push({ role: 'user', content: message });
   // 优先取原始文件兼容claude
 
-  if (context._info.lastStepHasFile) {
+  if (context._info?.lastStepHasFile) {
     messages.at(-1).content = [
       {
         'type': 'text',
@@ -70,14 +70,29 @@ export async function requestCompletionsFromOpenAI(message, prompt, history, con
     stream: onStream != null,
     ...(!!onStream && ENV.ENABLE_SHOWTOKENINFO && { stream_options: { include_usage: true } }),
   };
+  if (prompt.includes('json') || prompt.includes('JSON')) {
+    body.response_format = {
+      'type': 'json_object',
+    };
+  }
 
   const header = {
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${API_KEY}`,
   };
+  const options = {};
 
-  return requestChatCompletions(url, header, body, context, onStream);
+  if (extra_params.tools && extra_params.tools.length > 0) {
+    options.fullContentExtractor = (d) => {
+      return d.choices?.[0]?.message;
+    };
+  }
+
+  return requestChatCompletions(url, header, body, context, onStream, null, options);
 }
+
+
+
 
 
 

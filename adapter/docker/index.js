@@ -2,6 +2,7 @@ import adapter from 'cloudflare-worker-adapter';
 import { RedisCache } from 'cloudflare-worker-adapter/cache/redis.js';
 import fs from 'fs';
 
+
 const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
 const cache = new RedisCache(redisUrl);
 
@@ -16,9 +17,9 @@ try {
 }
 console.log(process.env.REDIS_URL);
 
-const {default: worker} = await import('chatgpt-telegram-workers');
-// const {default: worker} = await import('../../main.js');
-
+// const {default: worker} = await import('chatgpt-telegram-workers');
+const { default: worker } = await import('../../main.js');
+const { default: tools } = await import('../../src/tools/index.js');
 
 adapter.startServer(
     8787,
@@ -27,4 +28,5 @@ adapter.startServer(
     {DATABASE: cache},
     {server: process.env.DOMAIN},
     worker.fetch,
+    {tools}
 );

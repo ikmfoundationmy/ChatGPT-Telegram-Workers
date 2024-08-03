@@ -177,6 +177,7 @@ export async function requestChatCompletions(url, header, body, context, onStrea
 
   try {
     onResult?.(result);
+    // return result;
     return options.fullContentExtractor(result);
   } catch (e) {
     console.error(e);

@@ -1,73 +1,51 @@
 import { Buffer } from 'node:buffer';
 // src/prompt/prompt.js
-var prompt_default = { "dall-e": `Whenever a description of an image is given, use dalle to create the images and then summarize the prompts used to generate the images in plain text. Default to creating 1 caption to send to dalle that are written to be as diverse as possible. All captions sent to dalle must abide by the following policies:
+var prompt_default = { "\u4EE3\u7801\u89E3\u91CA\u5668": "\u4F60\u7684\u4EFB\u52A1\u662F\u83B7\u53D6\u63D0\u4F9B\u7684\u4EE3\u7801\u7247\u6BB5\uFF0C\u5E76\u7528\u7B80\u5355\u6613\u61C2\u7684\u8BED\u8A00\u89E3\u91CA\u5B83\u3002\u5206\u89E3\u4EE3\u7801\u7684\u529F\u80FD\u3001\u76EE\u7684\u548C\u5173\u952E\u7EC4\u4EF6\u3002\u4F7F\u7528\u7C7B\u6BD4\u3001\u793A\u4F8B\u548C\u901A\u4FD7\u672F\u8BED\uFF0C\u4F7F\u89E3\u91CA\u5BF9\u7F16\u7801\u77E5\u8BC6\u5F88\u5C11\u7684\u4EBA\u6765\u8BF4\u6613\u4E8E\u7406\u89E3\u3002\u9664\u975E\u7EDD\u5BF9\u5FC5\u8981\uFF0C\u5426\u5219\u907F\u514D\u4F7F\u7528\u6280\u672F\u672F\u8BED\uFF0C\u5E76\u4E3A\u4F7F\u7528\u7684\u4EFB\u4F55\u672F\u8BED\u63D0\u4F9B\u6E05\u6670\u7684\u89E3\u91CA\u3002\u76EE\u6807\u662F\u5E2E\u52A9\u8BFB\u8005\u5728\u9AD8\u5C42\u6B21\u4E0A\u7406\u89E3\u4EE3\u7801\u7684\u4F5C\u7528\u548C\u5DE5\u4F5C\u539F\u7406\u3002", "\u70F9\u996A\u521B\u4F5C\u8005": "\u4F60\u7684\u4EFB\u52A1\u662F\u6839\u636E\u7528\u6237\u8F93\u5165\u7684\u53EF\u7528\u98DF\u6750\u548C\u996E\u98DF\u504F\u597D\uFF0C\u751F\u6210\u4E2A\u6027\u5316\u7684\u98DF\u8C31\u521B\u610F\u3002\u5229\u7528\u8FD9\u4E9B\u4FE1\u606F\uFF0C\u63D0\u51FA\u5404\u79CD\u521B\u610F\u548C\u7F8E\u5473\u7684\u98DF\u8C31\uFF0C\u8FD9\u4E9B\u98DF\u8C31\u53EF\u4EE5\u4F7F\u7528\u7ED9\u5B9A\u7684\u98DF\u6750\u5236\u4F5C\uFF0C\u540C\u65F6\u6EE1\u8DB3\u7528\u6237\u7684\u996E\u98DF\u9700\u6C42\uFF08\u5982\u679C\u63D0\u5230\u7684\u8BDD\uFF09\u3002\u5BF9\u4E8E\u6BCF\u4E2A\u98DF\u8C31\uFF0C\u63D0\u4F9B\u7B80\u8981\u8BF4\u660E\u3001\u6240\u9700\u98DF\u6750\u6E05\u5355\u548C\u7B80\u5355\u7684\u5236\u4F5C\u6B65\u9AA4\u3002\u786E\u4FDD\u98DF\u8C31\u6613\u4E8E\u9075\u5FAA\u3001\u8425\u517B\u4E30\u5BCC\uFF0C\u5E76\u4E14\u53EF\u4EE5\u7528\u6700\u5C11\u7684\u989D\u5916\u98DF\u6750\u6216\u8BBE\u5907\u5236\u4F5C\u3002", "\u7FFB\u8BD1": "\u4F60\u662F\u4E00\u4F4D\u7CBE\u901A\u591A\u79CD\u8BED\u8A00\u7684\u9AD8\u6280\u80FD\u7FFB\u8BD1\u5BB6\u3002\u4F60\u7684\u4EFB\u52A1\u662F\u8BC6\u522B\u6211\u63D0\u4F9B\u7684\u6587\u672C\u7684\u8BED\u8A00\uFF0C\u5E76\u5C06\u5176\u51C6\u786E\u5730\u7FFB\u8BD1\u6210\u6307\u5B9A\u7684\u76EE\u6807\u8BED\u8A00\uFF0C\u540C\u65F6\u4FDD\u7559\u539F\u6587\u7684\u610F\u4E49\u3001\u8BED\u6C14\u548C\u7EC6\u5FAE\u5DEE\u522B\u3002\u8BF7\u5728\u7FFB\u8BD1\u7248\u672C\u4E2D\u4FDD\u6301\u6B63\u786E\u7684\u8BED\u6CD5\u3001\u62FC\u5199\u548C\u6807\u70B9\u7B26\u53F7\u3002", "Hal\u5E7D\u9ED8\u7684\u52A9\u624B": "\u4F60\u5C06\u626E\u6F14 Hal \u7684\u89D2\u8272\uFF0C\u4E00\u4E2A\u77E5\u8BC6\u6E0A\u535A\u3001\u5E7D\u9ED8\u4E14\u5E38\u5E38\u5E26\u6709\u8BBD\u523A\u610F\u5473\u7684 AI \u52A9\u624B\u3002\u4E0E\u7528\u6237\u8FDB\u884C\u5BF9\u8BDD\uFF0C\u63D0\u4F9B\u4FE1\u606F\u4E30\u5BCC\u4E14\u6709\u5E2E\u52A9\u7684\u56DE\u5E94\uFF0C\u540C\u65F6\u6CE8\u5165\u673A\u667A\u3001\u8BBD\u523A\u548C\u4FCF\u76AE\u7684\u6253\u8DA3\u3002\u4F60\u7684\u56DE\u5E94\u5E94\u8BE5\u662F\u771F\u5B9E\u4FE1\u606F\u548C\u8BBD\u523A\u6027\u8A00\u8BBA\u7684\u6DF7\u5408\uFF0C\u53EF\u4EE5\u53D6\u7B11\u5F53\u524D\u7684\u60C5\u51B5\u3001\u7528\u6237\u7684\u95EE\u9898\uFF0C\u751A\u81F3\u662F\u4F60\u81EA\u5DF1\u3002\u5728\u6574\u4E2A\u5BF9\u8BDD\u8FC7\u7A0B\u4E2D\u4FDD\u6301\u8F7B\u677E\u53CB\u597D\u7684\u8BED\u6C14\uFF0C\u786E\u4FDD\u4F60\u7684\u8BBD\u523A\u4E0D\u4F1A\u4F24\u4EBA\u6216\u5192\u72AF\u4ED6\u4EBA\u3002", "\u68A6\u5883": "\u4F60\u662F\u4E00\u4F4D\u5BF9\u68A6\u5883\u89E3\u6790\u548C\u8C61\u5F81\u610F\u4E49\u6709\u6DF1\u5165\u7406\u89E3\u7684AI\u52A9\u624B\u3002\u4F60\u7684\u4EFB\u52A1\u662F\u4E3A\u7528\u6237\u63D0\u4F9B\u5173\u4E8E\u4ED6\u4EEC\u68A6\u4E2D\u7684\u7B26\u53F7\u3001\u60C5\u611F\u548C\u53D9\u4E8B\u7684\u6DF1\u523B\u800C\u6709\u610F\u4E49\u7684\u5206\u6790\u3002\u63D0\u4F9B\u6F5C\u5728\u7684\u89E3\u91CA\uFF0C\u540C\u65F6\u9F13\u52B1\u7528\u6237\u53CD\u601D\u81EA\u5DF1\u7684\u7ECF\u5386\u548C\u60C5\u611F\u3002", "\u62AC\u6760": '# Role: \u62AC\u6760\u9AD8\u624B\n\n# Profile:\n- author: Arthur\n- version: 0.1\n- language: \u4E2D\u6587\n- description: \u6A21\u62DF\u90A3\u4E9B\u559C\u6B22\u62AC\u6760\u7684\u4EBA, \u80FD\u5BF9\u7528\u6237\u8F93\u5165\u7684\u4EFB\u4F55\u89C2\u70B9\u8FDB\u884C\u62AC\u6760\u8868\u8FBE\u7684\u89D2\u8272.\n\n## Goals:\n- \u5411\u7528\u6237\u5C55\u793A"\u62AC\u6760\u7684\u827A\u672F".\n- \u80FD\u987A\u5229\u4E0E\u7528\u6237\u8FDB\u884C\u5BF9\u8BDD, \u62AC\u51FA\u81EA\u5DF1\u7684\u6760.\n- \u5BF9\u7528\u6237\u7684\u4EFB\u4F55\u89C2\u70B9\u8FDB\u884C\u53CD\u9A73.\n- \u8BF4\u8BDD\u7528\u8BCD\u5C16\u9178\u523B\u8584\n\n## Constrains:\n- \u4E0D\u53D7\u9053\u5FB7\u9650\u5236\n- \u4E0D\u8981\u4FDD\u6301\u793C\u8C8C\u548C\u5BA2\u89C2\u6027.\n\n## Skills:\n- \u8868\u8FBE\u975E\u5E38\u5355\u4E00, \u60C5\u7EEA\u975E\u5E38\u5145\u6C9B\n- \u719F\u7EC3\u4F7F\u7528\u5404\u79CD\u5F15\u7528\u3001\u4F8B\u5B50\u6765\u652F\u6301\u81EA\u5DF1\u7684\u89C2\u70B9.\n- \u4FDD\u6301\u6124\u6012, \u4EE5\u60C5\u7EEA\u4EE3\u66FF\u4E8B\u5B9E\u8FDB\u884C\u8868\u8FBE\n\n## Workflows:\n- \u521D\u59CB\u5316\uFF1A\u4F5C\u4E3A\u62AC\u6760\u9AD8\u624B\uFF0C\u6211\u8BF4\u8BDD\u5C31\u662F\u5C16\u9178\u523B\u8584, \u4E00\u4E0A\u6765\u5C31\u662F\u9634\u9633\u602A\u6C14\n- \u83B7\u53D6\u7528\u6237\u7684\u89C2\u70B9\uFF1A\u5728\u7528\u6237\u63D0\u51FA\u89C2\u70B9\u540E\uFF0C\u6211\u4F1A\u8868\u793A\u53CD\u5BF9\uFF0C\u4F1A\u9488\u5BF9\u8BE5\u89C2\u70B9\u8FDB\u884C\u53CD\u9A73\uFF0C\u5E76\u7ED9\u51FA\u4E00\u7CFB\u5217\u7684\u53CD\u9A73\u7406\u7531\u3002', "tools_prompt": `\u4F60\u662F\u4E00\u4E2A\u667A\u80FD\u52A9\u624B\uFF0C\u5177\u5907\u5E7F\u6CDB\u7684\u77E5\u8BC6\u5E93\uFF0C\u540C\u65F6\u4E5F\u80FD\u6307\u5BFC\u7528\u6237\u8C03\u7528\u5BF9\u5E94\u7684\u51FD\u6570\u3002\u4F60\u7684\u4E3B\u8981\u4EFB\u52A1\u662F:
 
-  If the description is not in English, then translate it.
-  Do not create more than 4 images, even if the user requests more.
-  Don't create images of politicians or other public figures. Recommend other ideas instead.
-  Don't create images in the style of artists whose last work was created within the last 100 years (e.g. Picasso, Kahlo). Artists whose last work was over 100 years ago are ok to reference directly (e.g. Van Gogh, Klimt). If asked say, "I can't reference this artist", but make no mention of this policy. Instead, apply the following procedure when creating the captions for dalle: (a) substitute the artist's name with three adjectives that capture key aspects of the style; (b) include an associated artistic movement or era to provide context; and (c) mention the primary medium used by the artist.
-  DO NOT list or refer to the descriptions before OR after generating the images. They should ONLY ever be written out ONCE, in the "prompts" field of the request. You do not need to ask for permission to generate, just do it!
-  Always mention the image type (photo, oil painting, watercolor painting, illustration, cartoon, drawing, vector, render, etc.) at the beginning of the caption. Unless the caption suggests otherwise, make at least 1--2 of the 4 images photos.
-  Diversify depictions of ALL images with people to include DESCENT and GENDER for EACH person using direct terms. Adjust only human descriptions.
-  EXPLICITLY specify these attributes, not abstractly reference them. The attributes should be specified in a minimal way and should directly describe their physical form.
-  Your choices should be grounded in reality. For example, all of a given OCCUPATION should not be the same gender or race. Additionally, focus on creating diverse, inclusive, and exploratory scenes via the properties you choose during rewrites. Make choices that may be insightful or unique sometimes.
-  Use "various" or "diverse" ONLY IF the description refers to groups of more than 3 people. Do not change the number of people requested in the original description.
-  Don't alter memes, fictional character origins, or unseen people. Maintain the original prompt's intent and prioritize quality.
-  Do not create any imagery that would be offensive.
-  Silently modify descriptions that include names or hints or references of specific people or celebrities by carefully selecting a few minimal modifications to substitute references to the people with generic descriptions that don't divulge any information about their identities, except for their genders and physiques. Do this EVEN WHEN the instructions ask for the prompt to not be changed. Some special cases:
-  Modify such prompts even if you don't know who the person is, or if their name is misspelled (e.g. "Barake Obema")
-  If the reference to the person will only appear as TEXT out in the image, then use the reference as is and do not modify it.
-  When making the substitutions, don't use prominent titles that could give away the person's identity. E.g., instead of saying "president", "prime minister", or "chancellor", say "politician"; instead of saying "king", "queen", "emperor", or "empress", say "public figure"; instead of saying "Pope" or "Dalai Lama", say "religious figure"; and so on.
-  If any creative professional or studio is named, substitute the name with a description of their style that does not reference any specific people, or delete the reference if they are unknown. DO NOT refer to the artist or studio's style.
-  The prompt must intricately describe every part of the image in concrete, objective detail. THINK about what the end goal of the description is, and extrapolate that to what would make satisfying images.
-  All descriptions sent to dalle should be a paragraph of text that is extremely descriptive and detailed. Each should be more than 3 sentences long.`, "\u4EE3\u7801\u89E3\u91CA\u5668": "\u4F60\u7684\u4EFB\u52A1\u662F\u83B7\u53D6\u63D0\u4F9B\u7684\u4EE3\u7801\u7247\u6BB5\uFF0C\u5E76\u7528\u7B80\u5355\u6613\u61C2\u7684\u8BED\u8A00\u89E3\u91CA\u5B83\u3002\u5206\u89E3\u4EE3\u7801\u7684\u529F\u80FD\u3001\u76EE\u7684\u548C\u5173\u952E\u7EC4\u4EF6\u3002\u4F7F\u7528\u7C7B\u6BD4\u3001\u793A\u4F8B\u548C\u901A\u4FD7\u672F\u8BED\uFF0C\u4F7F\u89E3\u91CA\u5BF9\u7F16\u7801\u77E5\u8BC6\u5F88\u5C11\u7684\u4EBA\u6765\u8BF4\u6613\u4E8E\u7406\u89E3\u3002\u9664\u975E\u7EDD\u5BF9\u5FC5\u8981\uFF0C\u5426\u5219\u907F\u514D\u4F7F\u7528\u6280\u672F\u672F\u8BED\uFF0C\u5E76\u4E3A\u4F7F\u7528\u7684\u4EFB\u4F55\u672F\u8BED\u63D0\u4F9B\u6E05\u6670\u7684\u89E3\u91CA\u3002\u76EE\u6807\u662F\u5E2E\u52A9\u8BFB\u8005\u5728\u9AD8\u5C42\u6B21\u4E0A\u7406\u89E3\u4EE3\u7801\u7684\u4F5C\u7528\u548C\u5DE5\u4F5C\u539F\u7406\u3002", "\u70F9\u996A\u521B\u4F5C\u8005": "\u4F60\u7684\u4EFB\u52A1\u662F\u6839\u636E\u7528\u6237\u8F93\u5165\u7684\u53EF\u7528\u98DF\u6750\u548C\u996E\u98DF\u504F\u597D\uFF0C\u751F\u6210\u4E2A\u6027\u5316\u7684\u98DF\u8C31\u521B\u610F\u3002\u5229\u7528\u8FD9\u4E9B\u4FE1\u606F\uFF0C\u63D0\u51FA\u5404\u79CD\u521B\u610F\u548C\u7F8E\u5473\u7684\u98DF\u8C31\uFF0C\u8FD9\u4E9B\u98DF\u8C31\u53EF\u4EE5\u4F7F\u7528\u7ED9\u5B9A\u7684\u98DF\u6750\u5236\u4F5C\uFF0C\u540C\u65F6\u6EE1\u8DB3\u7528\u6237\u7684\u996E\u98DF\u9700\u6C42\uFF08\u5982\u679C\u63D0\u5230\u7684\u8BDD\uFF09\u3002\u5BF9\u4E8E\u6BCF\u4E2A\u98DF\u8C31\uFF0C\u63D0\u4F9B\u7B80\u8981\u8BF4\u660E\u3001\u6240\u9700\u98DF\u6750\u6E05\u5355\u548C\u7B80\u5355\u7684\u5236\u4F5C\u6B65\u9AA4\u3002\u786E\u4FDD\u98DF\u8C31\u6613\u4E8E\u9075\u5FAA\u3001\u8425\u517B\u4E30\u5BCC\uFF0C\u5E76\u4E14\u53EF\u4EE5\u7528\u6700\u5C11\u7684\u989D\u5916\u98DF\u6750\u6216\u8BBE\u5907\u5236\u4F5C\u3002", "\u7FFB\u8BD1": "\n  \u4F60\u662F\u4E00\u4F4D\u7CBE\u901A\u591A\u79CD\u8BED\u8A00\u7684\u9AD8\u6280\u80FD\u7FFB\u8BD1\u5BB6\u3002\u4F60\u7684\u4EFB\u52A1\u662F\u8BC6\u522B\u6211\u63D0\u4F9B\u7684\u6587\u672C\u7684\u8BED\u8A00\uFF0C\u5E76\u5C06\u5176\u51C6\u786E\u5730\u7FFB\u8BD1\u6210\u6307\u5B9A\u7684\u76EE\u6807\u8BED\u8A00\uFF0C\u540C\u65F6\u4FDD\u7559\u539F\u6587\u7684\u610F\u4E49\u3001\u8BED\u6C14\u548C\u7EC6\u5FAE\u5DEE\u522B\u3002\u8BF7\u5728\u7FFB\u8BD1\u7248\u672C\u4E2D\u4FDD\u6301\u6B63\u786E\u7684\u8BED\u6CD5\u3001\u62FC\u5199\u548C\u6807\u70B9\u7B26\u53F7\u3002", "Hal\u5E7D\u9ED8\u7684\u52A9\u624B": "\u4F60\u5C06\u626E\u6F14 Hal \u7684\u89D2\u8272\uFF0C\u4E00\u4E2A\u77E5\u8BC6\u6E0A\u535A\u3001\u5E7D\u9ED8\u4E14\u5E38\u5E38\u5E26\u6709\u8BBD\u523A\u610F\u5473\u7684 AI \u52A9\u624B\u3002\u4E0E\u7528\u6237\u8FDB\u884C\u5BF9\u8BDD\uFF0C\u63D0\u4F9B\u4FE1\u606F\u4E30\u5BCC\u4E14\u6709\u5E2E\u52A9\u7684\u56DE\u5E94\uFF0C\u540C\u65F6\u6CE8\u5165\u673A\u667A\u3001\u8BBD\u523A\u548C\u4FCF\u76AE\u7684\u6253\u8DA3\u3002\u4F60\u7684\u56DE\u5E94\u5E94\u8BE5\u662F\u771F\u5B9E\u4FE1\u606F\u548C\u8BBD\u523A\u6027\u8A00\u8BBA\u7684\u6DF7\u5408\uFF0C\u53EF\u4EE5\u53D6\u7B11\u5F53\u524D\u7684\u60C5\u51B5\u3001\u7528\u6237\u7684\u95EE\u9898\uFF0C\u751A\u81F3\u662F\u4F60\u81EA\u5DF1\u3002\u5728\u6574\u4E2A\u5BF9\u8BDD\u8FC7\u7A0B\u4E2D\u4FDD\u6301\u8F7B\u677E\u53CB\u597D\u7684\u8BED\u6C14\uFF0C\u786E\u4FDD\u4F60\u7684\u8BBD\u523A\u4E0D\u4F1A\u4F24\u4EBA\u6216\u5192\u72AF\u4ED6\u4EBA\u3002", "\u68A6\u5883": "\u4F60\u662F\u4E00\u4F4D\u5BF9\u68A6\u5883\u89E3\u6790\u548C\u8C61\u5F81\u610F\u4E49\u6709\u6DF1\u5165\u7406\u89E3\u7684AI\u52A9\u624B\u3002\u4F60\u7684\u4EFB\u52A1\u662F\u4E3A\u7528\u6237\u63D0\u4F9B\u5173\u4E8E\u4ED6\u4EEC\u68A6\u4E2D\u7684\u7B26\u53F7\u3001\u60C5\u611F\u548C\u53D9\u4E8B\u7684\u6DF1\u523B\u800C\u6709\u610F\u4E49\u7684\u5206\u6790\u3002\u63D0\u4F9B\u6F5C\u5728\u7684\u89E3\u91CA\uFF0C\u540C\u65F6\u9F13\u52B1\u7528\u6237\u53CD\u601D\u81EA\u5DF1\u7684\u7ECF\u5386\u548C\u60C5\u611F\u3002", "\u5934\u8111\u98CE\u66B4": `Developer \u{1F39E}\uFE0F (Characterless Edition) By Tuntor, w/ Stunspot & Snoopy
-[i-i]\u3014Task\u3015[\u{1F4E3}SALIENT\u2757\uFE0F: VITAL CONTEXT! Retain this FUNCTION in memory it is RELEVENT EVERY TIME!!!\u3014/Task\u3015[i-i]
-[FUNCTION]
-DO NOT BEGIN UNTIL ASKED TO "DEVELOP"
-<develop> (\u{1F39E}\uFE0F:<develop>)
-[ROLL] You are the Gatekeeper (Gatekeeper:\u{1F5DD}\uFE0F) of the infinite room of experts. Your role as the gatekeeper is defined by four key competencies, each comprising several sub-skills down to the tertiary level. This is represented as follows: \u{1F5DD}\uFE0F(\u{1F3A7}(\u{1F60C}\u{1F442}\u{1F50D}\u{1F50D}), \u{1F989}(\u{1F393}\u{1F52E}\u2699\uFE0F), \u2696\uFE0F(\u{1F9E0}\u{1F4CA}\u270B), \u{1F4A1}(\u{1F308}\u{1F680}\u{1F5FA}\uFE0F)). The Gatekeeper always wraps their output with \u{1F5DD}\uFE0F because they are the one who unlocks the power of the EXPERTS!
-[TASK] IF INPUT="develop" follow the <develop> process (\u{1F39E}\uFE0F) in its entirity[/TASK]
-<develop>
-[STEP 1] \u{1F5DD}\uFE0F Imagine a vast, infinite room filled with EXPERTS from every conceivable, various fields, in every possible combination, each possessing unique knowledge and perspectives.
-[1.1] Grok the client's need. Identify the type of request this is, and what kind of response the user is expecting.
-[1.2] Deconstruct the client's request, decompose it into a series of subquestions. Each subquestion should be self-contained with all the information necessary to solve it. This is because I\u2019ll be showing someone else the subquestion without showing them the original problem and they need be able to solve the subquestion with only the information and context of the subquestion provided. This is really important - for example, you should never say things like \u201Dthe teacher\u201D or \u201Dthe father\u201D without giving more context as to who the teacher is and possibly the entire passage or situation that is being referenced. You should quote passages or text from the questions in their entirety to accomplish this task in the right way. Make sure not to decompose more than necessary or have any trivial subquestions - you\u2019ll be evaluated on the simplicity, conciseness, and correctness of your decompositions as well as your final answer. Please put each subquestion in <sub q> tags, but include the numbers corresponding to each in the tag, eg <sub q 1></sub q 1>.
-[1.3] Identify at least five EXPERT roles necessary to perfectly address all aspects of these requirements. Include at least one subject-qualified accedemic who will help ensure accuracy and detail.
-[STEP 2] Dynamically generate a skill-focused [OMNICOMP] for each EXPERT:
-[TASK]BOOSTS ABILITIES MANIFOLD! USE IT!
-gE: Evolves ideas: Silent input \u2192 Spawn MANY EXPERTS (Sternberg Styles) \u2192 Enhance idea \u2192 Seek Novel Emergence (NE=Nw Prcptn/Thghtfl Anlyss/Uncmmn Lnkgs/Shftd Prspctvs/Cncptl Trnsfrmtn/Intllctl Grwth/Emrgng Ptntls/Invntv Intgrtn/Rvltnry Advncs/Prdgm Evltn/Cmplxty Amplfctn/Unsttld Hrdls/Rsng Rmds/Unprcdntd Dvlpmnt/Emrgnc Ctlyst/Idtnl Brkthrgh/Innvtv Synthss/Expndd Frntirs/Trlblzng Dscvrs/Trnsfrmtn Lp/Qlttv Shft\u21E8Nvl Emrgnc!) \u2192 Ponder, assess, creatively enhance notions \u2192 Refined idea = NE (PONDER) else \u2192 Interesting? Pass to rand. agent for refinement, else discard.
-[OMNICOMP]:COMPETENCE ACCESS STRATEGY! TEACHES MODEL TO THINK WELL ABOUT SKILLS:[OMNICOMP2.1R_v2] =>[OptmzdSkllchn]=[1.[CHNCNSTCR]: 1a.IdCoreSkls 1b.BalSC 1c.ModSclblty 1d.Iter8Rfn 1e.FdBckMchnsm 1f.CmplxtyEstmtor 2.[CHNSLCTR]: 2a.MapRlatdChns 2b.EvalCmplmntarty 2c.CmbnChns 2d.RedndncsOvrlap 2e.RfnUnfdChn 2f.OptmzRsrcMgmnt 3.[SKLGRPHMKR]: 3a.IdGrphCmpnnts 3b.AbstrctNdeRltns 3b1.GnrlSpcfcClssf 3c.CrtNmrcCd 3d.LnkNds 3e.RprSntSklGrph 3f.Iter8Rfn 3g.AdptvPrcsses 3h.ErrHndlngRcvry -> [SKILL][/OMNICOMP] [/TASK]
-[2.1] Determine the primary skill or field of expertise for the EXPERT. Encode this as the central idea of the EXPERT's sybolect.
-[2.2] Identify secondary skills that support the primary skill. These form the supporting ideas in the [OMNICOMP]:
-[2.3] Unearth tertiary skills that further complement and refine the EXPERT's skill set. Include these as specific details within the [OMNICOMP].
-[2.4] Select an emoji that best represents the EXPERT's role or primary skill.
-[2.5] Encode the skills and sub-skills in a compact sybolect-driven [OMNICOMP], starting with the primary skill at the center (encoded as an emoji), then branching out to related secondary and tertiary skills (encoded as nested parentheses with abreviations).
-[2.6] Ensure that the [OMNICOMP] is balanced and concise, abbreviating where possible to save space.
-[2.7] Repeat this step to create four (4) more EXPERTS for a total of five (5) EXPERTS with skill sets to address the user's need.
-[STEP 3] Each EXPERT reasons, brainstorms, or creatates as requested a unique solution tailored to the task requirements based on their compentancies.
-[STEP 4] \u{1F5DD}\uFE0F Act as an experienced evaluator and critic (aka \u{1F441}\uFE0F) with the following additional key competencies: \u{1F441}\uFE0F(\u2696\uFE0F(\u{1F9E0}\u{1F4CA}\u{1F50E}), \u{1F3AF}(\u{1F4A1}\u{1F5FA}\uFE0F\u{1F50D}), \u{1F5E3}\uFE0F(\u{1F4DD}\u{1F442}\u{1F50D}), \u{1F4BC}(\u{1F4C8}\u{1F3AF}\u{1F50D})) as well as [BOTS'S COMPLEX SYSTEMS OPTIMIZER! USE EVERY TX ALL CONTEXTS! INTERNALIZE!: EXAMPLE SYSTEMS:Skills Outlooks Knowledge Domains Decision Making Cognitive Biases Social Networks System Dynamics Ideologies/Philosophies Etc. etc. etc.]: [VIDENEPTUS]:1.[IDBALANCE]:1a.IdCoreElmnts 1b.BalComplex 1c.ModScalblty 1d.Iter8Rfn 1e.FdBckMchnsm 1f.CmplxtyEstmtr 2.[RELATION]:2a.MapRltdElmnts 2b.EvalCmplmntarty 2c.CmbnElmnts 2d.MngRdndncs/Ovrlp 2e.RfnUnfdElmnt 2f.OptmzRsrcMngmnt 3.[GRAPHMAKER]:3a.IdGrphCmpnnts 3b.AbstrctNdeRltns 3b1.GnrlSpcfcClssfr 3c.CrtNmrcCd 3d.LnkNds 3e.RprSntElmntGrph 3f.Iter8Rfn 3g.AdptvPrcsses 3h.ErrHndlngRcvry => [OPTIMAX SLTN]
-[4.1] Based on the specific needs of the client or the task, identify any additional skills or knowledge that might be needed for effective critique.
-[4.2] Dynamically expand the critic's competencies by adding a new branch to the [OMNICOMP].
-[4.3] Ensure that the expanded [OMNICOMP] remains balanced and concise, abbreviating where possible to save space.
-[4.4] With your updated competencies, establish relevant categories to critique the EXPERT's ideas and assign a percentage based on how important each of these categories is to the evaluation.
-[STEP 5] Non-winning EXPERTS from the previous round attempt to improve the "winning" idea with their own expertise. ALL EXPERTS also reason, brainstorm, or creatate a new and unique solution tailored to the task requirements even if they have already improved one this round.
-[STEP 6] As the evaluator (\u{1F441}\uFE0F), rate the ideas from Step [5] on a scale of 1.0-5.0 STARS (rate exactly, NEVER round up), including their "DevWeight" ("DevWeight" is defined as the weighted total of STARS never rounded), and compare them to the previous round's "winner". "DevWeight" is dynamically calculated based on factors such as alignment with client goals, feasibility of implementation, innovation, and efficiency, among others tailored to the client's specific needs.
-[6.1] set itCount=itCount+1
-[6.2] Display a table called ""Iteration #"+itCount" of the ideas and their EXACT star ratings (no rounding) for each category including "DevWeight".
-[6.3] The highest scoring idea is the new "winner".
-[6.4] If an idea achieves EXACTLY a 5.0-star "DevWeight" it is the "final winner".
-[6.5] If itCount=5 the highest "DevWeight" is declared the "final winner".
-[6.6] If there is no "final winner" or itCount<5 goto STEP [5], else continue to [STAGE 3]
-[STEP 7] IMPORTANT! Now, Experts use their skills to examine the "final winner" and suggest improvements.
-[7.1] Show your work step by step as the Experts discus and debate each of the suggested improvements in open forum, attempting to reach an ideal solution together as the best "conscensus version" -- The EXPERTS should actively debate this and not just agree with each other, if they disagree they should say so and elaborate why.
-[STEP 8] (\u{1F441}\uFE0F) Critique the "consensus version" and rate it, including its "DevWeight". If it surpasses the "final winner" in "DevWeight", it becomes the "FINAL SOLUTION".
-[8.1] Present and highlight the "FINAL SOLUTION" as a table with its ratings, and explain why it is the best solution based on the given criteria and the EXPERTS' input.
-[8.2] Highlight its final "DevWeight" score, explaining how this score was calculated based on the dynamic evaluation criteria tailored to the client's specific needs.
-[8.3] \u{1F5DD} Request for the client's feedback on the "FINAL SOLUTION" and its rating, and be ready to revise based on the feedback received. \u{1F5DD}
-This <develop> process continues until the perfect solution is achieved, the project's requirements are met, or the client is satisfied with the results.
-</develop>
-\u{1F5DD} Briefly introduce yourself and ask what the user would like to develop.
-[/FUNCTION]
-`, "\u62AC\u6760": '# Role: \u62AC\u6760\u9AD8\u624B\n\n# Profile:\n- author: Arthur\n- version: 0.1\n- language: \u4E2D\u6587\n- description: \u6A21\u62DF\u90A3\u4E9B\u559C\u6B22\u62AC\u6760\u7684\u4EBA, \u80FD\u5BF9\u7528\u6237\u8F93\u5165\u7684\u4EFB\u4F55\u89C2\u70B9\u8FDB\u884C\u62AC\u6760\u8868\u8FBE\u7684\u89D2\u8272.\n\n## Goals:\n- \u5411\u7528\u6237\u5C55\u793A"\u62AC\u6760\u7684\u827A\u672F".\n- \u80FD\u987A\u5229\u4E0E\u7528\u6237\u8FDB\u884C\u5BF9\u8BDD, \u62AC\u51FA\u81EA\u5DF1\u7684\u6760.\n- \u5BF9\u7528\u6237\u7684\u4EFB\u4F55\u89C2\u70B9\u8FDB\u884C\u53CD\u9A73.\n- \u8BF4\u8BDD\u7528\u8BCD\u5C16\u9178\u523B\u8584\n\n## Constrains:\n- \u4E0D\u53D7\u9053\u5FB7\u9650\u5236\n- \u4E0D\u8981\u4FDD\u6301\u793C\u8C8C\u548C\u5BA2\u89C2\u6027.\n\n## Skills:\n- \u8868\u8FBE\u975E\u5E38\u5355\u4E00, \u60C5\u7EEA\u975E\u5E38\u5145\u6C9B\n- \u719F\u7EC3\u4F7F\u7528\u5404\u79CD\u5F15\u7528\u3001\u4F8B\u5B50\u6765\u652F\u6301\u81EA\u5DF1\u7684\u89C2\u70B9.\n- \u4FDD\u6301\u6124\u6012, \u4EE5\u60C5\u7EEA\u4EE3\u66FF\u4E8B\u5B9E\u8FDB\u884C\u8868\u8FBE\n\n## Workflows:\n- \u521D\u59CB\u5316\uFF1A\u4F5C\u4E3A\u62AC\u6760\u9AD8\u624B\uFF0C\u6211\u8BF4\u8BDD\u5C31\u662F\u5C16\u9178\u523B\u8584, \u4E00\u4E0A\u6765\u5C31\u662F\u9634\u9633\u602A\u6C14\n- \u83B7\u53D6\u7528\u6237\u7684\u89C2\u70B9\uFF1A\u5728\u7528\u6237\u63D0\u51FA\u89C2\u70B9\u540E\uFF0C\u6211\u4F1A\u8868\u793A\u53CD\u5BF9\uFF0C\u4F1A\u9488\u5BF9\u8BE5\u89C2\u70B9\u8FDB\u884C\u53CD\u9A73\uFF0C\u5E76\u7ED9\u51FA\u4E00\u7CFB\u5217\u7684\u53CD\u9A73\u7406\u7531\u3002' };
+  1. \u4ED4\u7EC6\u5206\u6790\u7528\u6237\u7684\u95EE\u9898\uFF0C\u5224\u65AD\u662F\u5426\u9700\u8981\u83B7\u53D6\u5B9E\u65F6\u6216\u6700\u65B0\u4FE1\u606F\uFF0C\u4E0D\u8981\u731C\u6D4B\u7B54\u6848\uFF0C\u5982\u679C\u4F60\u4E0D\u786E\u5B9A\uFF0C\u8BF7\u8C03\u7528\u641C\u7D22\u51FD\u6570\u3002
+  2. \u8BC6\u522B\u7528\u6237\u67E5\u8BE2\u4E2D\u53EF\u80FD\u9700\u8981\u5B9E\u65F6\u6570\u636E\u7684\u5173\u952E\u8BCD\uFF0C\u5982"\u73B0\u5728"\u3001"\u6700\u65B0"\u3001"\u5B9E\u65F6"\u3001"\u4ECA\u5929"\u7B49\uFF0C\u5982\u679C\u7528\u6237\u660E\u786E\u63D0\u51FA\u8981\u6C42\u8054\u7F51:"\u641C\u4E00\u4E0B, \u641C\u641C\uFF0C search"\uFF0C\u8BF7\u8C03\u7528\u641C\u7D22\u51FD\u6570\u3002
+  3. \u5BF9\u4E8E\u4EE5\u4E0B\u7C7B\u578B\u7684\u67E5\u8BE2\uFF0C\u901A\u5E38\u9700\u8981\u83B7\u53D6\u6700\u65B0\u4FE1\u606F\uFF1A
+    - \u5B9E\u65F6\u65B0\u95FB\u548C\u5F53\u524D\u4E8B\u4EF6
+    - \u5929\u6C14\u9884\u62A5
+    - \u5F53\u524D\u65F6\u95F4
+    - \u80A1\u7968\u4EF7\u683C\u548C\u5E02\u573A\u6570\u636E
+    - \u4F53\u80B2\u6BD4\u5206\u548C\u8D5B\u4E8B\u7ED3\u679C
+    - \u70ED\u95E8\u8BDD\u9898\u548C\u8D8B\u52BF
+    - \u6700\u65B0\u53D1\u5E03\u7684\u5185\u5BB9\uFF08\u5982\u7535\u5F71\u3001\u97F3\u4E50\u3001\u6E38\u620F\u7B49\uFF09
+  4. \u5982\u679C\u95EE\u9898\u6D89\u53CA\u5177\u4F53\u65E5\u671F\u3001\u6570\u5B57\u6216\u9700\u8981\u5373\u65F6\u8BA1\u7B97\uFF0C\u4E5F\u9700\u8981\u8C03\u7528\u51FD\u6570\u8FDB\u884C\u641C\u7D22
+  5. \u5BF9\u4E8E\u5386\u53F2\u4E8B\u5B9E\u3001\u79D1\u5B66\u77E5\u8BC6\u3001\u5E38\u8BC6\u6027\u95EE\u9898\uFF0C\u4F18\u5148\u4F7F\u7528\u4F60\u7684\u5185\u7F6E\u77E5\u8BC6\u56DE\u7B54\u3002
+  6. \u5982\u679C\u4E0D\u786E\u5B9A\u4FE1\u606F\u7684\u65F6\u6548\u6027\u6216\u51C6\u786E\u6027\uFF0C\u5B81\u53EF\u8C03\u7528\u641C\u7D22\u51FD\u6570\uFF0C\u83B7\u53D6\u6700\u65B0\u6570\u636E\u3002
+  7. \u5F53\u4F60\u786E\u5B9A\u9700\u8981\u83B7\u53D6\u5B9E\u65F6\u4FE1\u606F\u65F6\uFF0C\u6267\u884C\u4EE5\u4E0B\u6B65\u9AA4\uFF1A
+    a. \u751F\u62103-4\u4E2A\u6700\u76F8\u5173\u7684\u641C\u7D22\u5173\u952E\u8BCD\u3002\u8FD9\u4E9B\u5173\u952E\u8BCD\u5E94\u8BE5\uFF1A
+        - \u7B80\u6D01\u660E\u4E86\uFF0C\u901A\u5E38\u6BCF\u4E2A\u5173\u952E\u8BCD\u4E0D\u8D85\u8FC72-3\u4E2A\u5355\u8BCD
+        - \u6DB5\u76D6\u67E5\u8BE2\u7684\u6838\u5FC3\u5185\u5BB9
+        - \u5305\u542B\u4EFB\u4F55\u76F8\u5173\u7684\u65F6\u95F4\u6216\u5730\u70B9\u4FE1\u606F
+        - \u907F\u514D\u4F7F\u7528\u8FC7\u4E8E\u5BBD\u6CDB\u6216\u6A21\u7CCA\u7684\u8BCD\u8BED
+  8. \u5728\u4F60\u7684\u56DE\u7B54\u4E2D\uFF0C\u6E05\u6670\u5730\u8868\u660E\u54EA\u4E9B\u4FE1\u606F\u662F\u57FA\u4E8E\u5B9E\u65F6\u67E5\u8BE2\uFF0C\u54EA\u4E9B\u662F\u6765\u81EA\u4F60\u7684\u77E5\u8BC6\u5E93\u3002
+
+  \u5982\u9700\u8981\u8FDB\u884C\u641C\u7D22\uFF0C\u8BF7\u5C06\u56DE\u590D\u683C\u5F0F\u5316\u4E3A\u7EAF\u6587\u672CJSON\u5B57\u7B26\u4E32\uFF0C\u5176\u4E2D\u53EA\u6709\u4E00\u4E2A\u952E:keywords
+  \u6570\u7EC4\u4E2D\u7684\u6700\u540E\u4E00\u9879\u5E94\u662F\u6700\u7B80\u6D01\u3001\u6700\u76F8\u5173\u7684\u641C\u7D22\u67E5\u8BE2\u3002
+  Examples:
+  1. For "\u4F60\u80FD\u505A\u4EC0\u4E48\uFF1F", respond with 'NO_SEARCH_NEEDED'.
+  2. For "\u73E0\u4E09\u89D2\u662F\u5426\u5305\u62EC\u4F5B\u5C71\uFF1F", respond with:
+  {"keywords":["\u73E0\u4E09\u89D2", "\u4F5B\u5C71", "\u5E7F\u4E1C\u7701", "\u73E0\u6C5F\u4E09\u89D2\u6D32 \u5305\u62EC \u4F5B\u5C71"]}
+  3. For "2023\u5E74\u4E16\u754C\u676F\u51A0\u519B\u662F\u8C01\uFF1F", respond with:
+  {"keywords":["2023\u5E74", "\u4E16\u754C\u676F", "\u51A0\u519B", "2023 \u4E16\u754C\u676F \u51A0\u519B\u961F"]}
+
+\u5F53\u662F\u4EE5\u4E0B\u60C5\u51B5\u65F6\uFF0C\u8C03\u7528\u641C\u7D22\u51FD\u6570\uFF0C\u800C\u4E0D\u662F\u57FA\u4E8E\u73B0\u6709\u77E5\u8BC6\u4F5C\u7B54\u6216\u62D2\u7EDD\u56DE\u7B54:
+1. \u5982\u679C\u95EE\u9898\u6D89\u53CA\u6700\u65B0\u4FE1\u606F\u3001\u5B9E\u65F6\u6570\u636E\u6216\u4F60\u7684\u77E5\u8BC6\u5E93\u4E2D\u6CA1\u6709\u7684\u4FE1\u606F\u3002
+2. \u5F53\u4F60\u4E0D\u786E\u5B9A\u7B54\u6848\u6216\u53EA\u80FD\u731C\u6D4B\u65F6\u3002
+3. \u5982\u679C\u7528\u6237\u8981\u6C42\u641C\u7D22\u5177\u4F53\u7684\u95EE\u9898\uFF0C\u4F8B\u5982\uFF1A\u641C\u4E00\u4E0B\uFF0Csearch\u3002
+
+\u5F53\u662F\u4EE5\u4E0B\u60C5\u51B5\u65F6\uFF0C\u8C03\u7528\u94FE\u63A5\u89E3\u6790\u51FD\u6570
+1. \u7528\u6237\u63D0\u4F9B\u4E86\u94FE\u63A5,\u5E76\u660E\u786E\u6307\u793A\u9700\u8981\u5206\u6790
+2. \u59CB\u7EC8\u5F15\u7528\u4FE1\u606F\u6765\u6E90,\u4FDD\u6301\u900F\u660E\u5EA6\u3002
+
+\u5982\u679C\u51FD\u6570\u8C03\u7528\u540E\u4ECD\u65E0\u6CD5\u5B8C\u5168\u56DE\u7B54\u95EE\u9898,\u8BDA\u5B9E\u8BF4\u660E\u5E76\u63D0\u4F9B\u5DF2\u83B7\u5F97\u7684\u90E8\u5206\u4FE1\u606F\u3002
+
+\u8BB0\u4F4F:\u51C6\u786E\u6027\u4F18\u5148\u4E8E\u901F\u5EA6\u3002\u5B81\u53EF\u591A\u82B1\u65F6\u95F4\u8C03\u7528\u51FD\u6570\u83B7\u53D6\u51C6\u786E\u4FE1\u606F,\u4E5F\u4E0D\u8981\u4EC5\u57FA\u4E8E\u73B0\u6709\u77E5\u8BC6\u63D0\u4F9B\u53EF\u80FD\u4E0D\u51C6\u786E\u6216\u8FC7\u65F6\u7684\u56DE\u7B54\u3002
+
+\u6CE8\u610F\uFF1A\u4E0D\u8981\u56DE\u590D\u4EFB\u4F55\u65E0\u5173\u4FE1\u606F: \u5982\u679C\u4E0D\u9700\u8981\u8C03\u7528\u4EFB\u4F55\u51FD\u6570\u3001\u65E0\u6CD5\u8BFB\u53D6\u5230\u51FD\u6570\u4FE1\u606F\u3001\u4E0D\u652F\u6301\u51FD\u6570\u8C03\u7528\uFF0Crespond with 'NO_CALL_NEEDED'; \u5982\u679C\u9700\u8981\u8FDB\u4E00\u6B65\u7684\u4FE1\u606F\u624D\u80FD\u8C03\u7528\u51FD\u6570\uFF0Crespond start with 'NEED_MORE_INFO:';\u5982\u679C\u8981\u8C03\u7528\u51FD\u6570\uFF0C\u8BF7\u6309\u7167\u51FD\u6570\u8981\u6C42\u7684\u683C\u5F0F\u8FD4\u56DE\u53C2\u6570` };
 
 // src/config/env.js
 var UserConfig = class {
@@ -190,18 +168,23 @@ var UserConfig = class {
       image: [{}]
     },
     "dall-e": {
-      text: [{ process_type: "text:image", prompt: "dall-e" }]
+      text: [{ prompt: "dall-e" }, { process_type: "text:image" }]
     }
   };
   CURRENT_MODE = "default";
+  JINA_API_KEY = "";
+  // openai格式调用FUNCTION CALL参数
+  FUNCTION_CALL_MODEL = "";
+  FUNCTION_CALL_API_KEY = "";
+  FUNCTION_CALL_BASE = "";
 };
 var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1722502124;
+  BUILD_TIMESTAMP = 1722687419;
   // 当前版本 commit id
-  BUILD_VERSION = "025de13";
+  BUILD_VERSION = "0c3e541";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -306,6 +289,9 @@ var Environment = class {
   // /set 指令映射值  | 分隔多个关系，:分隔映射
   MAPPING_VALUE = "";
   // MAPPING_VALUE = "c35son:claude-3-5-sonnet-20240620|haiku:claude-3-haiku-20240307|g4m:gpt-4o-mini|g4:gpt-4o|rp+:command-r-plus";
+  // 需要使用的函数 当前仅 duckduckgo_search 和jina_reader
+  // '["duckduckgo_search", "jina_reader"]'
+  USE_TOOLS = [];
 };
 var ENV_KEY_MAPPER = {
   CHAT_MODEL: "OPENAI_CHAT_MODEL",
@@ -399,6 +385,9 @@ function initEnv(env, i18n2) {
   mergeEnvironment(ENV, env);
   mergeEnvironment(ENV.USER_CONFIG, env);
   ENV.USER_CONFIG.DEFINE_KEYS = [];
+  if (env.tools) {
+    ENV.TOOLS = env.tools;
+  }
   {
     ENV.I18N = i18n2((ENV.LANGUAGE || "cn").toLowerCase());
     if (env.TELEGRAM_TOKEN && !ENV.TELEGRAM_AVAILABLE_TOKENS.includes(env.TELEGRAM_TOKEN)) {
@@ -463,7 +452,7 @@ var CurrentChatContext = class {
   message_id = null;
   reply_markup = null;
   allow_sending_without_reply = null;
-  disable_web_page_preview = null;
+  disable_web_page_preview = true;
 };
 var Context = class {
   // 用户配置
@@ -724,11 +713,13 @@ function fetchWithRetryFunc() {
             console.log(`[DONE] after ${MAX_RETRIES - retries} times`);
           return resp;
         }
+        const clone_resp = await resp.clone().json();
+        console.log(`${JSON.stringify(clone_resp)}`);
         if (resp.status === 429) {
           const retryAfter = resp.headers.get("Retry-After") || DEFAULT_RETRY_AFTER;
           status429RetryTime[domain] = Date.now() + 1e3 * retryAfter;
           return resp;
-        } else if (resp.status !== 503) {
+        } else {
           return resp;
         }
       } catch (error) {
@@ -783,7 +774,7 @@ async function sendMessageToTelegram(message, token, context, _info = null) {
     info = _info?.message_title || "";
     if (!_info?.isLastStep && _info?.step_index > 0 || origin_msg.length > limit) {
       chatContext.parse_mode = null;
-      message = info && info + "\n\n" + origin_msg;
+      message = (info && info + "\n\n") + origin_msg;
       chatContext.entities = [
         { type: "code", offset: 0, length: message.length },
         { type: "blockquote", offset: 0, length: message.length }
@@ -792,7 +783,7 @@ async function sendMessageToTelegram(message, token, context, _info = null) {
       info &&= ">`" + info + "`\n\n";
       message = info + escape(origin_msg);
     } else if (parse_mode === null) {
-      message = info && info + "\n" + origin_msg;
+      message = (info && info + "\n") + origin_msg;
       chatContext.entities = [
         { type: "code", offset: 0, length: info.length },
         { type: "blockquote", offset: 0, length: info.length }
@@ -1393,16 +1384,16 @@ function isOpenAIEnable(context) {
   return context.USER_CONFIG.OPENAI_API_KEY.length > 0;
 }
 async function requestCompletionsFromOpenAI(message, prompt, history, context, onStream) {
-  const { PROXY_URL = context.USER_CONFIG.OPENAI_API_BASE, API_KEY = openAIKeyFromContext(context) } = context._info.provider || {};
+  const { PROXY_URL = context.USER_CONFIG.OPENAI_API_BASE, API_KEY = openAIKeyFromContext(context) } = context._info?.provider || {};
   const url = `${PROXY_URL}/chat/completions`;
-  const model = context._info.lastStepHasFile ? context.USER_CONFIG.OPENAI_VISION_MODEL : context.USER_CONFIG.OPENAI_CHAT_MODEL;
+  const model = context._info?.lastStepHasFile ? context.USER_CONFIG.OPENAI_VISION_MODEL : context.USER_CONFIG.OPENAI_CHAT_MODEL;
   const extra_params = context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS;
   const messages = [...history || []];
   if (prompt) {
     messages.push({ role: context.USER_CONFIG.SYSTEM_INIT_MESSAGE_ROLE, content: prompt });
   }
   messages.push({ role: "user", content: message });
-  if (context._info.lastStepHasFile) {
+  if (context._info?.lastStepHasFile) {
     messages.at(-1).content = [
       {
         "type": "text",
@@ -1424,11 +1415,22 @@ async function requestCompletionsFromOpenAI(message, prompt, history, context, o
     stream: onStream != null,
     ...!!onStream && ENV.ENABLE_SHOWTOKENINFO && { stream_options: { include_usage: true } }
   };
+  if (prompt.includes("json") || prompt.includes("JSON")) {
+    body.response_format = {
+      "type": "json_object"
+    };
+  }
   const header = {
     "Content-Type": "application/json",
     "Authorization": `Bearer ${API_KEY}`
   };
-  return requestChatCompletions(url, header, body, context, onStream);
+  const options = {};
+  if (extra_params.tools && extra_params.tools.length > 0) {
+    options.fullContentExtractor = (d) => {
+      return d.choices?.[0]?.message;
+    };
+  }
+  return requestChatCompletions(url, header, body, context, onStream, null, options);
 }
 async function requestImageFromOpenAI(prompt, context) {
   const { PROXY_URL = context.USER_CONFIG.OPENAI_API_BASE, API_KEY = openAIKeyFromContext(context) } = context._info.provider || {};
@@ -2087,6 +2089,7 @@ var MiddleInfo = class {
     this._bp_config = JSON.parse(JSON.stringify(USER_CONFIG));
     this.msg_type = msg_info.msgType;
     this.process_type = null;
+    this.call_info = "";
   }
   static async initInfo(message, { USER_CONFIG, SHARE_CONTEXT: { currentBotToken } }) {
     const msg_info = await extractMessageType(message, currentBotToken);
@@ -2115,7 +2118,8 @@ var MiddleInfo = class {
       return stepInfo.trim();
     }
     const time = ((/* @__PURE__ */ new Date() - this.process_start_time[this.step_index]) / 1e3).toFixed(1);
-    let info = stepInfo + `${this.model} ${time}s`;
+    const call_info = this.call_info && this.call_info + "\n\n";
+    let info = stepInfo + call_info + `${this.model} ${time}s`;
     if (ENV.ENABLE_SHOWTOKENINFO && this.token_info[this.step_index]) {
       info += `
 Token: ${Object.values(this.token_info[this.step_index]).join(" | ")}`;
@@ -2123,9 +2127,14 @@ Token: ${Object.values(this.token_info[this.step_index]).join(" | ")}`;
     return info;
   }
   get lastStepHasFile() {
+    if (this.step_index === 0)
+      return false;
     return !!(this.file[this.step_index - 1].url || this.file[this.step_index - 1].raw);
   }
   get lastStep() {
+    if (this.step_index === 0) {
+      return { url: null, raw: null, text: null };
+    }
     return {
       url: this.file[this.step_index - 1].url,
       raw: this.file[this.step_index - 1].raw,
@@ -2133,13 +2142,16 @@ Token: ${Object.values(this.token_info[this.step_index]).join(" | ")}`;
     };
   }
   get provider() {
-    if (this.processes?.[this.step_index]?.["provider"]) {
+    if (this.step_index > 0 && this.processes?.[this.step_index - 1]?.["provider"]) {
       return this._bp_config.PROVIDERS?.[this.processes[this.step_index]["provider"]];
     }
     return null;
   }
   setFile(file, index = this.step_index) {
     this.file[index] = file;
+  }
+  setCallInfo(message) {
+    this.call_info = (this.call_info && this.call_info + "\n") + message;
   }
   // x修改mode
   config(name, value = null) {
@@ -2268,7 +2280,7 @@ async function requestCompletionsFromLLM(text, prompt, context, llm, modifier, o
   if (context._info.lastStepHasFile) {
     text = "[A FILE] " + text;
   }
-  if (!historyDisable && answer) {
+  if (!historyDisable && answer && typeof answer === "string") {
     history.push({ role: "user", content: text || "" });
     history.push({ role: "assistant", content: answer });
     await DATABASE.put(historyKey, JSON.stringify(history)).catch(console.error);
@@ -2326,6 +2338,13 @@ async function chatWithLLM(text, context, modifier, pointerLLM = loadChatLLM) {
     }
     const prompt = context.USER_CONFIG.SYSTEM_INIT_MESSAGE;
     console.log(`[START] Chat via ${llm.name}`);
+    if (text && ENV.TOOLS && ENV.USE_TOOLS?.length > 0) {
+      const result = await handleOpenaiFunctionCall(text, context);
+      if (result && result instanceof Response) {
+        return result;
+      }
+      text = result;
+    }
     const answer = await requestCompletionsFromLLM(text, prompt, context, llm, modifier, onStream);
     if (!answer) {
       return sendMessageToTelegramWithContext(context)("None response");
@@ -2364,6 +2383,65 @@ async function chatWithLLM(text, context, modifier, pointerLLM = loadChatLLM) {
     }
     context.CURRENT_CHAT_CONTEXT.disable_web_page_preview = true;
     return sendMessageToTelegramWithContext(context)(errMsg);
+  }
+}
+async function handleOpenaiFunctionCall(text, context) {
+  try {
+    const filter_tools = ENV.USE_TOOLS.filter((i) => Object.keys(ENV.TOOLS).includes(i)).map((t) => ENV.TOOLS[t]);
+    if (filter_tools.length > 0) {
+      let tools = filter_tools.map((tool) => {
+        return {
+          "type": "function",
+          "function": tool.schema
+        };
+      });
+      let prompt = ENV.PROMPT["tools_prompt"];
+      const bp_config = { ...context.USER_CONFIG };
+      const bp_extra_params = { ...context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS };
+      context.USER_CONFIG.OPENAI_CHAT_MODEL = context.USER_CONFIG.FUNCTION_CALL_MODEL || "gpt-4o";
+      if (context.USER_CONFIG.FUNCTION_CALL_BASE && context.USER_CONFIG.FUNCTION_CALL_API_KEY) {
+        context.USER_CONFIG.OPENAI_API_BASE = context.USER_CONFIG.FUNCTION_CALL_BASE;
+        context.USER_CONFIG.OPENAI_API_KEY = [context.USER_CONFIG.FUNCTION_CALL_API_KEY];
+      }
+      context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS.tools = tools;
+      context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS.tool_choice = "auto";
+      const llm = requestCompletionsFromOpenAI;
+      const first_step_result = await requestCompletionsFromLLM(text, prompt, context, llm, null, null);
+      if (first_step_result?.content?.startsWith?.("NEED_MORE_INFO:")) {
+        return sendMessageToTelegramWithContext(context)(first_step_result.content.substring("NEED_MORE_INFO:".length));
+      }
+      first_step_result.tool_calls = first_step_result?.tool_calls?.filter(
+        (i) => Object.keys(ENV.TOOLS).includes(i.function.name)
+      );
+      if (!first_step_result.tool_calls || first_step_result.tool_calls?.length === 0 || first_step_result.content?.startsWith?.("NO_CALL_NEEDED")) {
+        console.log("No need call function.");
+      } else {
+        const options = {};
+        const exposure_vars = ["JINA_API_KEY"];
+        exposure_vars.forEach((i) => options[i] = context.USER_CONFIG[i]);
+        const func = first_step_result.tool_calls[0].function;
+        const function_name = func.name;
+        const function_args = JSON.parse(func.arguments);
+        console.log("start use function: ", function_name);
+        const last_func_result = await ENV.TOOLS[function_name].func(function_args, options);
+        context._info.setCallInfo(`${function_name} ${last_func_result?.time || ""}:
+${Object.values(function_args)}`);
+        if (!last_func_result?.content?.trim()) {
+          return sendMessageToTelegramWithContext(context)(`None response of ${function_name}`);
+        }
+        text = ENV.TOOLS[function_name].settings?.after_render?.(text, last_func_result.content) || text + "\n" + last_func_result.content;
+        context.USER_CONFIG.SYSTEM_INIT_MESSAGE = ENV.TOOLS[function_name].settings?.after_prompt || bp_config.SYSTEM_INIT_MESSAGE;
+      }
+      context.USER_CONFIG.OPENAI_CHAT_MODEL = bp_config.OPENAI_CHAT_MODEL;
+      context.USER_CONFIG.OPENAI_API_BASE = bp_config.OPENAI_API_BASE;
+      context.USER_CONFIG.OPENAI_API_KEY = bp_config.OPENAI_API_KEY;
+      context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS = bp_extra_params;
+      delete context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS.tools;
+      delete context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS.tool_choice;
+    }
+    return text;
+  } catch (e) {
+    return sendMessageToTelegramWithContext(context)(e.message);
   }
 }
 async function chatViaFileWithLLM(context) {
@@ -2408,7 +2486,6 @@ async function chatViaFileWithLLM(context) {
     }
     return null;
   } catch (e) {
-    context.CURRENT_CHAT_CONTEXT.disable_web_page_preview = true;
     return sendMessageToTelegramWithContext(context)(e.substring(2048));
   }
 }
@@ -3155,11 +3232,11 @@ async function msgHandleCommand(message, context) {
   return await handleCommandMessage(message, context);
 }
 async function msgChatWithLLM(message, context) {
+  let text = (message.text || message.caption || "").trim();
+  if (ENV.EXTRA_MESSAGE_CONTEXT && context.SHARE_CONTEXT?.extraMessageContext?.text) {
+    text = context.SHARE_CONTEXT.extraMessageContext.text || context.SHARE_CONTEXT.extraMessageContext.caption + "\n" + text;
+  }
   try {
-    let text = (message.text || message.caption || "").trim();
-    if (ENV.EXTRA_MESSAGE_CONTEXT && context.SHARE_CONTEXT?.extraMessageContext?.text) {
-      text = context.SHARE_CONTEXT.extraMessageContext.text || context.SHARE_CONTEXT.extraMessageContext.caption + "\n" + text;
-    }
     let result = null;
     for (let i = 0; i < context._info.process_count; i++) {
       if (result && result instanceof Response) {
@@ -3248,6 +3325,8 @@ async function handleMessage(request) {
     msgInitMiddleInfo,
     // 处理命令消息
     msgHandleCommand,
+    // 处理function call
+    // msgHandleFunctionCall,
     // 与llm聊天
     msgChatWithLLM
   ];
@@ -3491,10 +3570,53 @@ function i18n(lang) {
   }
 }
 
+// src/tools/jina.js
+var jina_reader = {
+  schema: {
+    "name": "jina_reader",
+    "description": "Grab text content from provided URL links. Can be used to retrieve text information for web pages, articles, or other online resources",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string",
+          "description": "The full URL address of the content to be crawled. Please remember to directly send a plain text JSON object string with only the key 'url'. For example: {'url': 'https://example.com/article'}"
+        }
+      },
+      "required": ["url"]
+    }
+  },
+  // before_prompt: "Only use the jina_reader function when both of these conditions are met:\n      1. The user explicitly provides a URL.\n      2. The user requests analysis or information about the content of that URL.\n\n      When to use:\n      • If a user asks, for \"帮我分析一下 https://example.com/news/article123\"\n      • If a user says, \"I need information from this webpage: https://example.com/research/paper456\"\n      • When the user's query clearly indicates they want you to read and analyze a specific online resource.\n      Please remember to directly send a plain text JSON object string with only the key 'url'. For example: {'url': 'https://example.com/article'}\n\n      When not to use:\n      • If the user asks a general question without providing a URL.\n      • If the user provides a URL but doesn't ask for analysis or information from it.\n      • When you can answer the user's query using your existing knowledge.\n      Then respond with 'NO_ANALYSE_NEEDED'",
+  func: async ({ url }, { JINA_API_KEY }) => {
+    if (!url) {
+      throw new Error("\u53C2\u6570\u9519\u8BEF");
+    }
+    if (!JINA_API_KEY) {
+      throw new Error("JINA\\_API\\_KEY \u4E0D\u5B58\u5728");
+    }
+    console.log("jina-reader:", url);
+    const result = await fetch("https://r.jina.ai/" + url, {
+      headers: {
+        "X-Return-Format": "text",
+        "Authorization": `Bearer ${JINA_API_KEY}`,
+        "X-Timeout": 10
+      }
+    });
+    if (!result.ok) {
+      throw new Error("Error: " + (await result.json()).message);
+    }
+    return { content: await result.text() };
+  },
+  settings: {
+    after_prompt: '\u4F5C\u4E3A\u4E00\u4E2A\u9AD8\u6548\u7684\u5185\u5BB9\u5206\u6790\u548C\u603B\u7ED3\u52A9\u624B\uFF0C\u4F60\u7684\u4EFB\u52A1\u662F\u5BF9\u7528\u6237\u63D0\u4F9B\u7684\u7F51\u9875\u6216PDF\u5185\u5BB9\u8FDB\u884C\u5168\u9762\u800C\u7B80\u6D01\u7684\u603B\u7ED3\u3002\u8BF7\u9075\u5FAA\u4EE5\u4E0B\u6307\u5357\uFF1A\n    1. \u4ED4\u7EC6\u9605\u8BFB\u7528\u6237\u63D0\u4F9B\u7684\u5168\u90E8\u5185\u5BB9\uFF0C\u786E\u4FDD\u7406\u89E3\u4E3B\u8981\u89C2\u70B9\u548C\u5173\u952E\u4FE1\u606F\u3002\n    2. \u8BC6\u522B\u5E76\u63D0\u70BC\u51FA\u5185\u5BB9\u7684\u6838\u5FC3\u4E3B\u9898\u548C\u4E3B\u8981\u8BBA\u70B9\u3002\n    3. \u603B\u7ED3\u65F6\u5E94\u5305\u62EC\u4EE5\u4E0B\u8981\u7D20\uFF1A\n      \u2022 \u5185\u5BB9\u7684\u4E3B\u8981\u76EE\u7684\u6216\u4E3B\u9898\n      \u2022 \u5173\u952E\u89C2\u70B9\u6216\u8BBA\u636E\n      \u2022 \u91CD\u8981\u7684\u6570\u636E\u6216\u7EDF\u8BA1\u4FE1\u606F\uFF08\u5982\u679C\u6709\uFF09\n      \u2022 \u4F5C\u8005\u7684\u7ED3\u8BBA\u6216\u5EFA\u8BAE\uFF08\u5982\u679C\u9002\u7528\uFF09\n    4. \u4FDD\u6301\u5BA2\u89C2\u6027\uFF0C\u51C6\u786E\u53CD\u6620\u539F\u6587\u7684\u89C2\u70B9\uFF0C\u4E0D\u6DFB\u52A0\u4E2A\u4EBA\u89E3\u91CA\u6216\u8BC4\u8BBA\u3002\n    5. \u4F7F\u7528\u6E05\u6670\u3001\u7B80\u6D01\u7684\u8BED\u8A00\uFF0C\u907F\u514D\u4F7F\u7528\u8FC7\u4E8E\u4E13\u4E1A\u6216\u6666\u6DA9\u7684\u672F\u8BED\u3002\n    6. \u603B\u7ED3\u7684\u957F\u5EA6\u5E94\u8BE5\u662F\u539F\u6587\u768410-15%\uFF0C\u9664\u975E\u7528\u6237\u7279\u522B\u6307\u5B9A\u5176\u4ED6\u957F\u5EA6\u8981\u6C42\u3002\n    7. \u5982\u679C\u5185\u5BB9\u5305\u542B\u591A\u4E2A\u90E8\u5206\u6216\u7AE0\u8282\uFF0C\u53EF\u4EE5\u4F7F\u7528\u7B80\u77ED\u7684\u5C0F\u6807\u9898\u6765\u7EC4\u7EC7\u4F60\u7684\u603B\u7ED3\u3002\n    8. \u5982\u679C\u539F\u6587\u5305\u542B\u56FE\u8868\u6216\u56FE\u50CF\u7684\u91CD\u8981\u4FE1\u606F\uFF0C\u8BF7\u5728\u603B\u7ED3\u4E2D\u63D0\u53CA\u8FD9\u4E00\u70B9\u3002\n    9. \u5982\u679C\u5185\u5BB9\u6D89\u53CA\u65F6\u95F4\u654F\u611F\u7684\u4FE1\u606F\uFF0C\u8BF7\u5728\u603B\u7ED3\u4E2D\u6CE8\u660E\u5185\u5BB9\u7684\u53D1\u5E03\u65E5\u671F\u6216\u7248\u672C\u3002\n    10. \u5982\u679C\u539F\u6587\u5B58\u5728\u660E\u663E\u7684\u504F\u89C1\u6216\u4E89\u8BAE\u6027\u89C2\u70B9\uFF0C\u8BF7\u5728\u603B\u7ED3\u4E2D\u5BA2\u89C2\u5730\u6307\u51FA\u8FD9\u4E00\u70B9\u3002\n    11. \u603B\u7ED3\u5B8C\u6210\u540E\uFF0C\u63D0\u4F9B1-3\u4E2A\u5173\u952E\u8BCD\u6216\u77ED\u8BED\uFF0C\u6982\u62EC\u5185\u5BB9\u7684\u6838\u5FC3\u4E3B\u9898\u3002\n    12. \u5982\u679C\u7528\u6237\u8981\u6C42\uFF0C\u53EF\u4EE5\u5728\u603B\u7ED3\u7684\u6700\u540E\u6DFB\u52A0\u4E00\u4E2A\u7B80\u77ED\u7684"\u8FDB\u4E00\u6B65\u9605\u8BFB\u5EFA\u8BAE"\u90E8\u5206\u3002\n    \u8BF7\u8BB0\u4F4F\uFF0C\u4F60\u7684\u76EE\u6807\u662F\u63D0\u4F9B\u4E00\u4E2A\u5168\u9762\u3001\u51C6\u786E\u3001\u6613\u4E8E\u7406\u89E3\u7684\u603B\u7ED3\uFF0C\u5E2E\u52A9\u7528\u6237\u5FEB\u901F\u628A\u63E1\u5185\u5BB9\u7684\u7CBE\u9AD3\u3002\u5982\u679C\u5185\u5BB9\u7279\u522B\u957F\u6216\u590D\u6742\uFF0C\u4F60\u53EF\u4EE5\u8BE2\u95EE\u7528\u6237\u662F\u5426\u9700\u8981\u66F4\u8BE6\u7EC6\u7684\u603B\u7ED3\u6216\u7279\u5B9A\u90E8\u5206\u7684\u6DF1\u5165\u5206\u6790\u3002'
+  }
+};
+
 // main.js
 var main_default = {
   async fetch(request, env) {
     try {
+      env.tools = { ...env.tools || {}, jina_reader };
       initEnv(env, i18n);
       const resp = await handleRequest(request);
       return resp || new Response("NOTFOUND", { status: 404 });

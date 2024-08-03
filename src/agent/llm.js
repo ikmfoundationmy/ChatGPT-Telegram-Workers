@@ -7,6 +7,7 @@ import {
 import {DATABASE, ENV} from '../config/env.js';
 import { loadAudioLLM, loadChatLLM } from "./agents.js";
 import { handleFile } from "../config/middle.js";
+import { requestCompletionsFromOpenAI } from "../agent/openai.js";
 
 /**
  * @return {(function(string): number)}
@@ -115,7 +116,7 @@ async function requestCompletionsFromLLM(text, prompt, context, llm, modifier, o
     if (context._info.lastStepHasFile) {
         text = '[A FILE] ' + text;
     }
-    if (!historyDisable && answer) {
+    if (!historyDisable && answer && typeof answer === 'string') {
         history.push({ role: 'user', content: text || '' });
         history.push({ role: 'assistant', content: answer });
         await DATABASE.put(historyKey, JSON.stringify(history)).catch(console.error);
@@ -136,6 +137,7 @@ async function requestCompletionsFromLLM(text, prompt, context, llm, modifier, o
  */
 export async function chatWithLLM(text, context, modifier, pointerLLM = loadChatLLM) {
     try {
+
         text = context._info.isFirstStep ? text : context._info.lastStep.text;
         const parseMode = context.CURRENT_CHAT_CONTEXT.parse_mode;
         try {
@@ -190,6 +192,15 @@ export async function chatWithLLM(text, context, modifier, pointerLLM = loadChat
         }
         const prompt = context.USER_CONFIG.SYSTEM_INIT_MESSAGE;
         console.log(`[START] Chat via ${llm.name}`);
+
+        if (text && ENV.TOOLS && ENV.USE_TOOLS?.length > 0) {
+          const result = await handleOpenaiFunctionCall(text, context);
+          if (result && result instanceof Response) {
+            return result;
+          }
+          text = result;
+        }
+
         const answer = await requestCompletionsFromLLM(text, prompt, context, llm, modifier, onStream);
         if (!answer) {
             return sendMessageToTelegramWithContext(context)('None response');
@@ -234,6 +245,127 @@ export async function chatWithLLM(text, context, modifier, pointerLLM = loadChat
     }
 }
 
+
+/**
+ * 处理tool
+ *
+ * @param {TelegramMessage} message
+ * @param {Context} context
+ * @return {Promise<Response>}
+ */
+async function handleOpenaiFunctionCall(text, context) {
+  try {
+    const filter_tools = ENV.USE_TOOLS.filter((i) => Object.keys(ENV.TOOLS).includes(i)).map((t) => ENV.TOOLS[t]);
+    if (filter_tools.length > 0) {
+      let tools = filter_tools.map((tool) => {
+        return {
+          'type': 'function',
+          'function': tool.schema,
+        };
+      });
+
+      //默认使用的提示词与前缀
+      let prompt = ENV.PROMPT['tools_prompt'];
+      // 备份现有模型与额外配置
+      const bp_config = { ...context.USER_CONFIG };
+      // const bp_prompt = context.USER_CONFIG.SYSTEM_INIT_MESSAGE;
+      const bp_extra_params = { ...context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS };
+
+      context.USER_CONFIG.OPENAI_CHAT_MODEL = context.USER_CONFIG.FUNCTION_CALL_MODEL || 'gpt-4o';
+      if (context.USER_CONFIG.FUNCTION_CALL_BASE && context.USER_CONFIG.FUNCTION_CALL_API_KEY) {
+        context.USER_CONFIG.OPENAI_API_BASE = context.USER_CONFIG.FUNCTION_CALL_BASE;
+        context.USER_CONFIG.OPENAI_API_KEY = [context.USER_CONFIG.FUNCTION_CALL_API_KEY];
+      }
+      context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS.tools = tools;
+      context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS.tool_choice = 'auto';
+
+      const llm = requestCompletionsFromOpenAI;
+      const first_step_result = await requestCompletionsFromLLM(text, prompt, context, llm, null, null);
+      if (first_step_result?.content?.startsWith?.('NEED_MORE_INFO:')) {
+        return sendMessageToTelegramWithContext(context)(first_step_result.content.substring('NEED_MORE_INFO:'.length));
+      }
+
+      // 假定function为串行，且上一步的输出是下一步的输入
+      first_step_result.tool_calls = first_step_result?.tool_calls?.filter((i) =>
+        Object.keys(ENV.TOOLS).includes(i.function.name),
+      );
+      if (
+        !first_step_result.tool_calls ||
+        first_step_result.tool_calls?.length === 0 ||
+        first_step_result.content?.startsWith?.('NO_CALL_NEEDED')
+      ) {
+        console.log('No need call function.');
+        // return sendMessageToTelegramWithContext(context)(`Cant found function: ${function_name}`);
+      } else {
+        // let last_llm_result = first_step_result;
+        // let last_func_result = null;
+        const options = {};
+        const exposure_vars = ['JINA_API_KEY'];
+        exposure_vars.forEach((i) => (options[i] = context.USER_CONFIG[i]));
+        // let function_name = null; // last_llm_result.tool_calls[0].function.name;
+        // let function_args = null; // JSON.parse(last_llm_result.tool_calls[0].function.arguments);
+        // for (const [i, func] of first_step_result.tool_calls.entries()) {
+
+        //   if (i > 0) {
+        //     prompt = ENV.TOOLS[func.function.name].settings.before_prompt;
+        //     message = ENV.TOOLS[func.function.name].settings.before_render(text);
+        //     // 只保留当前需要执行的function
+        //     context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS.tools = [
+        //       {
+        //         'type': 'function',
+        //         'function': ENV.TOOLS[func.function.name].schema,
+        //       },
+        //     ];
+        //     last_llm_result = await requestCompletionsFromOpenAI(message, prompt, null, ENV, null, true);
+        //   }
+        //   function_name = func.function.name;
+        //   function_args = JSON.parse(last_llm_result.tool_calls[0].function.arguments);
+        //   context._info.setCallInfo(last_llm_result.tool_calls[0].function.arguments);
+        //   console.log("start use function: ", function_name);
+        //   last_func_result = await ENV.TOOLS[function_name].func(function_args, options);
+        //   if (last_func_result instanceof Response) {
+        //     return last_func_result;
+        //   }
+        //   if (!last_func_result.content) {
+        //     return sendMessageToTelegramWithContext(context)(`None response of ${function_name}`);
+        //   }
+        //   // console.log(last_func_result.content);
+        //   text = last_func_result.content;
+        // }
+
+        const func = first_step_result.tool_calls[0].function;
+        const function_name = func.name;
+        const function_args = JSON.parse(func.arguments);
+        console.log('start use function: ', function_name);
+        const last_func_result = await ENV.TOOLS[function_name].func(function_args, options);
+        context._info.setCallInfo(`${function_name} ` + `${last_func_result?.time || ''}` + `:\n${Object.values(function_args)}`);
+
+        if (!last_func_result?.content?.trim()) {
+          return sendMessageToTelegramWithContext(context)(`None response of ${function_name}`);
+        }
+
+        // console.log(last_func_result.content);
+        text =
+          ENV.TOOLS[function_name].settings?.after_render?.(text, last_func_result.content) ||
+          text + '\n' + last_func_result.content;
+        context.USER_CONFIG.SYSTEM_INIT_MESSAGE =
+          ENV.TOOLS[function_name].settings?.after_prompt || bp_config.SYSTEM_INIT_MESSAGE;
+      }
+
+      context.USER_CONFIG.OPENAI_CHAT_MODEL = bp_config.OPENAI_CHAT_MODEL;
+      context.USER_CONFIG.OPENAI_API_BASE = bp_config.OPENAI_API_BASE;
+      context.USER_CONFIG.OPENAI_API_KEY = bp_config.OPENAI_API_KEY;
+      context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS = bp_extra_params;
+      //
+      delete context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS.tools;
+      delete context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS.tool_choice;
+    }
+    return text;
+  } catch (e) {
+    return sendMessageToTelegramWithContext(context)(e.message);
+  }
+}
+
 export async function chatViaFileWithLLM(context) {
     try {
         if (!context.CURRENT_CHAT_CONTEXT.message_id) {
@@ -276,7 +408,7 @@ export async function chatViaFileWithLLM(context) {
         }
         return null;
     } catch (e) {
-        context.CURRENT_CHAT_CONTEXT.disable_web_page_preview = true;
+        // context.CURRENT_CHAT_CONTEXT.disable_web_page_preview = true;
         return sendMessageToTelegramWithContext(context)(e.substring(2048));
     }
 }

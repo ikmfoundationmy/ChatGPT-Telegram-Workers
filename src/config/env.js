@@ -136,10 +136,15 @@ export class UserConfig {
       image: [{}],
     },
     'dall-e': {
-      text: [{ process_type: 'text:image', prompt: 'dall-e'}],
+        text: [{prompt: 'dall-e'},{ process_type: 'text:image'}],
     },
   };
-  CURRENT_MODE = 'default';
+    CURRENT_MODE = 'default';
+    JINA_API_KEY = '';
+    // openai格式调用FUNCTION CALL参数
+    FUNCTION_CALL_MODEL = '';
+    FUNCTION_CALL_API_KEY = '';
+    FUNCTION_CALL_BASE = '';
 }
 
 
@@ -267,6 +272,10 @@ class Environment {
     // /set 指令映射值  | 分隔多个关系，:分隔映射
     MAPPING_VALUE = "";
     // MAPPING_VALUE = "c35son:claude-3-5-sonnet-20240620|haiku:claude-3-haiku-20240307|g4m:gpt-4o-mini|g4:gpt-4o|rp+:command-r-plus";
+
+    // 需要使用的函数 当前仅 duckduckgo_search 和jina_reader
+    // '["duckduckgo_search", "jina_reader"]'
+    USE_TOOLS = [];
 }
 
 export const ENV_KEY_MAPPER = {
@@ -385,6 +394,9 @@ export function initEnv(env, i18n) {
     mergeEnvironment(ENV, env);
     mergeEnvironment(ENV.USER_CONFIG, env);
     ENV.USER_CONFIG.DEFINE_KEYS = [];
+    if (env.tools) {
+        ENV.TOOLS = env.tools;
+    }
 
     // 兼容旧版配置
     {

@@ -28,5 +28,7 @@
   ],
   "author": "TBXark",
   "license": "MIT",
-  "dependencies": {}
+  "dependencies": {
+    "duck-duck-scrape": "^2.2.5"
+  }
 }

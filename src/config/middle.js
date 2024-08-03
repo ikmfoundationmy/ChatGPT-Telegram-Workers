@@ -118,6 +118,7 @@ export class MiddleInfo {
     this._bp_config = JSON.parse(JSON.stringify(USER_CONFIG)); // 备份用户配置
     this.msg_type = msg_info.msgType; // tg消息类型 text audio image
     this.process_type = null;
+    this.call_info = '';
   }
 
   static async initInfo(message, { USER_CONFIG, SHARE_CONTEXT: { currentBotToken } }) {
@@ -151,16 +152,21 @@ export class MiddleInfo {
       return stepInfo.trim();
     }
     const time = ((new Date() - this.process_start_time[this.step_index]) / 1000).toFixed(1);
-    let info = stepInfo + `${this.model} ${time}s`;
+    const call_info = this.call_info && (this.call_info + '\n\n');
+    let info = stepInfo + call_info + `${this.model} ${time}s`;
     if (ENV.ENABLE_SHOWTOKENINFO && this.token_info[this.step_index]) {
       info += `\nToken: ${Object.values(this.token_info[this.step_index]).join(' | ')}`;
     }
     return info;
   }
   get lastStepHasFile() {
+    if (this.step_index === 0) return false;
     return !!(this.file[this.step_index - 1].url || this.file[this.step_index - 1].raw);
   }
   get lastStep() {
+    if (this.step_index === 0) {
+      return { url: null, raw: null, text: null };
+    }
     return {
       url: this.file[this.step_index - 1].url,
       raw: this.file[this.step_index - 1].raw,
@@ -168,13 +174,16 @@ export class MiddleInfo {
     };
   }
   get provider() {
-    if (this.processes?.[this.step_index]?.['provider']) {
+    if (this.step_index > 0 && this.processes?.[this.step_index - 1]?.['provider'] ) {
       return this._bp_config.PROVIDERS?.[this.processes[this.step_index]['provider']];
     }
     return null;
   }
   setFile(file, index = this.step_index) {
     this.file[index] = file;
+  }
+  setCallInfo(message) {
+    this.call_info = (this.call_info && (this.call_info + '\n')) + message;
   }
   // x修改mode
   config(name, value = null) {
