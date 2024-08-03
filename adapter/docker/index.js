@@ -1,25 +1,24 @@
 import adapter from 'cloudflare-worker-adapter';
 import { RedisCache } from 'cloudflare-worker-adapter/cache/redis.js';
-import fs from 'fs';
-
+// import fs from 'fs';
+import tools from "chatgpt-telegram-workers/tools";
 
 const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
 const cache = new RedisCache(redisUrl);
 
 //配置版本信息
-try {
-    const buildInfo = JSON.parse(fs.readFileSync('../../dist/buildinfo.json', 'utf-8'));
-    process.env.BUILD_TIMESTAMP = buildInfo.timestamp;
-    process.env.BUILD_VERSION = buildInfo.sha;
-    console.log(buildInfo);
-} catch (e) {
-    console.log(e);
-}
-console.log(process.env.REDIS_URL);
+// try {
+//     const buildInfo = JSON.parse(fs.readFileSync('../../dist/buildinfo.json', 'utf-8'));
+//     process.env.BUILD_TIMESTAMP = buildInfo.timestamp;
+//     process.env.BUILD_VERSION = buildInfo.sha;
+//     console.log(buildInfo);
+// } catch (e) {
+//     console.log(e);
+// }
+// console.log(process.env.REDIS_URL);
 
-// const {default: worker} = await import('chatgpt-telegram-workers');
-const { default: worker } = await import('../../main.js');
-const { default: tools } = await import('../../src/tools/index.js');
+const {default: worker} = await import('chatgpt-telegram-workers');
+// const { default: tools } = await import('chatgpt-telegram-workers/tools');
 
 adapter.startServer(
     8787,

@@ -20,7 +20,8 @@
     "wrangler": "^3.0.0"
   },
   "exports": {
-    "import": "./main.js"
+    ".": "./main.js",
+    "./tools":"./src/tools/index.js"
   },
   "files": [
     "main.js",
