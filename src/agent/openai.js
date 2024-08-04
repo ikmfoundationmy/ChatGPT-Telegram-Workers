@@ -1,7 +1,7 @@
 import "../types/context.js";
 import {requestChatCompletions} from "./request.js";
 import {ENV} from "../config/env.js";
-
+import { handleOpenaiFunctionCall } from "../agent/toolHander.js";
 
 /**
  * @param {ContextType} context
@@ -40,12 +40,11 @@ export async function requestCompletionsFromOpenAI(message, prompt, history, con
     ? context.USER_CONFIG.OPENAI_VISION_MODEL
     : context.USER_CONFIG.OPENAI_CHAT_MODEL;
   const extra_params = context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS;
-  const messages = [...(history || [])];
+  const messages = [...(history || []), { role: 'user', content: message }];
  
   if (prompt) {
-    messages.push({ role: context.USER_CONFIG.SYSTEM_INIT_MESSAGE_ROLE, content: prompt });
+    messages.unshift({ role: context.USER_CONFIG.SYSTEM_INIT_MESSAGE_ROLE, content: prompt });
   }
-  messages.push({ role: 'user', content: message });
   // 优先取原始文件兼容claude
 
   if (context._info?.lastStepHasFile) {
@@ -70,11 +69,6 @@ export async function requestCompletionsFromOpenAI(message, prompt, history, con
     stream: onStream != null,
     ...(!!onStream && ENV.ENABLE_SHOWTOKENINFO && { stream_options: { include_usage: true } }),
   };
-  if (prompt.includes('json') || prompt.includes('JSON')) {
-    body.response_format = {
-      'type': 'json_object',
-    };
-  }
 
   const header = {
     'Content-Type': 'application/json',
@@ -82,10 +76,17 @@ export async function requestCompletionsFromOpenAI(message, prompt, history, con
   };
   const options = {};
 
-  if (extra_params.tools && extra_params.tools.length > 0) {
-    options.fullContentExtractor = (d) => {
-      return d.choices?.[0]?.message;
-    };
+  if (message && !context._info?.lastStepHasFile && ENV.TOOLS && ENV.USE_TOOLS?.length > 0) {
+    const result = await handleOpenaiFunctionCall(url, header, body, context);
+    if (result.type === 'stop') {
+      return result.message;
+    } else if (result.type === 'error') {
+      throw new Error(result.message);
+    }
+    const resp_obj = { q: body.messages.at(-1).content }; // 修正问题内容
+    resp_obj.a = await requestChatCompletions(url, header, body, context, onStream, null, options);
+    return resp_obj;
+    
   }
 
   return requestChatCompletions(url, header, body, context, onStream, null, options);

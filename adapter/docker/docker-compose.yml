@@ -8,7 +8,7 @@ services:
     ports:
       - "8787:8787"
     volumes:
-      - ./config.toml:/app/config.toml
+      - ./config/config.toml:/app/config.toml
     environment:
       - REDIS_URL=redis://redis:6379
       # 设置为空时读取请求的host作为DOMAIN

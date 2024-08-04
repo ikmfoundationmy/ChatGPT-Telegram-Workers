@@ -114,6 +114,7 @@ function fetchWithRetryFunc() {
   const DEFAULT_RETRY_AFTER = 10;
 
   return async (url, options, retries = MAX_RETRIES, delayMs = RETRY_DELAY_MS) => {
+    let errorMsg = "";
     while (retries > 0) {
       try {
         const parsedUrl = new URL(url);
@@ -140,24 +141,25 @@ function fetchWithRetryFunc() {
           if (retries < MAX_RETRIES) console.log(`[DONE] after ${MAX_RETRIES - retries} times`);
           return resp;
         }
-        const clone_resp = await resp.clone().json();
-        console.log(`${JSON.stringify(clone_resp)}`);
+        const clone_resp = await resp.clone().text();
+        console.error(`Error fetch: ${clone_resp}`);
         if (resp.status === 429) {
           const retryAfter = (resp.headers.get('Retry-After')) || DEFAULT_RETRY_AFTER;
           // const retryAfter = resp?.parameters?.retry_after || resp.headers.get('Retry-After') || DEFAULT_RETRY_AFTER;
           status429RetryTime[domain] = Date.now() + 1000 * retryAfter;
           return resp;
         } else {
-          return resp;
+          throw new Error(clone_resp);
         }
       } catch (error) {
+        errorMsg = error.message;
         console.log(`Request failed, retry after ${delayMs / 1000} s: ${error}`);
       }
       await delay(delayMs);
       delayMs *= RETRY_MULTIPLIER;
       retries--;
     }
-    throw new Error('Failed after maximum retries');
+    throw new Error(`Failed after maximum retries: ${errorMsg}`);
   };
 }
 

@@ -142,7 +142,7 @@ export class UserConfig {
     CURRENT_MODE = 'default';
     JINA_API_KEY = '';
     // openai格式调用FUNCTION CALL参数
-    FUNCTION_CALL_MODEL = '';
+    FUNCTION_CALL_MODEL = 'gpt-4o-mini';
     FUNCTION_CALL_API_KEY = '';
     FUNCTION_CALL_BASE = '';
 }
@@ -276,6 +276,7 @@ class Environment {
     // 需要使用的函数 当前仅 duckduckgo_search 和jina_reader
     // '["duckduckgo_search", "jina_reader"]'
     USE_TOOLS = [];
+    FUNC_LOOP_TIMES = 1;
 }
 
 export const ENV_KEY_MAPPER = {

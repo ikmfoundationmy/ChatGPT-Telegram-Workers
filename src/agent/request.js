@@ -1,7 +1,6 @@
 import '../types/context.js';
 import { ENV } from '../config/env.js';
 import { Stream } from './stream.js';
-import { fetchWithRetry } from '../utils/utils.js';
 
 /**
  *
@@ -107,8 +106,10 @@ export async function requestChatCompletions(url, header, body, context, onStrea
   if (ENV.DEBUG_MODE) {
     console.log(`url:\n${url}\nheader:\n${JSON.stringify(header)}\nbody:\n${JSON.stringify(body, null, 2)}`);
   }
+  // 排除 function call耗时
+  context._info.updateStartTime();
 
-  const resp = await fetchWithRetry(url, {
+  const resp = await fetch(url, {
     method: 'POST',
     headers: header,
     body: JSON.stringify(body),
@@ -126,7 +127,7 @@ export async function requestChatCompletions(url, header, body, context, onStrea
     const stream = options.streamBuilder(resp, controller);
     let contentFull = '';
     let lengthDelta = 0;
-    let updateStep = 10;
+    let updateStep = 20;
     let msgPromise = null;
     let lastChunk = null;
     let usage = null;

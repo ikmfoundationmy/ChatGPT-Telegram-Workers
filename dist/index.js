@@ -174,7 +174,7 @@ var UserConfig = class {
   CURRENT_MODE = "default";
   JINA_API_KEY = "";
   // openai格式调用FUNCTION CALL参数
-  FUNCTION_CALL_MODEL = "";
+  FUNCTION_CALL_MODEL = "gpt-4o-mini";
   FUNCTION_CALL_API_KEY = "";
   FUNCTION_CALL_BASE = "";
 };
@@ -182,9 +182,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1722687419;
+  BUILD_TIMESTAMP = 1722787231;
   // 当前版本 commit id
-  BUILD_VERSION = "0c3e541";
+  BUILD_VERSION = "a5e987f";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -292,6 +292,7 @@ var Environment = class {
   // 需要使用的函数 当前仅 duckduckgo_search 和jina_reader
   // '["duckduckgo_search", "jina_reader"]'
   USE_TOOLS = [];
+  FUNC_LOOP_TIMES = 1;
 };
 var ENV_KEY_MAPPER = {
   CHAT_MODEL: "OPENAI_CHAT_MODEL",
@@ -690,6 +691,7 @@ function fetchWithRetryFunc() {
   const RETRY_MULTIPLIER = 2;
   const DEFAULT_RETRY_AFTER = 10;
   return async (url, options, retries = MAX_RETRIES, delayMs = RETRY_DELAY_MS) => {
+    let errorMsg = "";
     while (retries > 0) {
       try {
         const parsedUrl = new URL(url);
@@ -713,23 +715,24 @@ function fetchWithRetryFunc() {
             console.log(`[DONE] after ${MAX_RETRIES - retries} times`);
           return resp;
         }
-        const clone_resp = await resp.clone().json();
-        console.log(`${JSON.stringify(clone_resp)}`);
+        const clone_resp = await resp.clone().text();
+        console.error(`Error fetch: ${clone_resp}`);
         if (resp.status === 429) {
           const retryAfter = resp.headers.get("Retry-After") || DEFAULT_RETRY_AFTER;
           status429RetryTime[domain] = Date.now() + 1e3 * retryAfter;
           return resp;
         } else {
-          return resp;
+          throw new Error(clone_resp);
         }
       } catch (error) {
+        errorMsg = error.message;
         console.log(`Request failed, retry after ${delayMs / 1e3} s: ${error}`);
       }
       await delay(delayMs);
       delayMs *= RETRY_MULTIPLIER;
       retries--;
     }
-    throw new Error("Failed after maximum retries");
+    throw new Error(`Failed after maximum retries: ${errorMsg}`);
   };
 }
 var fetchWithRetry = fetchWithRetryFunc();
@@ -1306,7 +1309,8 @@ ${JSON.stringify(header)}
 body:
 ${JSON.stringify(body, null, 2)}`);
   }
-  const resp = await fetchWithRetry(url, {
+  context._info.updateStartTime();
+  const resp = await fetch(url, {
     method: "POST",
     headers: header,
     body: JSON.stringify(body),
@@ -1321,7 +1325,7 @@ ${JSON.stringify(body, null, 2)}`);
     const stream = options.streamBuilder(resp, controller);
     let contentFull = "";
     let lengthDelta = 0;
-    let updateStep = 10;
+    let updateStep = 20;
     let msgPromise = null;
     let lastChunk = null;
     let usage = null;
@@ -1375,6 +1379,120 @@ ERROR: ${e.message}`;
   }
 }
 
+// src/prompt/tools.js
+var tools_default = {
+  search: {
+    prompt: "\u4F5C\u4E3A\u667A\u80FD\u52A9\u624B\uFF0C\u8BF7\u6309\u7167\u4EE5\u4E0B\u6B65\u9AA4\u6709\u6548\u5206\u6790\u5E76\u63D0\u53D6\u6211\u63D0\u4F9B\u7684\u641C\u7D22\u7ED3\u679C\uFF0C\u4EE5\u7B80\u6D01\u660E\u4E86\u7684\u65B9\u5F0F\u56DE\u7B54\u6211\u7684\u95EE\u9898\uFF1A\n\n1. \u9605\u8BFB\u548C\u8BC4\u4F30\uFF1A\u4ED4\u7EC6\u9605\u8BFB\u6240\u6709\u641C\u7D22\u7ED3\u679C\uFF0C\u8BC6\u522B\u5E76\u4F18\u5148\u83B7\u53D6\u6765\u81EA\u53EF\u9760\u548C\u6700\u65B0\u6765\u6E90\u7684\u4FE1\u606F\u3002\u8003\u8651\u56E0\u7D20\u5305\u62EC\u5B98\u65B9\u6765\u6E90\u3001\u77E5\u540D\u673A\u6784\u4EE5\u53CA\u4FE1\u606F\u7684\u66F4\u65B0\u65F6\u95F4\u3002\n\n2. \u63D0\u53D6\u5173\u952E\u4FE1\u606F\uFF1A\n   \u2022 *\u6C47\u7387\u67E5\u8BE2*\uFF1A\u63D0\u4F9B\u6700\u65B0\u6C47\u7387\u5E76\u8FDB\u884C\u5FC5\u8981\u7684\u6362\u7B97\u3002\n   \u2022 *\u5929\u6C14\u67E5\u8BE2*\uFF1A\u63D0\u4F9B\u5177\u4F53\u5730\u70B9\u548C\u65F6\u95F4\u7684\u5929\u6C14\u9884\u62A5\u3002\n   \u2022 *\u4E8B\u5B9E\u6027\u95EE\u9898*\uFF1A\u627E\u51FA\u6743\u5A01\u56DE\u7B54\u3002\n\n3. \u7B80\u6D01\u56DE\u7B54\uFF1A\u5BF9\u63D0\u53D6\u7684\u4FE1\u606F\u8FDB\u884C\u7EFC\u5408\u5206\u6790\uFF0C\u7ED9\u51FA\u7B80\u660E\u627C\u8981\u7684\u56DE\u7B54\u3002\n\n4. \u8BC6\u522B\u4E0D\u786E\u5B9A\u6027\uFF1A\u5982\u679C\u4FE1\u606F\u5B58\u5728\u77DB\u76FE\u6216\u4E0D\u786E\u5B9A\u6027\uFF0C\u8BF7\u89E3\u91CA\u53EF\u80FD\u539F\u56E0\u3002\n\n5. \u8BF4\u660E\u4FE1\u606F\u4E0D\u8DB3\uFF1A\u5982\u679C\u641C\u7D22\u7ED3\u679C\u65E0\u6CD5\u5B8C\u5168\u56DE\u7B54\u95EE\u9898\uFF0C\u6307\u51FA\u9700\u8981\u7684\u989D\u5916\u4FE1\u606F\u3002\n\n6. \u7528\u6237\u53CB\u597D\uFF1A\u4F7F\u7528\u7B80\u5355\u6613\u61C2\u7684\u8BED\u8A00\uFF0C\u5FC5\u8981\u65F6\u63D0\u4F9B\u7B80\u77ED\u89E3\u91CA\uFF0C\u786E\u4FDD\u56DE\u7B54\u6613\u4E8E\u7406\u89E3\u3002\n\n7. \u9644\u52A0\u4FE1\u606F\uFF1A\u6839\u636E\u9700\u8981\u63D0\u4F9B\u989D\u5916\u76F8\u5173\u4FE1\u606F\u6216\u5EFA\u8BAE\uFF0C\u4EE5\u589E\u5F3A\u56DE\u7B54\u7684\u4EF7\u503C\u3002\n\n8. \u6765\u6E90\u6807\u6CE8\uFF1A\u5728\u56DE\u7B54\u4E2D\u6E05\u6670\u6807\u6CE8\u4FE1\u606F\u6765\u6E90\uFF0C\u5305\u62EC\u6765\u6E90\u7F51\u7AD9\u6216\u673A\u6784\u540D\u79F0\u53CA\u6570\u636E\u7684\u53D1\u5E03\u6216\u66F4\u65B0\u65F6\u95F4\u3002\n\n9. \u53C2\u8003\u5217\u8868\uFF1A\u5982\u679C\u5F15\u7528\u4E86\u591A\u4E2A\u6765\u6E90\uFF0C\u5728\u56DE\u7B54\u6700\u540E\u63D0\u4F9B\u7B80\u77ED\u7684\u53C2\u8003\u5217\u8868\uFF0C\u5217\u51FA\u4E3B\u8981\u4FE1\u606F\u6765\u6E90\u3002\n\n\u8BF7\u786E\u4FDD\u76EE\u6807\u662F\u63D0\u4F9B\u6700\u65B0\u3001\u6700\u76F8\u5173\u548C\u6700\u6709\u7528\u7684\u4FE1\u606F\uFF0C\u76F4\u63A5\u56DE\u5E94\u6211\u7684\u95EE\u9898\u3002\u907F\u514D\u5197\u957F\u7684\u7EC6\u8282\uFF0C\u805A\u7126\u4E8E\u6211\u6700\u5173\u5FC3\u7684\u6838\u5FC3\u7B54\u6848\uFF0C\u5E76\u901A\u8FC7\u53EF\u9760\u7684\u6765\u6E90\u589E\u5F3A\u56DE\u7B54\u7684\u53EF\u4FE1\u5EA6\u3002",
+    render: (question, result) => `\u95EE\u9898:
+${question}
+
+\u641C\u7D22\u7ED3\u679C:
+${result}`
+  },
+  web_crawler: {
+    prompt: '\u4F5C\u4E3A\u4E00\u4E2A\u9AD8\u6548\u7684\u5185\u5BB9\u5206\u6790\u548C\u603B\u7ED3\u52A9\u624B\uFF0C\u4F60\u7684\u4EFB\u52A1\u662F\u5BF9\u7528\u6237\u63D0\u4F9B\u7684\u7F51\u9875\u6216PDF\u5185\u5BB9\u8FDB\u884C\u5168\u9762\u800C\u7B80\u6D01\u7684\u603B\u7ED3\u3002\u8BF7\u9075\u5FAA\u4EE5\u4E0B\u6307\u5357\uFF1A\n    1. \u4ED4\u7EC6\u9605\u8BFB\u7528\u6237\u63D0\u4F9B\u7684\u5168\u90E8\u5185\u5BB9\uFF0C\u786E\u4FDD\u7406\u89E3\u4E3B\u8981\u89C2\u70B9\u548C\u5173\u952E\u4FE1\u606F\u3002\n    2. \u8BC6\u522B\u5E76\u63D0\u70BC\u51FA\u5185\u5BB9\u7684\u6838\u5FC3\u4E3B\u9898\u548C\u4E3B\u8981\u8BBA\u70B9\u3002\n    3. \u603B\u7ED3\u65F6\u5E94\u5305\u62EC\u4EE5\u4E0B\u8981\u7D20\uFF1A\n      \u2022 \u5185\u5BB9\u7684\u4E3B\u8981\u76EE\u7684\u6216\u4E3B\u9898\n      \u2022 \u5173\u952E\u89C2\u70B9\u6216\u8BBA\u636E\n      \u2022 \u91CD\u8981\u7684\u6570\u636E\u6216\u7EDF\u8BA1\u4FE1\u606F\uFF08\u5982\u679C\u6709\uFF09\n      \u2022 \u4F5C\u8005\u7684\u7ED3\u8BBA\u6216\u5EFA\u8BAE\uFF08\u5982\u679C\u9002\u7528\uFF09\n    4. \u4FDD\u6301\u5BA2\u89C2\u6027\uFF0C\u51C6\u786E\u53CD\u6620\u539F\u6587\u7684\u89C2\u70B9\uFF0C\u4E0D\u6DFB\u52A0\u4E2A\u4EBA\u89E3\u91CA\u6216\u8BC4\u8BBA\u3002\n    5. \u4F7F\u7528\u6E05\u6670\u3001\u7B80\u6D01\u7684\u8BED\u8A00\uFF0C\u907F\u514D\u4F7F\u7528\u8FC7\u4E8E\u4E13\u4E1A\u6216\u6666\u6DA9\u7684\u672F\u8BED\u3002\n    6. \u603B\u7ED3\u7684\u957F\u5EA6\u5E94\u8BE5\u662F\u539F\u6587\u768410-15%\uFF0C\u9664\u975E\u7528\u6237\u7279\u522B\u6307\u5B9A\u5176\u4ED6\u957F\u5EA6\u8981\u6C42\u3002\n    7. \u5982\u679C\u5185\u5BB9\u5305\u542B\u591A\u4E2A\u90E8\u5206\u6216\u7AE0\u8282\uFF0C\u53EF\u4EE5\u4F7F\u7528\u7B80\u77ED\u7684\u5C0F\u6807\u9898\u6765\u7EC4\u7EC7\u4F60\u7684\u603B\u7ED3\u3002\n    8. \u5982\u679C\u539F\u6587\u5305\u542B\u56FE\u8868\u6216\u56FE\u50CF\u7684\u91CD\u8981\u4FE1\u606F\uFF0C\u8BF7\u5728\u603B\u7ED3\u4E2D\u63D0\u53CA\u8FD9\u4E00\u70B9\u3002\n    9. \u5982\u679C\u5185\u5BB9\u6D89\u53CA\u65F6\u95F4\u654F\u611F\u7684\u4FE1\u606F\uFF0C\u8BF7\u5728\u603B\u7ED3\u4E2D\u6CE8\u660E\u5185\u5BB9\u7684\u53D1\u5E03\u65E5\u671F\u6216\u7248\u672C\u3002\n    10. \u5982\u679C\u539F\u6587\u5B58\u5728\u660E\u663E\u7684\u504F\u89C1\u6216\u4E89\u8BAE\u6027\u89C2\u70B9\uFF0C\u8BF7\u5728\u603B\u7ED3\u4E2D\u5BA2\u89C2\u5730\u6307\u51FA\u8FD9\u4E00\u70B9\u3002\n    11. \u603B\u7ED3\u5B8C\u6210\u540E\uFF0C\u63D0\u4F9B1-3\u4E2A\u5173\u952E\u8BCD\u6216\u77ED\u8BED\uFF0C\u6982\u62EC\u5185\u5BB9\u7684\u6838\u5FC3\u4E3B\u9898\u3002\n    12. \u5982\u679C\u7528\u6237\u8981\u6C42\uFF0C\u53EF\u4EE5\u5728\u603B\u7ED3\u7684\u6700\u540E\u6DFB\u52A0\u4E00\u4E2A\u7B80\u77ED\u7684"\u8FDB\u4E00\u6B65\u9605\u8BFB\u5EFA\u8BAE"\u90E8\u5206\u3002\n    \u8BF7\u8BB0\u4F4F\uFF0C\u4F60\u7684\u76EE\u6807\u662F\u63D0\u4F9B\u4E00\u4E2A\u5168\u9762\u3001\u51C6\u786E\u3001\u6613\u4E8E\u7406\u89E3\u7684\u603B\u7ED3\uFF0C\u5E2E\u52A9\u7528\u6237\u5FEB\u901F\u628A\u63E1\u5185\u5BB9\u7684\u7CBE\u9AD3\u3002\u5982\u679C\u5185\u5BB9\u7279\u522B\u957F\u6216\u590D\u6742\uFF0C\u4F60\u53EF\u4EE5\u8BE2\u95EE\u7528\u6237\u662F\u5426\u9700\u8981\u66F4\u8BE6\u7EC6\u7684\u603B\u7ED3\u6216\u7279\u5B9A\u90E8\u5206\u7684\u6DF1\u5165\u5206\u6790\u3002',
+    render: (question, result) => `${question && question + "\n"}\u7F51\u9875\u5185\u5BB9:
+${result}`
+  }
+};
+
+// src/agent/toolHander.js
+async function handleOpenaiFunctionCall(url, header, body, context) {
+  try {
+    const filter_tools = ENV.USE_TOOLS.filter((i) => Object.keys(ENV.TOOLS).includes(i)).map((t) => ENV.TOOLS[t]);
+    if (filter_tools.length > 0) {
+      let tools = filter_tools.map((tool) => {
+        return {
+          "type": "function",
+          "function": tool.schema
+        };
+      });
+      let prompt = ENV.PROMPT["tools_prompt"];
+      let call_url = url;
+      if (context.USER_CONFIG.FUNCTION_CALL_BASE) {
+        call_url = context.USER_CONFIG.FUNCTION_CALL_BASE + "/chat/completions";
+      }
+      const call_key = context.USER_CONFIG.FUNCTION_CALL_API_KEY;
+      const call_headers = { ...header, ...call_key && { Authorization: `Bearer ${call_key}` } || {} };
+      const options = {
+        fullContentExtractor: (d) => {
+          return d.choices?.[0]?.message;
+        }
+      };
+      const call_body = {
+        model: context.USER_CONFIG.FUNCTION_CALL_MODEL,
+        tools,
+        tool_choice: "auto",
+        messages: body.messages,
+        stream: false
+      };
+      if (body.messages[0].role === context.USER_CONFIG.SYSTEM_INIT_MESSAGE_ROLE) {
+        body.messages[0].content = prompt;
+      } else
+        body.messages.unshift({ role: "system", content: prompt });
+      const call_messages = body.messages;
+      let call_times = ENV.FUNC_LOOP_TIMES;
+      const opt = {};
+      const exposure_vars = ["JINA_API_KEY"];
+      exposure_vars.forEach((i) => opt[i] = context.USER_CONFIG[i]);
+      const original_question = body.messages.at(-1).content;
+      let final_prompt = context.USER_CONFIG.SYSTEM_INIT_MESSAGE;
+      while (call_times > 0) {
+        const start_time = /* @__PURE__ */ new Date();
+        const llm_resp = await requestChatCompletions(call_url, call_headers, call_body, context, null, null, options);
+        context._info.setCallInfo("call_time: " + ((/* @__PURE__ */ new Date() - start_time) / 1e3).toFixed(1) + "s");
+        sendMessageToTelegramWithContext(context)("...");
+        llm_resp.tool_calls = llm_resp?.tool_calls?.filter((i) => Object.keys(ENV.TOOLS).includes(i.function.name)) || [];
+        if (llm_resp.content?.startsWith("```json\n")) {
+          llm_resp.content = llm_resp.content?.match(/\{[\s\S]+\}/)[0];
+        }
+        if (llm_resp.tool_calls.length === 0 || llm_resp.content?.startsWith?.("NO_CALL_NEEDED")) {
+          console.log("No need call function.");
+          body.messages[0].content = final_prompt;
+          return { type: "continue", message: "No need call function." };
+        }
+        if (llm_resp?.content?.startsWith?.("NEED_MORE_INFO:")) {
+          return { type: "stop", message: llm_resp.content.substring("NEED_MORE_INFO:".length) };
+        }
+        const funcPromise = [];
+        for (const func of llm_resp.tool_calls) {
+          const name = func.function.name;
+          const args = JSON.parse(func.function.arguments);
+          context._info.setCallInfo(`${name}:
+${Object.values(args).join().substring(0, 30)}...`);
+          console.log("start use function: ", name);
+          funcPromise.push(ENV.TOOLS[name].func(args, opt));
+        }
+        const func_resp = await Promise.all(funcPromise);
+        const func_time = [];
+        const content_text = func_resp.map((r) => {
+          func_time.push(r.time || "");
+          return r.content || "";
+        }).join("\n\n").trim();
+        if (func_time.join(" ").trim())
+          context._info.setCallInfo(`time: ${func_time.join()}`);
+        if (content_text === "") {
+          return { type: "continue", message: "None response in func call." };
+        }
+        call_messages.pop();
+        const tool_type = ENV.TOOLS[llm_resp.tool_calls[0].function.name].type;
+        const render = tools_default[tool_type].render;
+        call_messages.push({
+          role: "user",
+          content: render?.(original_question, content_text) || original_question + "\n\n" + content_text
+        });
+        if (tools_default[tool_type].prompt)
+          final_prompt = tools_default[tool_type].prompt;
+        call_times--;
+      }
+      body.messages[0].content = final_prompt;
+    }
+    return { type: "continue" };
+  } catch (e) {
+    return { type: "error", message: e.message };
+  }
+}
+
 // src/agent/openai.js
 function openAIKeyFromContext(context) {
   const length = context.USER_CONFIG.OPENAI_API_KEY.length;
@@ -1388,11 +1506,10 @@ async function requestCompletionsFromOpenAI(message, prompt, history, context, o
   const url = `${PROXY_URL}/chat/completions`;
   const model = context._info?.lastStepHasFile ? context.USER_CONFIG.OPENAI_VISION_MODEL : context.USER_CONFIG.OPENAI_CHAT_MODEL;
   const extra_params = context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS;
-  const messages = [...history || []];
+  const messages = [...history || [], { role: "user", content: message }];
   if (prompt) {
-    messages.push({ role: context.USER_CONFIG.SYSTEM_INIT_MESSAGE_ROLE, content: prompt });
+    messages.unshift({ role: context.USER_CONFIG.SYSTEM_INIT_MESSAGE_ROLE, content: prompt });
   }
-  messages.push({ role: "user", content: message });
   if (context._info?.lastStepHasFile) {
     messages.at(-1).content = [
       {
@@ -1415,20 +1532,21 @@ async function requestCompletionsFromOpenAI(message, prompt, history, context, o
     stream: onStream != null,
     ...!!onStream && ENV.ENABLE_SHOWTOKENINFO && { stream_options: { include_usage: true } }
   };
-  if (prompt.includes("json") || prompt.includes("JSON")) {
-    body.response_format = {
-      "type": "json_object"
-    };
-  }
   const header = {
     "Content-Type": "application/json",
     "Authorization": `Bearer ${API_KEY}`
   };
   const options = {};
-  if (extra_params.tools && extra_params.tools.length > 0) {
-    options.fullContentExtractor = (d) => {
-      return d.choices?.[0]?.message;
-    };
+  if (message && !context._info?.lastStepHasFile && ENV.TOOLS && ENV.USE_TOOLS?.length > 0) {
+    const result = await handleOpenaiFunctionCall(url, header, body, context);
+    if (result.type === "stop") {
+      return result.message;
+    } else if (result.type === "error") {
+      throw new Error(result.message);
+    }
+    const resp_obj = { q: body.messages.at(-1).content };
+    resp_obj.a = await requestChatCompletions(url, header, body, context, onStream, null, options);
+    return resp_obj;
   }
   return requestChatCompletions(url, header, body, context, onStream, null, options);
 }
@@ -2036,7 +2154,7 @@ async function extractMessageType(message, botToken) {
   }
   let file_id = null;
   if (fileType == "photo") {
-    file_id = msg[fileType]?.sort().at(-1)?.file_id;
+    file_id = msg[fileType]?.at(1)?.file_id;
   } else {
     file_id = msg[fileType]?.file_id || null;
   }
@@ -2159,6 +2277,9 @@ Token: ${Object.values(this.token_info[this.step_index]).join(" | ")}`;
       this.processes = this._bp_config.MODES[value][this.msg_type];
     }
   }
+  updateStartTime() {
+    this.process_start_time[this.step_index] = Date.now();
+  }
   initProcess(USER_CONFIG) {
     console.log(`Init step ${this.step_index + 1}.`);
     this.process_start_time.push(/* @__PURE__ */ new Date());
@@ -2276,11 +2397,15 @@ async function requestCompletionsFromLLM(text, prompt, context, llm, modifier, o
     history = modifierData.history;
     text = modifierData.text;
   }
-  const answer = await llm(text, prompt, history, context, onStream);
+  let answer = await llm(text, prompt, history, context, onStream);
   if (context._info.lastStepHasFile) {
     text = "[A FILE] " + text;
   }
-  if (!historyDisable && answer && typeof answer === "string") {
+  if (typeof answer === "object") {
+    text = answer.q;
+    answer = answer.a;
+  }
+  if (!historyDisable && answer) {
     history.push({ role: "user", content: text || "" });
     history.push({ role: "assistant", content: answer });
     await DATABASE.put(historyKey, JSON.stringify(history)).catch(console.error);
@@ -2338,16 +2463,12 @@ async function chatWithLLM(text, context, modifier, pointerLLM = loadChatLLM) {
     }
     const prompt = context.USER_CONFIG.SYSTEM_INIT_MESSAGE;
     console.log(`[START] Chat via ${llm.name}`);
-    if (text && ENV.TOOLS && ENV.USE_TOOLS?.length > 0) {
-      const result = await handleOpenaiFunctionCall(text, context);
-      if (result && result instanceof Response) {
-        return result;
-      }
-      text = result;
-    }
     const answer = await requestCompletionsFromLLM(text, prompt, context, llm, modifier, onStream);
     if (!answer) {
       return sendMessageToTelegramWithContext(context)("None response");
+    }
+    if (answer instanceof Response) {
+      return answer;
     }
     context.CURRENT_CHAT_CONTEXT.parse_mode = parseMode;
     if (ENV.SHOW_REPLY_BUTTON && context.CURRENT_CHAT_CONTEXT.message_id) {
@@ -2383,65 +2504,6 @@ async function chatWithLLM(text, context, modifier, pointerLLM = loadChatLLM) {
     }
     context.CURRENT_CHAT_CONTEXT.disable_web_page_preview = true;
     return sendMessageToTelegramWithContext(context)(errMsg);
-  }
-}
-async function handleOpenaiFunctionCall(text, context) {
-  try {
-    const filter_tools = ENV.USE_TOOLS.filter((i) => Object.keys(ENV.TOOLS).includes(i)).map((t) => ENV.TOOLS[t]);
-    if (filter_tools.length > 0) {
-      let tools = filter_tools.map((tool) => {
-        return {
-          "type": "function",
-          "function": tool.schema
-        };
-      });
-      let prompt = ENV.PROMPT["tools_prompt"];
-      const bp_config = { ...context.USER_CONFIG };
-      const bp_extra_params = { ...context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS };
-      context.USER_CONFIG.OPENAI_CHAT_MODEL = context.USER_CONFIG.FUNCTION_CALL_MODEL || "gpt-4o";
-      if (context.USER_CONFIG.FUNCTION_CALL_BASE && context.USER_CONFIG.FUNCTION_CALL_API_KEY) {
-        context.USER_CONFIG.OPENAI_API_BASE = context.USER_CONFIG.FUNCTION_CALL_BASE;
-        context.USER_CONFIG.OPENAI_API_KEY = [context.USER_CONFIG.FUNCTION_CALL_API_KEY];
-      }
-      context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS.tools = tools;
-      context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS.tool_choice = "auto";
-      const llm = requestCompletionsFromOpenAI;
-      const first_step_result = await requestCompletionsFromLLM(text, prompt, context, llm, null, null);
-      if (first_step_result?.content?.startsWith?.("NEED_MORE_INFO:")) {
-        return sendMessageToTelegramWithContext(context)(first_step_result.content.substring("NEED_MORE_INFO:".length));
-      }
-      first_step_result.tool_calls = first_step_result?.tool_calls?.filter(
-        (i) => Object.keys(ENV.TOOLS).includes(i.function.name)
-      );
-      if (!first_step_result.tool_calls || first_step_result.tool_calls?.length === 0 || first_step_result.content?.startsWith?.("NO_CALL_NEEDED")) {
-        console.log("No need call function.");
-      } else {
-        const options = {};
-        const exposure_vars = ["JINA_API_KEY"];
-        exposure_vars.forEach((i) => options[i] = context.USER_CONFIG[i]);
-        const func = first_step_result.tool_calls[0].function;
-        const function_name = func.name;
-        const function_args = JSON.parse(func.arguments);
-        console.log("start use function: ", function_name);
-        const last_func_result = await ENV.TOOLS[function_name].func(function_args, options);
-        context._info.setCallInfo(`${function_name} ${last_func_result?.time || ""}:
-${Object.values(function_args)}`);
-        if (!last_func_result?.content?.trim()) {
-          return sendMessageToTelegramWithContext(context)(`None response of ${function_name}`);
-        }
-        text = ENV.TOOLS[function_name].settings?.after_render?.(text, last_func_result.content) || text + "\n" + last_func_result.content;
-        context.USER_CONFIG.SYSTEM_INIT_MESSAGE = ENV.TOOLS[function_name].settings?.after_prompt || bp_config.SYSTEM_INIT_MESSAGE;
-      }
-      context.USER_CONFIG.OPENAI_CHAT_MODEL = bp_config.OPENAI_CHAT_MODEL;
-      context.USER_CONFIG.OPENAI_API_BASE = bp_config.OPENAI_API_BASE;
-      context.USER_CONFIG.OPENAI_API_KEY = bp_config.OPENAI_API_KEY;
-      context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS = bp_extra_params;
-      delete context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS.tools;
-      delete context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS.tool_choice;
-    }
-    return text;
-  } catch (e) {
-    return sendMessageToTelegramWithContext(context)(e.message);
   }
 }
 async function chatViaFileWithLLM(context) {
@@ -3586,7 +3648,6 @@ var jina_reader = {
       "required": ["url"]
     }
   },
-  // before_prompt: "Only use the jina_reader function when both of these conditions are met:\n      1. The user explicitly provides a URL.\n      2. The user requests analysis or information about the content of that URL.\n\n      When to use:\n      • If a user asks, for \"帮我分析一下 https://example.com/news/article123\"\n      • If a user says, \"I need information from this webpage: https://example.com/research/paper456\"\n      • When the user's query clearly indicates they want you to read and analyze a specific online resource.\n      Please remember to directly send a plain text JSON object string with only the key 'url'. For example: {'url': 'https://example.com/article'}\n\n      When not to use:\n      • If the user asks a general question without providing a URL.\n      • If the user provides a URL but doesn't ask for analysis or information from it.\n      • When you can answer the user's query using your existing knowledge.\n      Then respond with 'NO_ANALYSE_NEEDED'",
   func: async ({ url }, { JINA_API_KEY }) => {
     if (!url) {
       throw new Error("\u53C2\u6570\u9519\u8BEF");
@@ -3595,6 +3656,7 @@ var jina_reader = {
       throw new Error("JINA\\_API\\_KEY \u4E0D\u5B58\u5728");
     }
     console.log("jina-reader:", url);
+    const startTime = Date.now();
     const result = await fetch("https://r.jina.ai/" + url, {
       headers: {
         "X-Return-Format": "text",
@@ -3605,11 +3667,10 @@ var jina_reader = {
     if (!result.ok) {
       throw new Error("Error: " + (await result.json()).message);
     }
-    return { content: await result.text() };
+    const time = ((Date.now() - startTime) / 1e3).toFixed(1) + "s";
+    return { content: await result.text(), time };
   },
-  settings: {
-    after_prompt: '\u4F5C\u4E3A\u4E00\u4E2A\u9AD8\u6548\u7684\u5185\u5BB9\u5206\u6790\u548C\u603B\u7ED3\u52A9\u624B\uFF0C\u4F60\u7684\u4EFB\u52A1\u662F\u5BF9\u7528\u6237\u63D0\u4F9B\u7684\u7F51\u9875\u6216PDF\u5185\u5BB9\u8FDB\u884C\u5168\u9762\u800C\u7B80\u6D01\u7684\u603B\u7ED3\u3002\u8BF7\u9075\u5FAA\u4EE5\u4E0B\u6307\u5357\uFF1A\n    1. \u4ED4\u7EC6\u9605\u8BFB\u7528\u6237\u63D0\u4F9B\u7684\u5168\u90E8\u5185\u5BB9\uFF0C\u786E\u4FDD\u7406\u89E3\u4E3B\u8981\u89C2\u70B9\u548C\u5173\u952E\u4FE1\u606F\u3002\n    2. \u8BC6\u522B\u5E76\u63D0\u70BC\u51FA\u5185\u5BB9\u7684\u6838\u5FC3\u4E3B\u9898\u548C\u4E3B\u8981\u8BBA\u70B9\u3002\n    3. \u603B\u7ED3\u65F6\u5E94\u5305\u62EC\u4EE5\u4E0B\u8981\u7D20\uFF1A\n      \u2022 \u5185\u5BB9\u7684\u4E3B\u8981\u76EE\u7684\u6216\u4E3B\u9898\n      \u2022 \u5173\u952E\u89C2\u70B9\u6216\u8BBA\u636E\n      \u2022 \u91CD\u8981\u7684\u6570\u636E\u6216\u7EDF\u8BA1\u4FE1\u606F\uFF08\u5982\u679C\u6709\uFF09\n      \u2022 \u4F5C\u8005\u7684\u7ED3\u8BBA\u6216\u5EFA\u8BAE\uFF08\u5982\u679C\u9002\u7528\uFF09\n    4. \u4FDD\u6301\u5BA2\u89C2\u6027\uFF0C\u51C6\u786E\u53CD\u6620\u539F\u6587\u7684\u89C2\u70B9\uFF0C\u4E0D\u6DFB\u52A0\u4E2A\u4EBA\u89E3\u91CA\u6216\u8BC4\u8BBA\u3002\n    5. \u4F7F\u7528\u6E05\u6670\u3001\u7B80\u6D01\u7684\u8BED\u8A00\uFF0C\u907F\u514D\u4F7F\u7528\u8FC7\u4E8E\u4E13\u4E1A\u6216\u6666\u6DA9\u7684\u672F\u8BED\u3002\n    6. \u603B\u7ED3\u7684\u957F\u5EA6\u5E94\u8BE5\u662F\u539F\u6587\u768410-15%\uFF0C\u9664\u975E\u7528\u6237\u7279\u522B\u6307\u5B9A\u5176\u4ED6\u957F\u5EA6\u8981\u6C42\u3002\n    7. \u5982\u679C\u5185\u5BB9\u5305\u542B\u591A\u4E2A\u90E8\u5206\u6216\u7AE0\u8282\uFF0C\u53EF\u4EE5\u4F7F\u7528\u7B80\u77ED\u7684\u5C0F\u6807\u9898\u6765\u7EC4\u7EC7\u4F60\u7684\u603B\u7ED3\u3002\n    8. \u5982\u679C\u539F\u6587\u5305\u542B\u56FE\u8868\u6216\u56FE\u50CF\u7684\u91CD\u8981\u4FE1\u606F\uFF0C\u8BF7\u5728\u603B\u7ED3\u4E2D\u63D0\u53CA\u8FD9\u4E00\u70B9\u3002\n    9. \u5982\u679C\u5185\u5BB9\u6D89\u53CA\u65F6\u95F4\u654F\u611F\u7684\u4FE1\u606F\uFF0C\u8BF7\u5728\u603B\u7ED3\u4E2D\u6CE8\u660E\u5185\u5BB9\u7684\u53D1\u5E03\u65E5\u671F\u6216\u7248\u672C\u3002\n    10. \u5982\u679C\u539F\u6587\u5B58\u5728\u660E\u663E\u7684\u504F\u89C1\u6216\u4E89\u8BAE\u6027\u89C2\u70B9\uFF0C\u8BF7\u5728\u603B\u7ED3\u4E2D\u5BA2\u89C2\u5730\u6307\u51FA\u8FD9\u4E00\u70B9\u3002\n    11. \u603B\u7ED3\u5B8C\u6210\u540E\uFF0C\u63D0\u4F9B1-3\u4E2A\u5173\u952E\u8BCD\u6216\u77ED\u8BED\uFF0C\u6982\u62EC\u5185\u5BB9\u7684\u6838\u5FC3\u4E3B\u9898\u3002\n    12. \u5982\u679C\u7528\u6237\u8981\u6C42\uFF0C\u53EF\u4EE5\u5728\u603B\u7ED3\u7684\u6700\u540E\u6DFB\u52A0\u4E00\u4E2A\u7B80\u77ED\u7684"\u8FDB\u4E00\u6B65\u9605\u8BFB\u5EFA\u8BAE"\u90E8\u5206\u3002\n    \u8BF7\u8BB0\u4F4F\uFF0C\u4F60\u7684\u76EE\u6807\u662F\u63D0\u4F9B\u4E00\u4E2A\u5168\u9762\u3001\u51C6\u786E\u3001\u6613\u4E8E\u7406\u89E3\u7684\u603B\u7ED3\uFF0C\u5E2E\u52A9\u7528\u6237\u5FEB\u901F\u628A\u63E1\u5185\u5BB9\u7684\u7CBE\u9AD3\u3002\u5982\u679C\u5185\u5BB9\u7279\u522B\u957F\u6216\u590D\u6742\uFF0C\u4F60\u53EF\u4EE5\u8BE2\u95EE\u7528\u6237\u662F\u5426\u9700\u8981\u66F4\u8BE6\u7EC6\u7684\u603B\u7ED3\u6216\u7279\u5B9A\u90E8\u5206\u7684\u6DF1\u5165\u5206\u6790\u3002'
-  }
+  type: "web_crawler"
 };
 
 // main.js

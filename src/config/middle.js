@@ -50,8 +50,8 @@ async function extractMessageType(message, botToken) {
   }
   let file_id = null;
   if (fileType == 'photo') {
-    // 取最后一个文件，像素最高
-    file_id = msg[fileType]?.sort().at(-1)?.file_id /*|| msg[fileType]?.file_id*/;
+    // 取第二个
+    file_id = msg[fileType]?.at(1)?.file_id /*|| msg[fileType]?.file_id*/;
   } else {
     file_id = msg[fileType]?.file_id || null;
   }
@@ -190,6 +190,9 @@ export class MiddleInfo {
     if (name === 'mode') {
       this.processes = this._bp_config.MODES[value][this.msg_type];
     } // else this.processes[this.step_index][name] = value;
+  }
+  updateStartTime() {
+    this.process_start_time[this.step_index] = Date.now();
   }
 
   initProcess(USER_CONFIG) {
