@@ -277,6 +277,7 @@ class Environment {
     // '["duckduckgo_search", "jina_reader"]'
     USE_TOOLS = [];
     FUNC_LOOP_TIMES = 1;
+    CALL_INFO = true;
 }
 
 export const ENV_KEY_MAPPER = {

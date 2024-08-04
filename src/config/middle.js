@@ -152,7 +152,10 @@ export class MiddleInfo {
       return stepInfo.trim();
     }
     const time = ((new Date() - this.process_start_time[this.step_index]) / 1000).toFixed(1);
-    const call_info = this.call_info && (this.call_info + '\n\n');
+
+    let call_info = '';
+    if (ENV.CALL_INFO) call_info = this.call_info && (this.call_info + '\n');
+
     let info = stepInfo + call_info + `${this.model} ${time}s`;
     if (ENV.ENABLE_SHOWTOKENINFO && this.token_info[this.step_index]) {
       info += `\nToken: ${Object.values(this.token_info[this.step_index]).join(' | ')}`;

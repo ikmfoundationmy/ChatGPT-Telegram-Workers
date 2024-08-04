@@ -182,9 +182,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1722791863;
+  BUILD_TIMESTAMP = 1722792355;
   // 当前版本 commit id
-  BUILD_VERSION = "b23b9de";
+  BUILD_VERSION = "a9fd364";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -293,6 +293,7 @@ var Environment = class {
   // '["duckduckgo_search", "jina_reader"]'
   USE_TOOLS = [];
   FUNC_LOOP_TIMES = 1;
+  CALL_INFO = true;
 };
 var ENV_KEY_MAPPER = {
   CHAT_MODEL: "OPENAI_CHAT_MODEL",
@@ -1450,7 +1451,7 @@ async function handleOpenaiFunctionCall(url, header, body, context) {
       while (call_times > 0) {
         const start_time = /* @__PURE__ */ new Date();
         const llm_resp = await requestChatCompletions(call_url, call_headers, call_body, context, null, null, options);
-        context._info.setCallInfo("call_time: " + ((/* @__PURE__ */ new Date() - start_time) / 1e3).toFixed(1) + "s");
+        context._info.setCallInfo("c_t: " + ((/* @__PURE__ */ new Date() - start_time) / 1e3).toFixed(1) + "s");
         sendMessageToTelegramWithContext(context)("...");
         llm_resp.tool_calls = llm_resp?.tool_calls?.filter((i) => Object.keys(ENV.TOOLS).includes(i.function.name)) || [];
         if (llm_resp.content?.startsWith("```json\n")) {
@@ -1480,7 +1481,7 @@ ${Object.values(args).join().substring(0, 30)}...`);
           return r.content || "";
         }).join("\n\n").trim();
         if (func_time.join(" ").trim())
-          context._info.setCallInfo(`time: ${func_time.join()}`);
+          context._info.setCallInfo(`f_t: ${func_time.join()}`);
         if (content_text === "") {
           return { type: "continue", message: "None response in func call." };
         }
@@ -2246,7 +2247,9 @@ var MiddleInfo = class {
       return stepInfo.trim();
     }
     const time = ((/* @__PURE__ */ new Date() - this.process_start_time[this.step_index]) / 1e3).toFixed(1);
-    const call_info = this.call_info && this.call_info + "\n\n";
+    let call_info = "";
+    if (ENV.CALL_INFO)
+      call_info = this.call_info && this.call_info + "\n";
     let info = stepInfo + call_info + `${this.model} ${time}s`;
     if (ENV.ENABLE_SHOWTOKENINFO && this.token_info[this.step_index]) {
       info += `
