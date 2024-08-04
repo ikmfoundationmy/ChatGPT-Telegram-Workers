@@ -162,6 +162,11 @@ export async function requestChatCompletions(url, header, body, context, onStrea
     return contentFull;
   }
 
+  if (ENV.DEV_MODE) {
+    const resp = await resp.clone().text();
+    console.log("resp result:", resp);
+  }
+
   if (!isJsonResponse(resp)) {
     throw new Error(resp.statusText);
   }

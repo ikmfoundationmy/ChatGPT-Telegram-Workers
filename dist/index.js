@@ -182,9 +182,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1722787231;
+  BUILD_TIMESTAMP = 1722790237;
   // 当前版本 commit id
-  BUILD_VERSION = "a5e987f";
+  BUILD_VERSION = "5c6a9b0";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -1359,6 +1359,10 @@ ERROR: ${e.message}`;
     }
     await msgPromise;
     return contentFull;
+  }
+  if (ENV.DEV_MODE) {
+    const resp2 = await resp2.clone().text();
+    console.log("resp result:", resp2);
   }
   if (!isJsonResponse(resp)) {
     throw new Error(resp.statusText);
