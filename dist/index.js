@@ -182,9 +182,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1722790237;
+  BUILD_TIMESTAMP = 1722791863;
   // 当前版本 commit id
-  BUILD_VERSION = "5c6a9b0";
+  BUILD_VERSION = "b23b9de";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -1282,9 +1282,15 @@ function fixOpenAICompatibleOptions(options) {
   return options;
 }
 function isJsonResponse(resp) {
+  if (!resp.headers?.get("content-type")) {
+    return false;
+  }
   return resp.headers.get("content-type").indexOf("json") !== -1;
 }
 function isEventStreamResponse(resp) {
+  if (!resp.headers?.get("content-type")) {
+    return false;
+  }
   const types = ["application/stream+json", "text/event-stream"];
   const content = resp.headers.get("content-type");
   for (const type of types) {
@@ -1360,9 +1366,9 @@ ERROR: ${e.message}`;
     await msgPromise;
     return contentFull;
   }
-  if (ENV.DEV_MODE) {
-    const resp2 = await resp2.clone().text();
-    console.log("resp result:", resp2);
+  if (ENV.DEBUG_MODE) {
+    const r = await resp.clone().text();
+    console.log("resp result: ", r);
   }
   if (!isJsonResponse(resp)) {
     throw new Error(resp.statusText);

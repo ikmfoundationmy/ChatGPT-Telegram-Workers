@@ -64,6 +64,9 @@ function fixOpenAICompatibleOptions(options) {
  * @return {boolean}
  */
 export function isJsonResponse(resp) {
+  if (!resp.headers?.get('content-type')) {
+    return false;
+  }
   return resp.headers.get('content-type').indexOf('json') !== -1;
 }
 
@@ -72,6 +75,9 @@ export function isJsonResponse(resp) {
  * @return {boolean}
  */
 export function isEventStreamResponse(resp) {
+  if (!resp.headers?.get('content-type')) {
+    return false;
+  }
   const types = ['application/stream+json', 'text/event-stream'];
   const content = resp.headers.get('content-type');
   for (const type of types) {
@@ -162,9 +168,9 @@ export async function requestChatCompletions(url, header, body, context, onStrea
     return contentFull;
   }
 
-  if (ENV.DEV_MODE) {
-    const resp = await resp.clone().text();
-    console.log("resp result:", resp);
+  if (ENV.DEBUG_MODE) {
+    const r = await resp.clone().text();
+    console.log("resp result: ", r);
   }
 
   if (!isJsonResponse(resp)) {
