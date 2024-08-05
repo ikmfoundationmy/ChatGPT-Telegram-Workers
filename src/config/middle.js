@@ -29,7 +29,7 @@ async function extractMessageType(message, botToken) {
     };
   }
 
-  const fileType = msg?.document || msgType;
+  const fileType = msg?.document && 'document' || msgType;
   if (!fileType) {
     throw new Error("Can't extract Message Type");
   }
@@ -155,7 +155,7 @@ export class MiddleInfo {
     const time = ((new Date() - this.process_start_time[this.step_index]) / 1000).toFixed(1);
 
     let call_info = '';
-    if (ENV.CALL_INFO) call_info = (this.call_info && (this.call_info + '\n'))// .replace(' $$f_t$$', '');
+    if (ENV.CALL_INFO) call_info = (this.call_info && (this.call_info + '\n')).replace('$$f_t$$', '');
 
     let info = stepInfo + call_info + `${this.model} ${time}s`;
     if (ENV.ENABLE_SHOWTOKENINFO && this.token_info[this.step_index]) {
@@ -188,12 +188,14 @@ export class MiddleInfo {
   }
   setCallInfo(message, type = 'f_i') {
     if (type === 'f_t') {
-      this.call_info = this.call_info.replace('$$f_t$$', message);
+      this.call_info = this.call_info.replace('$$f_t$$', 'f_t: ' + message);
     } else if (type === 'c_t') {
-      this.call_info = (this.call_info && (this.call_info + '\n')) + `c_t: ${message} f_t: $$f_t$$`;
-    } else {
+      this.call_info = (this.call_info && (this.call_info + '\n')) + `c_t: ${message} $$f_t$$`;
+    } else if (type === 'f_i') {
       this.call_info = (this.call_info && (this.call_info + '\n')) + message;
-    }
+    } else {
+      this.call_info += "\n" + message;
+    } 
     
   }
   // x修改mode

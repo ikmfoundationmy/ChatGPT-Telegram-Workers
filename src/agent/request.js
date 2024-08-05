@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import '../types/context.js';
 import { ENV } from '../config/env.js';
 import { Stream } from './stream.js';
@@ -106,7 +107,12 @@ export async function requestChatCompletions(url, header, body, context, onStrea
 
   let timeoutID = null;
   if (ENV.CHAT_COMPLETE_API_TIMEOUT > 0) {
-    timeoutID = setTimeout(() => controller.abort(), ENV.CHAT_COMPLETE_API_TIMEOUT);
+    timeoutID = setTimeout(() => controller.abort(), ENV.CHAT_COMPLETE_API_TIMEOUT * 1e3);
+  }
+
+  let alltimeoutID = null;
+  if (ENV.ALL_COMPLETE_API_TIMEOUT > 0) {
+    alltimeoutID = setTimeout(() => controller.abort(), ENV.ALL_COMPLETE_API_TIMEOUT * 1e3);
   }
 
   if (ENV.DEBUG_MODE) {
@@ -114,6 +120,7 @@ export async function requestChatCompletions(url, header, body, context, onStrea
   }
   // 排除 function call耗时
   context._info.updateStartTime();
+  console.log('chat start.');
 
   const resp = await fetch(url, {
     method: 'POST',
@@ -161,11 +168,20 @@ export async function requestChatCompletions(url, header, body, context, onStrea
     contentFull += lastChunk;
     if (ENV.GPT3_TOKENS_COUNT && usage) {
       onResult?.(result);
-      ENV.IFO.setToken(usage?.prompt_tokens ?? 0, usage?.completion_tokens ?? 0);
+      context._info.setToken(usage?.prompt_tokens ?? 0, usage?.completion_tokens ?? 0);
     }
 
     await msgPromise;
+
+    if (alltimeoutID) {
+      clearTimeout(alltimeoutID);
+    }
+
     return contentFull;
+  }
+
+  if (alltimeoutID) {
+    clearTimeout(alltimeoutID);
   }
 
   if (ENV.DEBUG_MODE) {
@@ -192,7 +208,6 @@ export async function requestChatCompletions(url, header, body, context, onStrea
     // return result;
     return options.fullContentExtractor(result);
   } catch (e) {
-    console.error(e);
     throw Error(JSON.stringify(result));
   }
 }

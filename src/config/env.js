@@ -167,8 +167,11 @@ class Environment {
     LANGUAGE = 'zh-cn';
     // 检查更新的分支
     UPDATE_BRANCH = 'dev';
-    // Chat Complete API Timeout
-    CHAT_COMPLETE_API_TIMEOUT = 0;
+    // 对话首轮获得数据时间限制
+    CHAT_COMPLETE_API_TIMEOUT = 15;
+    // 对话总时长时间限制
+    ALL_COMPLETE_API_TIMEOUT = 120;
+    FUNC_TIMEOUT = 30;
 
     // -- Telegram 相关 --
     //
@@ -276,8 +279,12 @@ class Environment {
     // 需要使用的函数 当前仅 duckduckgo_search 和jina_reader
     // '["duckduckgo_search", "jina_reader"]'
     USE_TOOLS = [];
+    // 询问AI调用function的次数
     FUNC_LOOP_TIMES = 1;
+    // 显示调用信息
     CALL_INFO = true;
+    // func call 每次成功命中后最多并发次数
+    CON_EXEC_FUN_NUM = 1;
 }
 
 export const ENV_KEY_MAPPER = {

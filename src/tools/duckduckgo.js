@@ -34,7 +34,7 @@ export const duckduckgo_search = {
       .join('\n---\n');
 
     const time = ((Date.now() - startTime) / 1000).toFixed(1) + 's';
-    console.log(content);
+    // console.log(content);
 
     return { content, time };
   },

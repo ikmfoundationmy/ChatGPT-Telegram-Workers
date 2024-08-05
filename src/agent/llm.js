@@ -235,6 +235,7 @@ export async function chatWithLLM(text, context, modifier, pointerLLM = loadChat
         return null;
     } catch (e) {
         let errMsg = `Error: ${e.message}`;
+        console.error(errMsg);
         if (errMsg.length > 2048) {
             // 裁剪错误信息 最长2048
             errMsg = errMsg.substring(0, 2048);

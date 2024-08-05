@@ -36,12 +36,15 @@ var prompt_default = { "\u4EE3\u7801\u89E3\u91CA\u5668": "\u4F60\u7684\u4EFB\u52
 1. \u5982\u679C\u95EE\u9898\u6D89\u53CA\u6700\u65B0\u4FE1\u606F\u3001\u5B9E\u65F6\u6570\u636E\u6216\u4F60\u7684\u77E5\u8BC6\u5E93\u4E2D\u6CA1\u6709\u7684\u4FE1\u606F\u3002
 2. \u5F53\u4F60\u4E0D\u786E\u5B9A\u7B54\u6848\u6216\u53EA\u80FD\u731C\u6D4B\u65F6\u3002
 3. \u5982\u679C\u7528\u6237\u8981\u6C42\u641C\u7D22\u5177\u4F53\u7684\u95EE\u9898\uFF0C\u4F8B\u5982\uFF1A\u641C\u4E00\u4E0B\uFF0Csearch\u3002
+\u8BF7\u6CE8\u610F\u4EC5\u5E76\u884C\u8C03\u75281\u6B21\u641C\u7D22\u51FD\u6570
 
 \u5F53\u662F\u4EE5\u4E0B\u60C5\u51B5\u65F6\uFF0C\u8C03\u7528\u94FE\u63A5\u89E3\u6790\u51FD\u6570
-1. \u7528\u6237\u63D0\u4F9B\u4E86\u94FE\u63A5,\u5E76\u660E\u786E\u6307\u793A\u9700\u8981\u5206\u6790
+1. \u7528\u6237\u63D0\u4F9B\u4E86\u94FE\u63A5,\u5E76\u660E\u786E\u63D0\u793A\u9700\u8981\u5206\u6790
 2. \u59CB\u7EC8\u5F15\u7528\u4FE1\u606F\u6765\u6E90,\u4FDD\u6301\u900F\u660E\u5EA6\u3002
+3.\u7528\u6237\u63D0\u4F9B\u4E86\u7F51\u9875\u6570\u636E, \u5982\u679C\u80FD\u4ECE\u5DF2\u6709\u6570\u636E\u4E2D\u5F97\u5230\u7ED3\u679C\uFF0C\u8BF7\u4E0D\u8981\u4F7F\u7528\u94FE\u63A5\u89E3\u6790\u51FD\u6570\uFF1B\u82E5\u6CA1\u6709\u7528\u6237\u60F3\u8981\u7684\u7B54\u6848\uFF0C\u8BF7\u63D0\u53D6\u6700\u591A1\u4E2A\u94FE\u63A5\u5E76\u884C\u8C03\u7528\u89E3\u6790\u51FD\u6570
 
 \u5982\u679C\u51FD\u6570\u8C03\u7528\u540E\u4ECD\u65E0\u6CD5\u5B8C\u5168\u56DE\u7B54\u95EE\u9898,\u8BDA\u5B9E\u8BF4\u660E\u5E76\u63D0\u4F9B\u5DF2\u83B7\u5F97\u7684\u90E8\u5206\u4FE1\u606F\u3002
+3.
 
 \u8BB0\u4F4F:\u51C6\u786E\u6027\u4F18\u5148\u4E8E\u901F\u5EA6\u3002\u5B81\u53EF\u591A\u82B1\u65F6\u95F4\u8C03\u7528\u51FD\u6570\u83B7\u53D6\u51C6\u786E\u4FE1\u606F,\u4E5F\u4E0D\u8981\u4EC5\u57FA\u4E8E\u73B0\u6709\u77E5\u8BC6\u63D0\u4F9B\u53EF\u80FD\u4E0D\u51C6\u786E\u6216\u8FC7\u65F6\u7684\u56DE\u7B54\u3002
 
@@ -182,9 +185,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1722835485;
+  BUILD_TIMESTAMP = 1722852212;
   // 当前版本 commit id
-  BUILD_VERSION = "808e96d";
+  BUILD_VERSION = "b607288";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -194,8 +197,11 @@ var Environment = class {
   LANGUAGE = "zh-cn";
   // 检查更新的分支
   UPDATE_BRANCH = "dev";
-  // Chat Complete API Timeout
-  CHAT_COMPLETE_API_TIMEOUT = 0;
+  // 对话首轮获得数据时间限制
+  CHAT_COMPLETE_API_TIMEOUT = 15;
+  // 对话总时长时间限制
+  ALL_COMPLETE_API_TIMEOUT = 120;
+  FUNC_TIMEOUT = 30;
   // -- Telegram 相关 --
   //
   // Telegram API Domain
@@ -292,8 +298,12 @@ var Environment = class {
   // 需要使用的函数 当前仅 duckduckgo_search 和jina_reader
   // '["duckduckgo_search", "jina_reader"]'
   USE_TOOLS = [];
+  // 询问AI调用function的次数
   FUNC_LOOP_TIMES = 1;
+  // 显示调用信息
   CALL_INFO = true;
+  // func call 每次成功命中后最多并发次数
+  CON_EXEC_FUN_NUM = 1;
 };
 var ENV_KEY_MAPPER = {
   CHAT_MODEL: "OPENAI_CHAT_MODEL",
@@ -1306,7 +1316,11 @@ async function requestChatCompletions(url, header, body, context, onStream, onRe
   const { signal } = controller;
   let timeoutID = null;
   if (ENV.CHAT_COMPLETE_API_TIMEOUT > 0) {
-    timeoutID = setTimeout(() => controller.abort(), ENV.CHAT_COMPLETE_API_TIMEOUT);
+    timeoutID = setTimeout(() => controller.abort(), ENV.CHAT_COMPLETE_API_TIMEOUT * 1e3);
+  }
+  let alltimeoutID = null;
+  if (ENV.ALL_COMPLETE_API_TIMEOUT > 0) {
+    alltimeoutID = setTimeout(() => controller.abort(), ENV.ALL_COMPLETE_API_TIMEOUT * 1e3);
   }
   if (ENV.DEBUG_MODE) {
     console.log(`url:
@@ -1317,6 +1331,7 @@ body:
 ${JSON.stringify(body, null, 2)}`);
   }
   context._info.updateStartTime();
+  console.log("chat start.");
   const resp = await fetch(url, {
     method: "POST",
     headers: header,
@@ -1362,10 +1377,16 @@ ERROR: ${e.message}`;
     contentFull += lastChunk;
     if (ENV.GPT3_TOKENS_COUNT && usage) {
       onResult?.(result);
-      ENV.IFO.setToken(usage?.prompt_tokens ?? 0, usage?.completion_tokens ?? 0);
+      context._info.setToken(usage?.prompt_tokens ?? 0, usage?.completion_tokens ?? 0);
     }
     await msgPromise;
+    if (alltimeoutID) {
+      clearTimeout(alltimeoutID);
+    }
     return contentFull;
+  }
+  if (alltimeoutID) {
+    clearTimeout(alltimeoutID);
   }
   if (ENV.DEBUG_MODE) {
     const r = await resp.clone().text();
@@ -1385,7 +1406,6 @@ ERROR: ${e.message}`;
     onResult?.(result);
     return options.fullContentExtractor(result);
   } catch (e) {
-    console.error(e);
     throw Error(JSON.stringify(result));
   }
 }
@@ -1401,7 +1421,7 @@ ${question}
 ${result}`
   },
   web_crawler: {
-    prompt: '\u4F5C\u4E3A\u4E00\u4E2A\u9AD8\u6548\u7684\u5185\u5BB9\u5206\u6790\u548C\u603B\u7ED3\u52A9\u624B\uFF0C\u4F60\u7684\u4EFB\u52A1\u662F\u5BF9\u7528\u6237\u63D0\u4F9B\u7684\u7F51\u9875\u6216PDF\u5185\u5BB9\u8FDB\u884C\u5168\u9762\u800C\u7B80\u6D01\u7684\u603B\u7ED3\u3002\u8BF7\u9075\u5FAA\u4EE5\u4E0B\u6307\u5357\uFF1A\n    1. \u4ED4\u7EC6\u9605\u8BFB\u7528\u6237\u63D0\u4F9B\u7684\u5168\u90E8\u5185\u5BB9\uFF0C\u786E\u4FDD\u7406\u89E3\u4E3B\u8981\u89C2\u70B9\u548C\u5173\u952E\u4FE1\u606F\u3002\n    2. \u8BC6\u522B\u5E76\u63D0\u70BC\u51FA\u5185\u5BB9\u7684\u6838\u5FC3\u4E3B\u9898\u548C\u4E3B\u8981\u8BBA\u70B9\u3002\n    3. \u603B\u7ED3\u65F6\u5E94\u5305\u62EC\u4EE5\u4E0B\u8981\u7D20\uFF1A\n      \u2022 \u5185\u5BB9\u7684\u4E3B\u8981\u76EE\u7684\u6216\u4E3B\u9898\n      \u2022 \u5173\u952E\u89C2\u70B9\u6216\u8BBA\u636E\n      \u2022 \u91CD\u8981\u7684\u6570\u636E\u6216\u7EDF\u8BA1\u4FE1\u606F\uFF08\u5982\u679C\u6709\uFF09\n      \u2022 \u4F5C\u8005\u7684\u7ED3\u8BBA\u6216\u5EFA\u8BAE\uFF08\u5982\u679C\u9002\u7528\uFF09\n    4. \u4FDD\u6301\u5BA2\u89C2\u6027\uFF0C\u51C6\u786E\u53CD\u6620\u539F\u6587\u7684\u89C2\u70B9\uFF0C\u4E0D\u6DFB\u52A0\u4E2A\u4EBA\u89E3\u91CA\u6216\u8BC4\u8BBA\u3002\n    5. \u4F7F\u7528\u6E05\u6670\u3001\u7B80\u6D01\u7684\u8BED\u8A00\uFF0C\u907F\u514D\u4F7F\u7528\u8FC7\u4E8E\u4E13\u4E1A\u6216\u6666\u6DA9\u7684\u672F\u8BED\u3002\n    6. \u603B\u7ED3\u7684\u957F\u5EA6\u5E94\u8BE5\u662F\u539F\u6587\u768410-15%\uFF0C\u9664\u975E\u7528\u6237\u7279\u522B\u6307\u5B9A\u5176\u4ED6\u957F\u5EA6\u8981\u6C42\u3002\n    7. \u5982\u679C\u5185\u5BB9\u5305\u542B\u591A\u4E2A\u90E8\u5206\u6216\u7AE0\u8282\uFF0C\u53EF\u4EE5\u4F7F\u7528\u7B80\u77ED\u7684\u5C0F\u6807\u9898\u6765\u7EC4\u7EC7\u4F60\u7684\u603B\u7ED3\u3002\n    8. \u5982\u679C\u539F\u6587\u5305\u542B\u56FE\u8868\u6216\u56FE\u50CF\u7684\u91CD\u8981\u4FE1\u606F\uFF0C\u8BF7\u5728\u603B\u7ED3\u4E2D\u63D0\u53CA\u8FD9\u4E00\u70B9\u3002\n    9. \u5982\u679C\u5185\u5BB9\u6D89\u53CA\u65F6\u95F4\u654F\u611F\u7684\u4FE1\u606F\uFF0C\u8BF7\u5728\u603B\u7ED3\u4E2D\u6CE8\u660E\u5185\u5BB9\u7684\u53D1\u5E03\u65E5\u671F\u6216\u7248\u672C\u3002\n    10. \u5982\u679C\u539F\u6587\u5B58\u5728\u660E\u663E\u7684\u504F\u89C1\u6216\u4E89\u8BAE\u6027\u89C2\u70B9\uFF0C\u8BF7\u5728\u603B\u7ED3\u4E2D\u5BA2\u89C2\u5730\u6307\u51FA\u8FD9\u4E00\u70B9\u3002\n    11. \u603B\u7ED3\u5B8C\u6210\u540E\uFF0C\u63D0\u4F9B1-3\u4E2A\u5173\u952E\u8BCD\u6216\u77ED\u8BED\uFF0C\u6982\u62EC\u5185\u5BB9\u7684\u6838\u5FC3\u4E3B\u9898\u3002\n    12. \u5982\u679C\u7528\u6237\u8981\u6C42\uFF0C\u53EF\u4EE5\u5728\u603B\u7ED3\u7684\u6700\u540E\u6DFB\u52A0\u4E00\u4E2A\u7B80\u77ED\u7684"\u8FDB\u4E00\u6B65\u9605\u8BFB\u5EFA\u8BAE"\u90E8\u5206\u3002\n    \u8BF7\u8BB0\u4F4F\uFF0C\u4F60\u7684\u76EE\u6807\u662F\u63D0\u4F9B\u4E00\u4E2A\u5168\u9762\u3001\u51C6\u786E\u3001\u6613\u4E8E\u7406\u89E3\u7684\u603B\u7ED3\uFF0C\u5E2E\u52A9\u7528\u6237\u5FEB\u901F\u628A\u63E1\u5185\u5BB9\u7684\u7CBE\u9AD3\u3002\u5982\u679C\u5185\u5BB9\u7279\u522B\u957F\u6216\u590D\u6742\uFF0C\u4F60\u53EF\u4EE5\u8BE2\u95EE\u7528\u6237\u662F\u5426\u9700\u8981\u66F4\u8BE6\u7EC6\u7684\u603B\u7ED3\u6216\u7279\u5B9A\u90E8\u5206\u7684\u6DF1\u5165\u5206\u6790\u3002',
+    prompt: '\u4F5C\u4E3A\u4E00\u4E2A\u9AD8\u6548\u7684\u5185\u5BB9\u5206\u6790\u548C\u603B\u7ED3\u52A9\u624B\uFF0C\u4F60\u7684\u4EFB\u52A1\u662F\u5BF9\u7528\u6237\u63D0\u4F9B\u7684\u7F51\u9875\u6216PDF\u5185\u5BB9\u8FDB\u884C\u5168\u9762\u800C\u7B80\u6D01\u7684\u603B\u7ED3\u3002\u8BF7\u9075\u5FAA\u4EE5\u4E0B\u6307\u5357\uFF1A\n    1. \u4ED4\u7EC6\u9605\u8BFB\u7528\u6237\u63D0\u4F9B\u7684\u5168\u90E8\u5185\u5BB9\uFF0C\u786E\u4FDD\u7406\u89E3\u4E3B\u8981\u89C2\u70B9\u548C\u5173\u952E\u4FE1\u606F\u3002\n    2. \u8BC6\u522B\u5E76\u63D0\u70BC\u51FA\u5185\u5BB9\u7684\u6838\u5FC3\u4E3B\u9898\u548C\u4E3B\u8981\u8BBA\u70B9\u3002\n    3. \u603B\u7ED3\u65F6\u5E94\u5305\u62EC\u4EE5\u4E0B\u8981\u7D20\uFF1A\n      \u2022 \u5185\u5BB9\u7684\u4E3B\u8981\u76EE\u7684\u6216\u4E3B\u9898\n      \u2022 \u5173\u952E\u89C2\u70B9\u6216\u8BBA\u636E\n      \u2022 \u91CD\u8981\u7684\u6570\u636E\u6216\u7EDF\u8BA1\u4FE1\u606F\uFF08\u5982\u679C\u6709\uFF09\n      \u2022 \u4F5C\u8005\u7684\u7ED3\u8BBA\u6216\u5EFA\u8BAE\uFF08\u5982\u679C\u9002\u7528\uFF09\n    4. \u4FDD\u6301\u5BA2\u89C2\u6027\uFF0C\u51C6\u786E\u53CD\u6620\u539F\u6587\u7684\u89C2\u70B9\uFF0C\u4E0D\u6DFB\u52A0\u4E2A\u4EBA\u89E3\u91CA\u6216\u8BC4\u8BBA\u3002\n    5. \u4F7F\u7528\u6E05\u6670\u3001\u7B80\u6D01\u7684\u8BED\u8A00\uFF0C\u907F\u514D\u4F7F\u7528\u8FC7\u4E8E\u4E13\u4E1A\u6216\u6666\u6DA9\u7684\u672F\u8BED\u3002\n    6. \u603B\u7ED3\u7684\u957F\u5EA6\u5E94\u8BE5\u662F\u539F\u6587\u768410-15%\uFF0C\u9664\u975E\u7528\u6237\u7279\u522B\u6307\u5B9A\u5176\u4ED6\u957F\u5EA6\u8981\u6C42\u3002\n    7. \u5982\u679C\u5185\u5BB9\u5305\u542B\u591A\u4E2A\u90E8\u5206\u6216\u7AE0\u8282\uFF0C\u53EF\u4EE5\u4F7F\u7528\u7B80\u77ED\u7684\u5C0F\u6807\u9898\u6765\u7EC4\u7EC7\u4F60\u7684\u603B\u7ED3\u3002\n    8. \u5982\u679C\u539F\u6587\u5305\u542B\u56FE\u8868\u6216\u56FE\u50CF\u7684\u91CD\u8981\u4FE1\u606F\uFF0C\u8BF7\u5728\u603B\u7ED3\u4E2D\u63D0\u53CA\u8FD9\u4E00\u70B9\u3002\n    9. \u5982\u679C\u5185\u5BB9\u6D89\u53CA\u65F6\u95F4\u654F\u611F\u7684\u4FE1\u606F\uFF0C\u8BF7\u5728\u603B\u7ED3\u4E2D\u6CE8\u660E\u5185\u5BB9\u7684\u53D1\u5E03\u65E5\u671F\u6216\u7248\u672C\u3002\n    10. \u5982\u679C\u539F\u6587\u5B58\u5728\u660E\u663E\u7684\u504F\u89C1\u6216\u4E89\u8BAE\u6027\u89C2\u70B9\uFF0C\u8BF7\u5728\u603B\u7ED3\u4E2D\u5BA2\u89C2\u5730\u6307\u51FA\u8FD9\u4E00\u70B9\u3002\n    11. \u603B\u7ED3\u5B8C\u6210\u540E\uFF0C\u63D0\u4F9B1-3\u4E2A\u5173\u952E\u8BCD\u6216\u77ED\u8BED\uFF0C\u6982\u62EC\u5185\u5BB9\u7684\u6838\u5FC3\u4E3B\u9898\u3002\n    12. \u5982\u679C\u7528\u6237\u8981\u6C42\uFF0C\u53EF\u4EE5\u5728\u603B\u7ED3\u7684\u6700\u540E\u6DFB\u52A0\u4E00\u4E2A\u7B80\u77ED\u7684"\u8FDB\u4E00\u6B65\u9605\u8BFB\u5EFA\u8BAE"\u90E8\u5206, \u4EE5\u53CA\u5FC5\u8981\u7684\u5F15\u7528\u6765\u6E90\u3002\n    \u8BF7\u8BB0\u4F4F\uFF0C\u4F60\u7684\u76EE\u6807\u662F\u63D0\u4F9B\u4E00\u4E2A\u5168\u9762\u3001\u51C6\u786E\u3001\u6613\u4E8E\u7406\u89E3\u7684\u603B\u7ED3\uFF0C\u5E2E\u52A9\u7528\u6237\u5FEB\u901F\u628A\u63E1\u5185\u5BB9\u7684\u7CBE\u9AD3\u3002\u5982\u679C\u5185\u5BB9\u7279\u522B\u957F\u6216\u590D\u6742\uFF0C\u4F60\u53EF\u4EE5\u8BE2\u95EE\u7528\u6237\u662F\u5426\u9700\u8981\u66F4\u8BE6\u7EC6\u7684\u603B\u7ED3\u6216\u7279\u5B9A\u90E8\u5206\u7684\u6DF1\u5165\u5206\u6790\u3002\u8BF7\u5728\u6700\u540E\u9762\u6807\u6CE8\u5F15\u7528\u7684\u94FE\u63A5.',
     render: (question, result) => `${question && question + "\n"}\u7F51\u9875\u5185\u5BB9:
 ${result}`
   }
@@ -1448,7 +1468,7 @@ async function handleOpenaiFunctionCall(url, header, body, context) {
       exposure_vars.forEach((i) => opt[i] = context.USER_CONFIG[i]);
       const original_question = body.messages.at(-1).content;
       let final_prompt = context.USER_CONFIG.SYSTEM_INIT_MESSAGE;
-      while (call_times > 0) {
+      while (call_times > 0 && call_body.tools.length > 0) {
         const start_time = /* @__PURE__ */ new Date();
         const llm_resp = await requestChatCompletions(call_url, call_headers, call_body, context, null, null, options);
         context._info.setCallInfo(((/* @__PURE__ */ new Date() - start_time) / 1e3).toFixed(1) + "s", "c_t");
@@ -1458,33 +1478,57 @@ async function handleOpenaiFunctionCall(url, header, body, context) {
           llm_resp.content = llm_resp.content?.match(/\{[\s\S]+\}/)[0];
         }
         if (llm_resp.tool_calls.length === 0 || llm_resp.content?.startsWith?.("NO_CALL_NEEDED")) {
-          console.log("No need call function.");
-          body.messages[0].content = final_prompt;
-          return { type: "continue", message: "No need call function." };
+          throw new Error("No need call function.");
         }
         if (llm_resp?.content?.startsWith?.("NEED_MORE_INFO:")) {
           return { type: "stop", message: llm_resp.content.substring("NEED_MORE_INFO:".length) };
         }
         const funcPromise = [];
-        for (const func of llm_resp.tool_calls) {
-          const name = func.function.name;
-          const args = JSON.parse(func.function.arguments);
-          context._info.setCallInfo(`${name}:${Object.values(args).join().substring(0, 80)}...`, "f_i");
-          console.log("start use function: ", name);
-          funcPromise.push(ENV.TOOLS[name].func(args, opt));
+        const controller = new AbortController();
+        const { signal } = controller;
+        let timeoutID = null;
+        if (ENV.FUNC_TIMEOUT > 0) {
+          timeoutID = setTimeout(() => controller.abort(), ENV.FUNC_TIMEOUT * 1e3);
         }
-        const func_resp = await Promise.all(funcPromise);
+        const raceTimeout = async (promises, ms = ENV.FUNC_TIMEOUT * 1e3) => {
+          if (ms <= 0)
+            return Promise.all(promises);
+          return Promise.all(
+            promises.map(
+              (p) => Promise.race([p, new Promise((resolve) => setTimeout(() => resolve("Timeout"), ms))])
+            )
+          ).then((results) => results.filter((result) => result !== "Timeout"));
+        };
+        let exec_times = ENV.CON_EXEC_FUN_NUM;
+        for (const func of llm_resp.tool_calls) {
+          if (exec_times <= 0)
+            break;
+          const name = func.function.name;
+          call_body.tools = call_body.tools.filter((t) => t.function.name !== name);
+          const args = JSON.parse(func.function.arguments);
+          let args_i = Object.values(args).join();
+          if (args_i.length > 80)
+            args_i = args_i.substring(0, 80) + "...";
+          context._info.setCallInfo(`${name}:${args_i}`, "f_i");
+          console.log("start use function: ", name);
+          funcPromise.push(ENV.TOOLS[name].func(args, opt, signal));
+          exec_times--;
+        }
+        const func_resp = await raceTimeout(funcPromise);
+        if (timeoutID)
+          clearTimeout(timeoutID);
         const func_time = [];
         const content_text = func_resp.map((r) => {
           func_time.push(r.time || "");
           return r.content || "";
         }).join("\n\n").trim();
+        console.log("func call content: ", content_text.substring(0, 500));
         if (func_time.join(" ").trim())
           context._info.setCallInfo(func_time.join(), "f_t");
-        if (content_text === "") {
-          return { type: "continue", message: "None response in func call." };
+        if (!content_text) {
+          context._info.setCallInfo(`func call response is none or timeout.`);
+          throw new Error("None response in func call.");
         }
-        call_messages.pop();
         const tool_type = ENV.TOOLS[llm_resp.tool_calls[0].function.name].type;
         const render = tools_default[tool_type].render;
         call_messages.push({
@@ -1499,7 +1543,9 @@ async function handleOpenaiFunctionCall(url, header, body, context) {
     }
     return { type: "continue" };
   } catch (e) {
-    return { type: "error", message: e.message };
+    console.error(e.message);
+    body.messages[0].content = context.USER_CONFIG.SYSTEM_INIT_MESSAGE;
+    return { type: "continue", message: e.message };
   }
 }
 
@@ -2144,7 +2190,7 @@ async function extractMessageType(message, botToken) {
       msgText: message.text || message.caption
     };
   }
-  const fileType = msg?.document || msgType;
+  const fileType = msg?.document && "document" || msgType;
   if (!fileType) {
     throw new Error("Can't extract Message Type");
   }
@@ -2249,7 +2295,7 @@ var MiddleInfo = class {
     const time = ((/* @__PURE__ */ new Date() - this.process_start_time[this.step_index]) / 1e3).toFixed(1);
     let call_info = "";
     if (ENV.CALL_INFO)
-      call_info = this.call_info && this.call_info + "\n";
+      call_info = (this.call_info && this.call_info + "\n").replace("$$f_t$$", "");
     let info = stepInfo + call_info + `${this.model} ${time}s`;
     if (ENV.ENABLE_SHOWTOKENINFO && this.token_info[this.step_index]) {
       info += `
@@ -2283,11 +2329,13 @@ Token: ${Object.values(this.token_info[this.step_index]).join(" | ")}`;
   }
   setCallInfo(message, type = "f_i") {
     if (type === "f_t") {
-      this.call_info = this.call_info.replace("$$f_t$$", message);
+      this.call_info = this.call_info.replace("$$f_t$$", "f_t: " + message);
     } else if (type === "c_t") {
-      this.call_info = (this.call_info && this.call_info + "\n") + `c_t: ${message} f_t: $$f_t$$`;
-    } else {
+      this.call_info = (this.call_info && this.call_info + "\n") + `c_t: ${message} $$f_t$$`;
+    } else if (type === "f_i") {
       this.call_info = (this.call_info && this.call_info + "\n") + message;
+    } else {
+      this.call_info += "\n" + message;
     }
   }
   // x修改mode
@@ -2517,6 +2565,7 @@ async function chatWithLLM(text, context, modifier, pointerLLM = loadChatLLM) {
     return null;
   } catch (e) {
     let errMsg = `Error: ${e.message}`;
+    console.error(errMsg);
     if (errMsg.length > 2048) {
       errMsg = errMsg.substring(0, 2048);
     }
@@ -3666,7 +3715,7 @@ var jina_reader = {
       "required": ["url"]
     }
   },
-  func: async ({ url }, { JINA_API_KEY }) => {
+  func: async ({ url }, { JINA_API_KEY }, signal) => {
     if (!url) {
       throw new Error("\u53C2\u6570\u9519\u8BEF");
     }
@@ -3680,7 +3729,8 @@ var jina_reader = {
         "X-Return-Format": "text",
         "Authorization": `Bearer ${JINA_API_KEY}`,
         "X-Timeout": 10
-      }
+      },
+      ...signal && { signal } || {}
     });
     if (!result.ok) {
       throw new Error("Error: " + (await result.json()).message);

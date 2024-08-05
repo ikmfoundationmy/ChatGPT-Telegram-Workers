@@ -16,7 +16,7 @@ export const jina_reader = {
     },
   },
 
-  func: async ({ url }, { JINA_API_KEY }) => {
+  func: async ({ url }, { JINA_API_KEY }, signal) => {
     if (!url) {
       throw new Error('参数错误');
     }
@@ -31,6 +31,7 @@ export const jina_reader = {
         'Authorization': `Bearer ${JINA_API_KEY}`,
         'X-Timeout': 10
       },
+      ...(signal && { signal } || {})
     });
     if (!result.ok) {
       throw new Error('Error: ' + (await result.json()).message);

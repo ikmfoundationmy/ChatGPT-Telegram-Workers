@@ -60,7 +60,8 @@ export async function handleOpenaiFunctionCall(url, header, body, context) {
       exposure_vars.forEach((i) => (opt[i] = context.USER_CONFIG[i]));
       const original_question = body.messages.at(-1).content;
       let final_prompt = context.USER_CONFIG.SYSTEM_INIT_MESSAGE;
-      while (call_times > 0) {
+
+      while (call_times > 0 && call_body.tools.length > 0){
         const start_time = new Date();
         const llm_resp = await requestChatCompletions(call_url, call_headers, call_body, context, null, null, options);
         context._info.setCallInfo(((new Date() - start_time) / 1000).toFixed(1) + 's', 'c_t');
@@ -72,27 +73,46 @@ export async function handleOpenaiFunctionCall(url, header, body, context) {
         }
 
         if (llm_resp.tool_calls.length === 0 || llm_resp.content?.startsWith?.('NO_CALL_NEEDED')) {
-          console.log('No need call function.');
-          body.messages[0].content = final_prompt;
-          return { type: 'continue', message: 'No need call function.' };
-          // return false;
+          throw new Error('No need call function.');
+          // body.messages[0].content = context.USER_CONFIG.SYSTEM_INIT_MESSAGE;
+          // return { type: 'continue', message: 'No need call function.' };
         }
 
         if (llm_resp?.content?.startsWith?.('NEED_MORE_INFO:')) {
           return { type: 'stop', message: llm_resp.content.substring('NEED_MORE_INFO:'.length) };
-          // return llm_resp.content.substring('NEED_MORE_INFO:'.length);
         }
 
         const funcPromise = [];
+        const controller = new AbortController();
+        const { signal } = controller;
+        let timeoutID = null;
+        if (ENV.FUNC_TIMEOUT > 0) {
+          timeoutID = setTimeout(() => controller.abort(), ENV.FUNC_TIMEOUT * 1e3);
+        }
+        const raceTimeout = async (promises, ms = ENV.FUNC_TIMEOUT * 1e3) => {
+          if (ms <= 0) return Promise.all(promises);
+          return Promise.all(
+            promises.map((p) =>
+              Promise.race([p, new Promise((resolve) => setTimeout(() => resolve('Timeout'), ms))]),
+            ),
+          ).then((results) => results.filter((result) => result !== 'Timeout'));
+        };
+        let exec_times = ENV.CON_EXEC_FUN_NUM;
         for (const func of llm_resp.tool_calls) {
+          if (exec_times <= 0) break;
           const name = func.function.name;
+          call_body.tools = call_body.tools.filter(t => t.function.name !== name);
           const args = JSON.parse(func.function.arguments);
-          context._info.setCallInfo(`${name}:${Object.values(args).join().substring(0,80)}...`, 'f_i');
+          let args_i = Object.values(args).join();
+          if (args_i.length > 80) args_i = args_i.substring(0, 80) + '...';
+          context._info.setCallInfo(`${name}:${args_i}`, 'f_i');
           console.log('start use function: ', name);
-          funcPromise.push(ENV.TOOLS[name].func(args, opt));
+          funcPromise.push(ENV.TOOLS[name].func(args, opt, signal));
+          exec_times--;
         }
 
-        const func_resp = await Promise.all(funcPromise);
+        const func_resp = await raceTimeout(funcPromise);
+        if (timeoutID) clearTimeout(timeoutID);
         const func_time = [];
         const content_text = func_resp
           .map((r) => {
@@ -101,12 +121,14 @@ export async function handleOpenaiFunctionCall(url, header, body, context) {
           })
           .join('\n\n')
           .trim();
+        console.log("func call content: ", content_text.substring(0,500));
         if(func_time.join(' ').trim()) context._info.setCallInfo(func_time.join(), 'f_t');
-        if(content_text === '') {
-          return { type: 'continue', message: 'None response in func call.' };
-          // throw new Error(llm_resp.content.substring('None response in func call.'));
+        if (!content_text) {
+          context._info.setCallInfo(`func call response is none or timeout.`);
+          throw new Error('None response in func call.');
+          
         }
-        call_messages.pop();
+        // call_messages.pop();
         const tool_type = ENV.TOOLS[llm_resp.tool_calls[0].function.name].type;
         const render = tools_settings[tool_type].render;
         call_messages.push({
@@ -119,9 +141,9 @@ export async function handleOpenaiFunctionCall(url, header, body, context) {
       body.messages[0].content = final_prompt;
     }
     return { type: 'continue' };
-    // return false;
   } catch (e) {
-    // throw new Error(e.message);
-    return { type: 'error', message: e.message };
+    console.error(e.message);
+    body.messages[0].content = context.USER_CONFIG.SYSTEM_INIT_MESSAGE;
+    return { type: 'continue', message: e.message };
   }
 }
