@@ -4,7 +4,7 @@ var prompt_default = { "\u4EE3\u7801\u89E3\u91CA\u5668": "\u4F60\u7684\u4EFB\u52
 
   1. \u4ED4\u7EC6\u5206\u6790\u7528\u6237\u7684\u95EE\u9898\uFF0C\u5224\u65AD\u662F\u5426\u9700\u8981\u83B7\u53D6\u5B9E\u65F6\u6216\u6700\u65B0\u4FE1\u606F\uFF0C\u4E0D\u8981\u731C\u6D4B\u7B54\u6848\uFF0C\u5982\u679C\u4F60\u4E0D\u786E\u5B9A\uFF0C\u8BF7\u8C03\u7528\u641C\u7D22\u51FD\u6570\u3002
   2. \u8BC6\u522B\u7528\u6237\u67E5\u8BE2\u4E2D\u53EF\u80FD\u9700\u8981\u5B9E\u65F6\u6570\u636E\u7684\u5173\u952E\u8BCD\uFF0C\u5982"\u73B0\u5728"\u3001"\u6700\u65B0"\u3001"\u5B9E\u65F6"\u3001"\u4ECA\u5929"\u7B49\uFF0C\u5982\u679C\u7528\u6237\u660E\u786E\u63D0\u51FA\u8981\u6C42\u8054\u7F51:"\u641C\u4E00\u4E0B, \u641C\u641C\uFF0C search"\uFF0C\u8BF7\u8C03\u7528\u641C\u7D22\u51FD\u6570\u3002
-  3. \u5BF9\u4E8E\u4EE5\u4E0B\u7C7B\u578B\u7684\u67E5\u8BE2\uFF0C\u901A\u5E38\u9700\u8981\u83B7\u53D6\u6700\u65B0\u4FE1\u606F\uFF1A
+  3. \u5BF9\u4E8E\u4EE5\u4E0B\u7C7B\u578B\u7684\u67E5\u8BE2\uFF0C\u901A\u5E38\u9700\u8981\u83B7\u53D6\u6700\u65B0\u4FE1\u606F,\u8BF7\u8BB0\u4F4F\u73B0\u5728\u662F24\u5E74
     - \u5B9E\u65F6\u65B0\u95FB\u548C\u5F53\u524D\u4E8B\u4EF6
     - \u5929\u6C14\u9884\u62A5
     - \u5F53\u524D\u65F6\u95F4
@@ -29,8 +29,8 @@ var prompt_default = { "\u4EE3\u7801\u89E3\u91CA\u5668": "\u4F60\u7684\u4EFB\u52
   1. For "\u4F60\u80FD\u505A\u4EC0\u4E48\uFF1F", respond with 'NO_SEARCH_NEEDED'.
   2. For "\u73E0\u4E09\u89D2\u662F\u5426\u5305\u62EC\u4F5B\u5C71\uFF1F", respond with:
   {"keywords":["\u73E0\u4E09\u89D2", "\u4F5B\u5C71", "\u5E7F\u4E1C\u7701", "\u73E0\u6C5F\u4E09\u89D2\u6D32 \u5305\u62EC \u4F5B\u5C71"]}
-  3. For "2023\u5E74\u4E16\u754C\u676F\u51A0\u519B\u662F\u8C01\uFF1F", respond with:
-  {"keywords":["2023\u5E74", "\u4E16\u754C\u676F", "\u51A0\u519B", "2023 \u4E16\u754C\u676F \u51A0\u519B\u961F"]}
+  3. For "2024\u5E74\u5DF4\u9ECE\u5965\u8FD0\u4F1A\u4E2D\u56FD\u83B7\u5F97\u4E86\u591A\u5C11\u91D1\u724C\uFF1F", respond with:
+  {"keywords":["2024\u5E74", "\u5DF4\u9ECE\u5965\u8FD0\u4F1A", "\u4E2D\u56FD\u91D1\u724C\u6570\u91CF", "2024 \u5DF4\u9ECE\u5965\u8FD0\u4F1A \u4E2D\u56FD\u91D1\u724C\u6570"]}
 
 \u5F53\u662F\u4EE5\u4E0B\u60C5\u51B5\u65F6\uFF0C\u8C03\u7528\u641C\u7D22\u51FD\u6570\uFF0C\u800C\u4E0D\u662F\u57FA\u4E8E\u73B0\u6709\u77E5\u8BC6\u4F5C\u7B54\u6216\u62D2\u7EDD\u56DE\u7B54:
 1. \u5982\u679C\u95EE\u9898\u6D89\u53CA\u6700\u65B0\u4FE1\u606F\u3001\u5B9E\u65F6\u6570\u636E\u6216\u4F60\u7684\u77E5\u8BC6\u5E93\u4E2D\u6CA1\u6709\u7684\u4FE1\u606F\u3002
@@ -182,9 +182,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1722792355;
+  BUILD_TIMESTAMP = 1722835485;
   // 当前版本 commit id
-  BUILD_VERSION = "a9fd364";
+  BUILD_VERSION = "808e96d";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -1451,7 +1451,7 @@ async function handleOpenaiFunctionCall(url, header, body, context) {
       while (call_times > 0) {
         const start_time = /* @__PURE__ */ new Date();
         const llm_resp = await requestChatCompletions(call_url, call_headers, call_body, context, null, null, options);
-        context._info.setCallInfo("c_t: " + ((/* @__PURE__ */ new Date() - start_time) / 1e3).toFixed(1) + "s");
+        context._info.setCallInfo(((/* @__PURE__ */ new Date() - start_time) / 1e3).toFixed(1) + "s", "c_t");
         sendMessageToTelegramWithContext(context)("...");
         llm_resp.tool_calls = llm_resp?.tool_calls?.filter((i) => Object.keys(ENV.TOOLS).includes(i.function.name)) || [];
         if (llm_resp.content?.startsWith("```json\n")) {
@@ -1469,8 +1469,7 @@ async function handleOpenaiFunctionCall(url, header, body, context) {
         for (const func of llm_resp.tool_calls) {
           const name = func.function.name;
           const args = JSON.parse(func.function.arguments);
-          context._info.setCallInfo(`${name}:
-${Object.values(args).join().substring(0, 30)}...`);
+          context._info.setCallInfo(`${name}:${Object.values(args).join().substring(0, 80)}...`, "f_i");
           console.log("start use function: ", name);
           funcPromise.push(ENV.TOOLS[name].func(args, opt));
         }
@@ -1481,7 +1480,7 @@ ${Object.values(args).join().substring(0, 30)}...`);
           return r.content || "";
         }).join("\n\n").trim();
         if (func_time.join(" ").trim())
-          context._info.setCallInfo(`f_t: ${func_time.join()}`);
+          context._info.setCallInfo(func_time.join(), "f_t");
         if (content_text === "") {
           return { type: "continue", message: "None response in func call." };
         }
@@ -2165,7 +2164,7 @@ async function extractMessageType(message, botToken) {
   }
   let file_id = null;
   if (fileType == "photo") {
-    file_id = msg[fileType]?.at(1)?.file_id;
+    file_id = msg[fileType]?.at(-2)?.file_id;
   } else {
     file_id = msg[fileType]?.file_id || null;
   }
@@ -2183,6 +2182,7 @@ async function extractMessageType(message, botToken) {
       throw new Error("file url get failed.");
     }
     info.file_url = `${ENV.TELEGRAM_API_DOMAIN}/file/bot${botToken}/${file_info.file_path}`;
+    console.log("file url: " + info.file_url);
   }
   return info;
 }
@@ -2237,7 +2237,7 @@ var MiddleInfo = class {
     return this.step_index === 1;
   }
   get message_title() {
-    if (!this.model || this.step_index === 0) {
+    if (!this.model || this.step_index === 0 || !this.process_start_time[this.step_index]) {
       return "";
     }
     const step_count = this.process_count;
@@ -2281,8 +2281,14 @@ Token: ${Object.values(this.token_info[this.step_index]).join(" | ")}`;
   setFile(file, index = this.step_index) {
     this.file[index] = file;
   }
-  setCallInfo(message) {
-    this.call_info = (this.call_info && this.call_info + "\n") + message;
+  setCallInfo(message, type = "f_i") {
+    if (type === "f_t") {
+      this.call_info = this.call_info.replace("$$f_t$$", message);
+    } else if (type === "c_t") {
+      this.call_info = (this.call_info && this.call_info + "\n") + `c_t: ${message} f_t: $$f_t$$`;
+    } else {
+      this.call_info = (this.call_info && this.call_info + "\n") + message;
+    }
   }
   // x修改mode
   config(name, value = null) {
@@ -2295,7 +2301,6 @@ Token: ${Object.values(this.token_info[this.step_index]).join(" | ")}`;
   }
   initProcess(USER_CONFIG) {
     console.log(`Init step ${this.step_index + 1}.`);
-    this.process_start_time.push(/* @__PURE__ */ new Date());
     this.step_index++;
     if (this.step_index > 1) {
       USER_CONFIG = this._bp_config;

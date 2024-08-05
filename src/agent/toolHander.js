@@ -63,7 +63,7 @@ export async function handleOpenaiFunctionCall(url, header, body, context) {
       while (call_times > 0) {
         const start_time = new Date();
         const llm_resp = await requestChatCompletions(call_url, call_headers, call_body, context, null, null, options);
-        context._info.setCallInfo('c_t: ' + ((new Date() - start_time) / 1000).toFixed(1) + 's');
+        context._info.setCallInfo(((new Date() - start_time) / 1000).toFixed(1) + 's', 'c_t');
         sendMessageToTelegramWithContext(context)('...');
         llm_resp.tool_calls =
           llm_resp?.tool_calls?.filter((i) => Object.keys(ENV.TOOLS).includes(i.function.name)) || [];
@@ -87,7 +87,7 @@ export async function handleOpenaiFunctionCall(url, header, body, context) {
         for (const func of llm_resp.tool_calls) {
           const name = func.function.name;
           const args = JSON.parse(func.function.arguments);
-          context._info.setCallInfo(`${name}:\n${Object.values(args).join().substring(0,30)}...`);
+          context._info.setCallInfo(`${name}:${Object.values(args).join().substring(0,80)}...`, 'f_i');
           console.log('start use function: ', name);
           funcPromise.push(ENV.TOOLS[name].func(args, opt));
         }
@@ -101,7 +101,7 @@ export async function handleOpenaiFunctionCall(url, header, body, context) {
           })
           .join('\n\n')
           .trim();
-        if(func_time.join(' ').trim()) context._info.setCallInfo(`f_t: ${func_time.join()}`);
+        if(func_time.join(' ').trim()) context._info.setCallInfo(func_time.join(), 'f_t');
         if(content_text === '') {
           return { type: 'continue', message: 'None response in func call.' };
           // throw new Error(llm_resp.content.substring('None response in func call.'));

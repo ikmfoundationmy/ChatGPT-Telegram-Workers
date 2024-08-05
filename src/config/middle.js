@@ -51,7 +51,7 @@ async function extractMessageType(message, botToken) {
   let file_id = null;
   if (fileType == 'photo') {
     // 取第二个
-    file_id = msg[fileType]?.at(1)?.file_id /*|| msg[fileType]?.file_id*/;
+    file_id = msg[fileType]?.at(-2)?.file_id /*|| msg[fileType]?.file_id*/;
   } else {
     file_id = msg[fileType]?.file_id || null;
   }
@@ -69,6 +69,7 @@ async function extractMessageType(message, botToken) {
       throw new Error('file url get failed.');
     }
     info.file_url = `${ENV.TELEGRAM_API_DOMAIN}/file/bot${botToken}/${file_info.file_path}`;
+    console.log("file url: " + info.file_url);
   }
 
   return info;
@@ -143,7 +144,7 @@ export class MiddleInfo {
   }
 
   get message_title() {
-    if (!this.model || this.step_index === 0) {
+    if (!this.model || this.step_index === 0 || !this.process_start_time[this.step_index]) {
       return '';
     }
     const step_count = this.process_count;
@@ -154,7 +155,7 @@ export class MiddleInfo {
     const time = ((new Date() - this.process_start_time[this.step_index]) / 1000).toFixed(1);
 
     let call_info = '';
-    if (ENV.CALL_INFO) call_info = this.call_info && (this.call_info + '\n');
+    if (ENV.CALL_INFO) call_info = (this.call_info && (this.call_info + '\n'))// .replace(' $$f_t$$', '');
 
     let info = stepInfo + call_info + `${this.model} ${time}s`;
     if (ENV.ENABLE_SHOWTOKENINFO && this.token_info[this.step_index]) {
@@ -185,8 +186,15 @@ export class MiddleInfo {
   setFile(file, index = this.step_index) {
     this.file[index] = file;
   }
-  setCallInfo(message) {
-    this.call_info = (this.call_info && (this.call_info + '\n')) + message;
+  setCallInfo(message, type = 'f_i') {
+    if (type === 'f_t') {
+      this.call_info = this.call_info.replace('$$f_t$$', message);
+    } else if (type === 'c_t') {
+      this.call_info = (this.call_info && (this.call_info + '\n')) + `c_t: ${message} f_t: $$f_t$$`;
+    } else {
+      this.call_info = (this.call_info && (this.call_info + '\n')) + message;
+    }
+    
   }
   // x修改mode
   config(name, value = null) {
@@ -201,7 +209,7 @@ export class MiddleInfo {
   initProcess(USER_CONFIG) {
     console.log(`Init step ${this.step_index + 1}.`);
 
-    this.process_start_time.push(new Date());
+    // this.process_start_time.push(new Date());
     this.step_index++;
     if (this.step_index > 1) {
       USER_CONFIG = this._bp_config;
