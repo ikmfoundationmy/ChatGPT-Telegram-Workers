@@ -60,6 +60,7 @@ export async function handleOpenaiFunctionCall(url, header, body, context) {
       exposure_vars.forEach((i) => (opt[i] = context.USER_CONFIG[i]));
       const original_question = body.messages.at(-1).content;
       let final_prompt = context.USER_CONFIG.SYSTEM_INIT_MESSAGE;
+      const stopLoopType = 'web_crawler';
 
       while (call_times > 0 && call_body.tools.length > 0){
         const start_time = new Date();
@@ -136,6 +137,7 @@ export async function handleOpenaiFunctionCall(url, header, body, context) {
           content: render?.(original_question, content_text) || original_question + '\n\n' + content_text,
         });
         if (tools_settings[tool_type].prompt) final_prompt = tools_settings[tool_type].prompt;
+        if (tool_type === stopLoopType) break;
         call_times--;
       }
       body.messages[0].content = final_prompt;
