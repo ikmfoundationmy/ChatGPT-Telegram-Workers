@@ -63,7 +63,11 @@
  * @property {string | number | null} chatId - 会话 id, private 场景为发言人 id, group/supergroup 场景为群组 id
  * @property {string | number | null} speakerId - 发言人 id
  * @property {object | null} extraMessageContext - 额外消息上下文
- * */
+ * @property {string | null} telegraphAccessTokenKey - chat_id:telegraph_access_token
+ * @property {string | null} telegraphAccessToken - telegraph access_token
+ * @property {string | null} telegraphPath - telegraph路径
+ * @property {string} scheduleDeteleKey - 'schedule_detele_message'
+ */
 
 /**
  * 用于保存发起telegram请求的聊天上下文

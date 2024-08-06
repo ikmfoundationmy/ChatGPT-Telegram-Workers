@@ -185,9 +185,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1722853602;
+  BUILD_TIMESTAMP = 1722944170;
   // 当前版本 commit id
-  BUILD_VERSION = "d00fad5";
+  BUILD_VERSION = "eaa2e66";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -304,6 +304,12 @@ var Environment = class {
   CALL_INFO = true;
   // func call 每次成功命中后最多并发次数
   CON_EXEC_FUN_NUM = 1;
+  // 当长度到达设置值时将发送telegraph文章
+  TELEGRAPH_NUM_LIMIT = 500;
+  // 群组 是否开启telegraph
+  ENABLE_TELEGRAPH = false;
+  // 发文的作者链接; 发文作者目前为机器人ID, 未设置时为anonymous
+  TELEGRAPH_AUTHOR_URL = "";
 };
 var ENV_KEY_MAPPER = {
   CHAT_MODEL: "OPENAI_CHAT_MODEL",
@@ -456,6 +462,10 @@ var ShareContext = class {
   chatId = null;
   speakerId = null;
   extraMessageContext = null;
+  telegraphAccessTokenKey = null;
+  telegraphAccessToken = null;
+  telegraphPath = null;
+  scheduleDeteleKey = "schedule_detele_message";
 };
 var CurrentChatContext = class {
   chat_id = null;
@@ -534,6 +544,7 @@ var Context = class {
     let historyKey = `history:${id}`;
     let configStoreKey = `user_config:${id}`;
     let groupAdminKey = null;
+    let telegraphAccessTokenKey = `telegraph_access_token:${id}`;
     if (botId) {
       historyKey += `:${botId}`;
       configStoreKey += `:${botId}`;
@@ -555,6 +566,7 @@ var Context = class {
     this.SHARE_CONTEXT.chatLastMessageIdKey = `last_message_id:${historyKey}`;
     this.SHARE_CONTEXT.configStoreKey = configStoreKey;
     this.SHARE_CONTEXT.groupAdminKey = groupAdminKey;
+    this.SHARE_CONTEXT.telegraphAccessTokenKey = telegraphAccessTokenKey;
     this.SHARE_CONTEXT.chatType = message.chat?.type;
     this.SHARE_CONTEXT.chatId = message.chat.id;
     this.SHARE_CONTEXT.speakerId = message.from.id || message.chat.id;
@@ -880,6 +892,21 @@ function deleteMessageFromTelegramWithContext(context) {
       }
     );
   };
+}
+async function deleteMessagesFromTelegram(chat_id, bot_token, message_ids) {
+  return await fetch(
+    `${ENV.TELEGRAM_API_DOMAIN}/bot${bot_token}/deleteMessages`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        chat_id,
+        message_ids
+      })
+    }
+  );
 }
 async function sendPhotoToTelegram(photo, token, context, _info = null) {
   const url = `${ENV.TELEGRAM_API_DOMAIN}/bot${token}/sendPhoto`;
@@ -1504,15 +1531,15 @@ async function handleOpenaiFunctionCall(url, header, body, context) {
         for (const func of llm_resp.tool_calls) {
           if (exec_times <= 0)
             break;
-          const name = func.function.name;
-          call_body.tools = call_body.tools.filter((t) => t.function.name !== name);
+          const name2 = func.function.name;
+          call_body.tools = call_body.tools.filter((t) => t.function.name !== name2);
           const args = JSON.parse(func.function.arguments);
           let args_i = Object.values(args).join();
           if (args_i.length > 80)
             args_i = args_i.substring(0, 80) + "...";
-          context._info.setCallInfo(`${name}:${args_i}`, "f_i");
-          console.log("start use function: ", name);
-          funcPromise.push(ENV.TOOLS[name].func(args, opt, signal));
+          context._info.setCallInfo(`${name2}:${args_i}`, "f_i");
+          console.log("start use function: ", name2);
+          funcPromise.push(ENV.TOOLS[name2].func(args, opt, signal));
           exec_times--;
         }
         const func_resp = await raceTimeout(funcPromise);
@@ -2268,6 +2295,7 @@ var MiddleInfo = class {
     this.msg_type = msg_info.msgType;
     this.process_type = null;
     this.call_info = "";
+    this.model = null;
   }
   static async initInfo(message, { USER_CONFIG, SHARE_CONTEXT: { currentBotToken } }) {
     const msg_info = await extractMessageType(message, currentBotToken);
@@ -2342,8 +2370,8 @@ Token: ${Object.values(this.token_info[this.step_index]).join(" | ")}`;
     }
   }
   // x修改mode
-  config(name, value = null) {
-    if (name === "mode") {
+  config(name2, value = null) {
+    if (name2 === "mode") {
       this.processes = this._bp_config.MODES[value][this.msg_type];
     }
   }
@@ -2399,6 +2427,212 @@ Token: ${Object.values(this.token_info[this.step_index]).join(" | ")}`;
     }
   }
 };
+
+// src/utils/md2node.js
+function markdownToTelegraphNodes(markdown) {
+  const lines = markdown.split("\n");
+  const nodes = [];
+  let currentList = null;
+  let inCodeBlock = false;
+  let codeBlockContent = "";
+  let codeBlockLanguage = "";
+  for (let line of lines) {
+    if (line.trim().startsWith("```")) {
+      if (inCodeBlock) {
+        nodes.push({
+          tag: "pre",
+          children: [
+            {
+              tag: "code",
+              attrs: codeBlockLanguage ? { class: `language-${codeBlockLanguage}` } : {},
+              children: [codeBlockContent.trim()]
+            }
+          ]
+        });
+        inCodeBlock = false;
+        codeBlockContent = "";
+        codeBlockLanguage = "";
+      } else {
+        inCodeBlock = true;
+        codeBlockLanguage = line.trim().slice(3).trim();
+      }
+      continue;
+    }
+    if (inCodeBlock) {
+      codeBlockContent += line + "\n";
+      continue;
+    }
+    line = line.trim();
+    if (!line)
+      continue;
+    if (line.startsWith("#")) {
+      const level = line.match(/^#+/)[0].length;
+      const text = line.replace(/^#+\s*/, "");
+      nodes.push({ tag: `h${level}`, children: [text] });
+    } else if (line.startsWith("> ")) {
+      const text = line.slice(2);
+      nodes.push({ tag: "blockquote", children: processInlineElements(text) });
+    } else if (line.startsWith("- ") || line.startsWith("* ")) {
+      const text = line.slice(2);
+      if (!currentList) {
+        currentList = { tag: "ul", children: [] };
+        nodes.push(currentList);
+      }
+      currentList.children.push({ tag: "li", children: processInlineElements(text) });
+    } else if (/^\d+\.\s/.test(line)) {
+      const text = line.replace(/^\d+\.\s/, "");
+      if (!currentList) {
+        currentList = { tag: "ol", children: [] };
+        nodes.push(currentList);
+      }
+      currentList.children.push({ tag: "li", children: processInlineElements(text) });
+    } else if (line === "---") {
+      nodes.push({ tag: "hr" });
+    } else {
+      currentList = null;
+      nodes.push({ tag: "p", children: processInlineElements(line) });
+    }
+  }
+  if (inCodeBlock) {
+    nodes.push({
+      tag: "pre",
+      children: [
+        {
+          tag: "code",
+          attrs: codeBlockLanguage ? { class: `language-${codeBlockLanguage}` } : {},
+          children: [codeBlockContent.trim()]
+        }
+      ]
+    });
+  }
+  return nodes;
+}
+function processInlineElementsHelper(text) {
+  let children = [];
+  const boldRegex = /\*\*(.*?)\*\*/g;
+  const italicRegex = /__(.*?)__/g;
+  let boldMatch;
+  let italicMatch;
+  let lastIndex = 0;
+  while ((boldMatch = boldRegex.exec(text)) !== null || (italicMatch = italicRegex.exec(text)) !== null) {
+    if ((boldMatch || italicMatch).index > lastIndex) {
+      children.push(text.slice(lastIndex, (boldMatch || italicMatch).index));
+    }
+    children.push({
+      tag: boldMatch ? "strong" : "i",
+      children: [(boldMatch || italicMatch)[1]]
+    });
+    lastIndex = (boldMatch || italicMatch).index + (boldMatch || italicMatch)[0].length;
+  }
+  if (lastIndex < text.length) {
+    children.push(text.slice(lastIndex));
+  }
+  children = children.map((child) => {
+    if (typeof child === "string") {
+      const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+      let linkMatch;
+      let linkChildren = [];
+      let lastLinkIndex = 0;
+      while ((linkMatch = linkRegex.exec(child)) !== null) {
+        if (linkMatch.index > lastLinkIndex) {
+          linkChildren.push(child.slice(lastLinkIndex, linkMatch.index));
+        }
+        linkChildren.push({
+          tag: "a",
+          attrs: { href: linkMatch[2] },
+          children: [linkMatch[1]]
+        });
+        lastLinkIndex = linkMatch.index + linkMatch[0].length;
+      }
+      if (lastLinkIndex < child.length) {
+        linkChildren.push(child.slice(lastLinkIndex));
+      }
+      return linkChildren.length >= 1 ? linkChildren : child;
+    }
+    return child;
+  });
+  return children.flat();
+}
+function processInlineElements(text) {
+  let children = [];
+  const codeRegex = /`([^`]+)`/g;
+  let codeMatch;
+  let lastIndex = 0;
+  while ((codeMatch = codeRegex.exec(text)) !== null) {
+    if (codeMatch.index > lastIndex) {
+      children.push(...processInlineElementsHelper(text.slice(lastIndex, codeMatch.index)));
+    }
+    children.push({
+      tag: "code",
+      children: [codeMatch[1]]
+    });
+    lastIndex = codeMatch.index + codeMatch[0].length;
+  }
+  if (lastIndex < text.length) {
+    children.push(...processInlineElementsHelper(text.slice(lastIndex)));
+  }
+  return children.flat();
+}
+var md2node_default = markdownToTelegraphNodes;
+
+// src/telegram/telegraph.js
+async function createAccount(name2) {
+  const { short_name = "Mewo", author_name = "A Cat" } = name2 || {};
+  const url = `https://api.telegra.ph/createAccount?short_name=${short_name}&author_name=${author_name}`;
+  const resp = await fetch(url).then((r) => r.json());
+  if (resp.ok) {
+    return {
+      access_token: resp.result.access_token
+    };
+  } else
+    throw new Error("create telegraph account failed");
+}
+async function createOrEditPage(sendContext, title, content, author) {
+  const { url, access_token, path } = sendContext;
+  const { short_name, author_name, author_url } = author;
+  const body = {
+    access_token,
+    ...path && { path } || {},
+    title: title || "Daily Q&A",
+    content: md2node_default(content),
+    short_name: short_name || "anonymous",
+    author_name: author_name || "anonymous",
+    ...author_url && { author_url } || {}
+    // 'return_content': true,
+  };
+  const headers = { "Content-Type": "application/json" };
+  return fetch(url, {
+    method: "post",
+    headers,
+    body: JSON.stringify(body)
+  }).then((r) => r.json());
+}
+async function sendTelegraph(context, title, content, author) {
+  let endPoint = "https://api.telegra.ph/editPage";
+  let access_token = context.telegraphAccessToken;
+  let path = context.telegraphPath;
+  if (!access_token) {
+    access_token = (await createAccount(name)).access_token;
+    context.telegraphAccessToken = access_token;
+    await DATABASE.put(context.telegraphAccessTokenKey, access_token);
+  }
+  const sendContext = { url: endPoint, access_token, path };
+  if (!path) {
+    sendContext.url = "https://api.telegra.ph/createPage";
+    const c_resp = await createOrEditPage(sendContext, title, content, author);
+    if (c_resp.ok) {
+      context.telegraphPath = c_resp.result.path;
+      return c_resp;
+    } else {
+      console.error(c_resp.error);
+      throw new Error(c_resp.error);
+    }
+  } else
+    return createOrEditPage(sendContext, title, content, author);
+}
+function sendTelegraphWithContext(context) {
+  return async (title, content, author) => sendTelegraph(context.SHARE_CONTEXT, title, content, author);
+}
 
 // src/agent/llm.js
 function tokensCounter() {
@@ -2504,6 +2738,50 @@ async function chatWithLLM(text, context, modifier, pointerLLM = loadChatLLM) {
     setTimeout(() => sendChatActionToTelegramWithContext(context)("typing").catch(console.error), 0);
     let onStream = null;
     let nextEnableTime = null;
+    const sendHandler = (() => {
+      const question = text;
+      const telegraph_prefix = `Question
+> ${question.substring(0, 200)}
+---
+#Answer
+\u{1F916} __${context._info.model}__
+`;
+      let first_time_than = true;
+      const author = {
+        short_name: context.SHARE_CONTEXT.currentBotName,
+        author_name: context.SHARE_CONTEXT.currentBotName,
+        author_url: ENV.TELEGRAPH_AUTHOR_URL
+      };
+      return async (text2) => {
+        if (text2.length > ENV.TELEGRAPH_NUM_LIMIT && ENV.ENABLE_TELEGRAPH && CONST.GROUP_TYPES.includes(context.SHARE_CONTEXT.chatType)) {
+          let telegraph_suffix = `
+---
+
+\`\`\`
+debug info:
+${context._info.message_title}
+\`\`\``;
+          if (first_time_than) {
+            const resp = await sendTelegraphWithContext(context)(
+              null,
+              telegraph_prefix + text2 + telegraph_suffix,
+              author
+            );
+            const url = `https://telegra.ph/${context.SHARE_CONTEXT.telegraphPath}`;
+            const suffix_msg = ` ...
+
+[\u70B9\u51FB\u67E5\u770B\u66F4\u591A~~](${url})`;
+            await sendMessageToTelegramWithContext(context)(
+              text2.substring(0, ENV.TELEGRAPH_NUM_LIMIT) + suffix_msg
+            );
+            first_time_than = false;
+            return resp;
+          }
+          return sendTelegraphWithContext(context)(null, telegraph_prefix + text2 + telegraph_suffix, author);
+        } else
+          return sendMessageToTelegramWithContext(context)(text2);
+      };
+    })();
     if (ENV.STREAM_MODE) {
       onStream = async (text2) => {
         if (ENV.HIDE_MIDDLE_MESSAGE && !context._info.isLastStep)
@@ -2512,7 +2790,7 @@ async function chatWithLLM(text, context, modifier, pointerLLM = loadChatLLM) {
           if (nextEnableTime && nextEnableTime > Date.now()) {
             return;
           }
-          const resp = await sendMessageToTelegramWithContext(context)(text2);
+          const resp = await sendHandler(text2);
           if (resp.status === 429) {
             const retryAfter = parseInt(resp.headers.get("Retry-After"));
             if (retryAfter) {
@@ -2559,7 +2837,7 @@ async function chatWithLLM(text, context, modifier, pointerLLM = loadChatLLM) {
       await new Promise((resolve) => setTimeout(resolve, nextEnableTime - Date.now()));
     }
     if (!ENV.HIDE_MIDDLE_MESSAGE || context._info.isLastStep) {
-      await sendMessageToTelegramWithContext(context)(answer);
+      await sendHandler(answer);
     }
     if (!context._info.isLastStep) {
       context._info.setFile({ text: answer });
@@ -3336,6 +3614,8 @@ async function msgHandleGroupMessage(message, context) {
 async function msgInitUserConfig(message, context) {
   try {
     await context._initUserConfig(context.SHARE_CONTEXT.configStoreKey);
+    const telegraphAccessTokenKey = context.SHARE_CONTEXT.telegraphAccessTokenKey;
+    context.SHARE_CONTEXT.telegraphAccessToken = await DATABASE.get(telegraphAccessTokenKey);
     return null;
   } catch (e) {
     return sendMessageToTelegramWithContext(context)(e.message);
@@ -3457,8 +3737,6 @@ async function handleMessage(request) {
     msgInitMiddleInfo,
     // 处理命令消息
     msgHandleCommand,
-    // 处理function call
-    // msgHandleFunctionCall,
     // 与llm聊天
     msgChatWithLLM
   ];
@@ -3475,6 +3753,34 @@ async function handleMessage(request) {
   }
   return null;
 }
+
+// src/tools/scheduleTask.js
+async function schedule_detele_message(env) {
+  try {
+    initEnv(env);
+    const scheduleDeteleKey = "schedule_detele_message";
+    const scheduledData = JSON.parse(await DATABASE.get(scheduleDeteleKey) || "{}");
+    for (const [bot_name, chats] of Object.entries(scheduledData)) {
+      const bot_index = ENV.TELEGRAM_BOT_NAME.indexOf(bot_name);
+      if (bot_index < 0)
+        throw new Error("bot name is invalid");
+      const bot_token = ENV.TELEGRAM_AVAILABLE_TOKENS[bot_index];
+      if (!bot_token)
+        throw new Error("bot token is null");
+      for (const [chat_id, messages] of Object.entries(chats)) {
+        const expired_msgs = messages.filter((msg) => msg.ttl <= /* @__PURE__ */ new Date()).map((msg) => msg.id);
+        scheduledData[bot_name][chat_id] = messages.filter((msg) => msg.ttl > /* @__PURE__ */ new Date());
+        await deleteMessagesFromTelegram(chat_id, bot_token, expired_msgs);
+      }
+    }
+    await DATABASE.put(scheduleDeteleKey, JSON.stringify(scheduledData));
+    return new Response('{ok:"true", message:"\u5B9A\u65F6\u4EFB\u52A1\u6267\u884C\u6210\u529F"}', { headers: { "Content-Type": "application/json" } });
+  } catch (e) {
+    console.error(e.message);
+    return new Response(`{ok:"false", message:"\u5B9A\u65F6\u4EFB\u52A1\u6267\u884C\u5931\u8D25"}`, { headers: { "Content-Type": "application/json" } });
+  }
+}
+var scheduleTask_default = { schedule_detele_message };
 
 // src/router.js
 var helpLink = "https://github.com/TBXark/ChatGPT-Telegram-Workers/blob/master/doc/en/DEPLOY.md";
@@ -3578,6 +3884,16 @@ async function loadBotInfo() {
   `);
   return new Response(HTML, { status: 200, headers: { "Content-Type": "text/html" } });
 }
+async function executeScheduleTask(request) {
+  const taskname = request.body.taskname;
+  if (!taskname || Object.keys(scheduleTask_default).includes(taskname) < 0) {
+    return new Response(`taskname ${taskname} is not exist.`, { status: 400 });
+  }
+  const token = request.body.token;
+  if (!ENV.TELEGRAM_AVAILABLE_TOKENS.includes(token))
+    return new Response("Token is invalid.", { status: 403 });
+  return await scheduleTask_default[taskname]();
+}
 async function handleRequest(request) {
   const { pathname } = new URL(request.url);
   if (pathname === `/`) {
@@ -3591,6 +3907,9 @@ async function handleRequest(request) {
   }
   if (pathname.startsWith(`/telegram`) && pathname.endsWith(`/safehook`)) {
     return telegramSafeHook(request);
+  }
+  if (pathname.startsWith(`executeScheduleTask`)) {
+    return executeScheduleTask(request);
   }
   if (ENV.DEV_MODE || ENV.DEBUG_MODE) {
     if (pathname.startsWith(`/telegram`) && pathname.endsWith(`/bot`)) {

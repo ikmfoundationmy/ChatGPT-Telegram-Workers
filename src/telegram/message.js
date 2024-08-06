@@ -6,7 +6,6 @@ import {errorToString} from '../utils/utils.js';
 import { chatViaFileWithLLM, chatWithLLM } from '../agent/llm.js';
 import { loadImageGen, loadVisionLLM } from "../agent/agents.js";
 import { MiddleInfo } from "../config/middle.js";
-import { requestCompletionsFromOpenAI } from "../agent/openai.js";
 
 import '../types/telegram.js';
 
@@ -269,6 +268,8 @@ async function msgInitUserConfig(message, context) {
     try {
       // console.log('init user config');
       await context._initUserConfig(context.SHARE_CONTEXT.configStoreKey);
+      const telegraphAccessTokenKey = context.SHARE_CONTEXT.telegraphAccessTokenKey;
+      context.SHARE_CONTEXT.telegraphAccessToken = await DATABASE.get(telegraphAccessTokenKey);
       return null;
     } catch (e) {
       return sendMessageToTelegramWithContext(context)(e.message);
@@ -334,17 +335,14 @@ async function msgHandleCommand(message, context) {
  * @return {Promise<Response>}
  */
 async function msgChatWithLLM(message, context) {
-
   let text = (message.text || message.caption || '').trim();
-    if (ENV.EXTRA_MESSAGE_CONTEXT && context.SHARE_CONTEXT?.extraMessageContext?.text) {
-      text =
-        context.SHARE_CONTEXT.extraMessageContext.text ||
-        context.SHARE_CONTEXT.extraMessageContext.caption + '\n' + text;
-    }
+  if (ENV.EXTRA_MESSAGE_CONTEXT && context.SHARE_CONTEXT?.extraMessageContext?.text) {
+    text =
+      context.SHARE_CONTEXT.extraMessageContext.text || context.SHARE_CONTEXT.extraMessageContext.caption + '\n' + text;
+  }
 
   // 与LLM交互
   try {
-
     let result = null;
 
     for (let i = 0; i < context._info.process_count; i++) {
@@ -399,7 +397,6 @@ async function msgChatWithLLM(message, context) {
 }
 
 
-
 /**
  * 加载真实TG消息
  *
@@ -422,6 +419,31 @@ async function loadMessage(request, context) {
         throw new Error('Invalid message');
     }
 }
+
+// async function scheduledDeleteMessage(request, context) {
+//   if (CONST.GROUP_TYPES.includes(context.SHARE_CONTEXT.chatType) && ENV.SCHEDULE_DELETE >= 5) {
+//     const chatId = context.SHARE_CONTEXT.chatId;
+//     const botName = context.SHARE_CONTEXT.currentBotName;;
+//     const scheduledData = JSON.parse((await DATABASE.get(context.SHARE_CONTEXT.scheduleDeteleKey)) || '{}');
+//     if (!scheduledData[botName]) {
+//       scheduledData[botName] = {};
+//     }
+//     if (!scheduledData[botName][chatId]) {
+//       scheduledData[botName][chatId] = [];
+//     }
+//     const offsetInMillisenconds = ENV.SCHEDULE_DELETE * 60 * 1000;
+//     scheduledData[botName][chatId].push({
+//       id: context.CURRENT_CHAT_CONTEXT.message_id,
+//       ttl: new Date() + offsetInMillisenconds,
+//     });
+//     await DATABASE.put(context.SHARE_CONTEXT.scheduleDeteleKey, JSON.stringify(scheduledData));
+//   };
+//   return new Response('success', { status: 200 });
+// }
+
+// async function msgTagNeedDelete(request, context) {
+//   return await scheduledDeleteMessage(request, context);
+// }
 
 /**
  * 处理消息
@@ -465,22 +487,35 @@ export async function handleMessage(request) {
         msgInitMiddleInfo,
         // 处理命令消息
         msgHandleCommand,
-        // 处理function call
-        // msgHandleFunctionCall,
         // 与llm聊天
         msgChatWithLLM,
     ];
+  
+    // const exitHanders = [msgTagNeedDelete];
 
     for (const handler of handlers) {
         try {
           const result = await handler(message, context);
-            if (result && result instanceof Response) {
-                return result;
+          if (result && result instanceof Response) {
+              return result;
+                // break;
             }
         } catch (e) {
             console.error(e);
             return new Response(errorToString(e), {status: 500});
         }
     }
+
+    // for (const handler of exitHanders) {
+    //   try {
+    //     const result = await handler(message, context);
+    //       if (result && result instanceof Response) {
+    //           break;
+    //       }
+    //   } catch (e) {
+    //       console.error(e);
+    //       return new Response(errorToString(e), {status: 500});
+    //   }
+    // }
     return null;
 }

@@ -285,6 +285,12 @@ class Environment {
     CALL_INFO = true;
     // func call 每次成功命中后最多并发次数
     CON_EXEC_FUN_NUM = 1;
+    // 当长度到达设置值时将发送telegraph文章
+    TELEGRAPH_NUM_LIMIT = 500;
+    // 群组 是否开启telegraph
+    ENABLE_TELEGRAPH = false;
+    // 发文的作者链接; 发文作者目前为机器人ID, 未设置时为anonymous
+    TELEGRAPH_AUTHOR_URL = '';
 }
 
 export const ENV_KEY_MAPPER = {

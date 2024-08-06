@@ -2,7 +2,8 @@ import {handleMessage} from './telegram/message.js';
 import {API_GUARD, ENV} from './config/env.js';
 import {bindCommandForTelegram, commandsDocument} from './telegram/command.js';
 import {bindTelegramWebHook, getBot} from './telegram/telegram.js';
-import {errorToString, makeResponse200, renderHTML} from './utils/utils.js';
+import { errorToString, makeResponse200, renderHTML } from './utils/utils.js';
+import tasks from "./tools/scheduleTask.js";
 
 
 const helpLink = 'https://github.com/TBXark/ChatGPT-Telegram-Workers/blob/master/doc/en/DEPLOY.md';
@@ -154,6 +155,16 @@ async function loadBotInfo() {
     return new Response(HTML, {status: 200, headers: {'Content-Type': 'text/html'}});
 }
 
+async function executeScheduleTask(request) {
+  const taskname = request.body.taskname;
+  if (!taskname || Object.keys(tasks).includes(taskname) < 0) {
+    return new Response(`taskname ${taskname} is not exist.`, { status: 400});
+  }
+  const token = request.body.token;
+    if (!ENV.TELEGRAM_AVAILABLE_TOKENS.includes(token)) return new Response('Token is invalid.', { status: 403 });
+    return await tasks[taskname]();
+}
+
 /**
  * @param {Request} request
  * @return {Promise<Response>}
@@ -171,6 +182,9 @@ export async function handleRequest(request) {
     }
     if (pathname.startsWith(`/telegram`) && pathname.endsWith(`/safehook`)) {
         return telegramSafeHook(request);
+    }
+    if (pathname.startsWith(`executeScheduleTask`)) {
+        return executeScheduleTask(request);
     }
 
     if (ENV.DEV_MODE || ENV.DEBUG_MODE) {

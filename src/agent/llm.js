@@ -4,9 +4,10 @@ import {
     sendMessageToTelegramWithContext,
     sendPhotoToTelegramWithContext,
 } from '../telegram/telegram.js';
-import {DATABASE, ENV} from '../config/env.js';
+import {DATABASE, ENV, CONST} from '../config/env.js';
 import { loadAudioLLM, loadChatLLM } from "./agents.js";
-import { handleFile } from "../config/middle.js";
+import { handleFile } from '../config/middle.js';
+import { sendTelegraphWithContext } from '../telegram/telegraph.js';
 
 /**
  * @return {(function(string): number)}
@@ -162,6 +163,40 @@ export async function chatWithLLM(text, context, modifier, pointerLLM = loadChat
         setTimeout(() => sendChatActionToTelegramWithContext(context)('typing').catch(console.error), 0);
         let onStream = null;
         let nextEnableTime = null;
+        const sendHandler = (() => {
+          const question = text;
+          const telegraph_prefix = `Question\n> ${question.substring(0, 200)}\n---\n#Answer\n🤖 __${context._info.model}__\n`;
+            let first_time_than = true;
+            const author = {
+              short_name: context.SHARE_CONTEXT.currentBotName,
+              author_name: context.SHARE_CONTEXT.currentBotName,
+              author_url: ENV.TELEGRAPH_AUTHOR_URL,
+            };
+          return async (text) => {
+            if (
+              text.length > ENV.TELEGRAPH_NUM_LIMIT &&
+              ENV.ENABLE_TELEGRAPH && CONST.GROUP_TYPES.includes(context.SHARE_CONTEXT.chatType)
+            ) {
+              let telegraph_suffix = `\n---\n\n\`\`\`\ndebug info:\n${context._info.message_title}\n\`\`\``;
+              if (first_time_than) {
+                const resp = await sendTelegraphWithContext(context)(
+                  null,
+                  telegraph_prefix + text + telegraph_suffix,
+                  author,
+                );
+                const url = `https://telegra.ph/${context.SHARE_CONTEXT.telegraphPath}`;
+                const suffix_msg = ` ...\n\n[点击查看更多~~](${url})`;
+                await sendMessageToTelegramWithContext(context)(
+                  text.substring(0, ENV.TELEGRAPH_NUM_LIMIT) + suffix_msg
+                );
+                first_time_than = false;
+                return resp;
+              }
+              return sendTelegraphWithContext(context)(null, telegraph_prefix + text + telegraph_suffix, author);
+            } else return sendMessageToTelegramWithContext(context)(text);
+          };
+        })();
+        
         if (ENV.STREAM_MODE) {
             onStream = async (text) => {
                 if (ENV.HIDE_MIDDLE_MESSAGE && !context._info.isLastStep) return;
@@ -170,7 +205,7 @@ export async function chatWithLLM(text, context, modifier, pointerLLM = loadChat
                     if (nextEnableTime && nextEnableTime > Date.now()) {
                         return;
                     }
-                    const resp = await sendMessageToTelegramWithContext(context)(text);
+                    const resp = await sendHandler(text);
                     // 判断429
                     if (resp.status === 429) {
                         // 获取重试时间
@@ -225,14 +260,15 @@ export async function chatWithLLM(text, context, modifier, pointerLLM = loadChat
         }
         // 缓存LLM回答结果给后续步骤使用
         if (!ENV.HIDE_MIDDLE_MESSAGE || context._info.isLastStep) {
-            await sendMessageToTelegramWithContext(context)(answer);
-
+            // console.log(answer);
+            await sendHandler(answer);
         }
         if (!context._info.isLastStep) {
             context._info.setFile({text: answer});
         }
         console.log(`[DONE] Chat via ${llm.name}`);
         return null;
+        
     } catch (e) {
         let errMsg = `Error: ${e.message}`;
         console.error(errMsg);
@@ -244,7 +280,6 @@ export async function chatWithLLM(text, context, modifier, pointerLLM = loadChat
         return sendMessageToTelegramWithContext(context)(errMsg);
     }
 }
-
 
 export async function chatViaFileWithLLM(context) {
     try {

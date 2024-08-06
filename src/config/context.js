@@ -39,6 +39,11 @@ class ShareContext {
     chatId = null;
     speakerId = null;
     extraMessageContext = null;
+    telegraphAccessTokenKey = null;
+    telegraphAccessToken = null;
+    telegraphPath = null;
+    scheduleDeteleKey = 'schedule_detele_message';
+
 }
 
 /**
@@ -154,6 +159,7 @@ export class Context {
         let historyKey = `history:${id}`;
         let configStoreKey = `user_config:${id}`;
         let groupAdminKey = null;
+        let telegraphAccessTokenKey = `telegraph_access_token:${id}`;
 
         if (botId) {
             historyKey += `:${botId}`;
@@ -180,6 +186,7 @@ export class Context {
         this.SHARE_CONTEXT.chatLastMessageIdKey = `last_message_id:${historyKey}`;
         this.SHARE_CONTEXT.configStoreKey = configStoreKey;
         this.SHARE_CONTEXT.groupAdminKey = groupAdminKey;
+        this.SHARE_CONTEXT.telegraphAccessTokenKey = telegraphAccessTokenKey;
 
         this.SHARE_CONTEXT.chatType = message.chat?.type;
         this.SHARE_CONTEXT.chatId = message.chat.id;

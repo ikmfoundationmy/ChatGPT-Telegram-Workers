@@ -120,6 +120,7 @@ export class MiddleInfo {
     this.msg_type = msg_info.msgType; // tg消息类型 text audio image
     this.process_type = null;
     this.call_info = '';
+    this.model = null;
   }
 
   static async initInfo(message, { USER_CONFIG, SHARE_CONTEXT: { currentBotToken } }) {

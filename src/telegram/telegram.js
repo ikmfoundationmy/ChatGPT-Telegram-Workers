@@ -170,6 +170,23 @@ export function deleteMessageFromTelegramWithContext(context) {
     };
 }
 
+export async function deleteMessagesFromTelegram(chat_id, bot_token,  message_ids) {
+  return await fetch(
+    `${ENV.TELEGRAM_API_DOMAIN}/bot${bot_token}/deleteMessages`,
+    {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            chat_id,
+            message_ids,
+        }),
+    },
+);
+
+}
+
 
 /**
  * 发送图片消息到Telegram
