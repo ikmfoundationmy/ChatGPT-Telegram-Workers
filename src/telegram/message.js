@@ -336,9 +336,16 @@ async function msgHandleCommand(message, context) {
  */
 async function msgChatWithLLM(message, context) {
   let text = (message.text || message.caption || '').trim();
-  if (ENV.EXTRA_MESSAGE_CONTEXT && context.SHARE_CONTEXT?.extraMessageContext?.text) {
+  if (
+    ENV.EXTRA_MESSAGE_CONTEXT &&
+    (context.SHARE_CONTEXT.extraMessageContext?.text || context.SHARE_CONTEXT.extraMessageContext?.caption)
+  ) {
     text =
-      context.SHARE_CONTEXT.extraMessageContext.text || context.SHARE_CONTEXT.extraMessageContext.caption + '\n' + text;
+      '> ' +
+      (context.SHARE_CONTEXT.extraMessageContext?.text || '') +
+      (context.SHARE_CONTEXT.extraMessageContext?.caption || '') +
+      '\n' +
+      text;
   }
 
   // 与LLM交互

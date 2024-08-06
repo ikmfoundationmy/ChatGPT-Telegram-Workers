@@ -185,9 +185,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1722944659;
+  BUILD_TIMESTAMP = 1722945405;
   // 当前版本 commit id
-  BUILD_VERSION = "dfc93f9";
+  BUILD_VERSION = "c406507";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -3645,8 +3645,8 @@ async function msgHandleCommand(message, context) {
 }
 async function msgChatWithLLM(message, context) {
   let text = (message.text || message.caption || "").trim();
-  if (ENV.EXTRA_MESSAGE_CONTEXT && context.SHARE_CONTEXT?.extraMessageContext?.text) {
-    text = context.SHARE_CONTEXT.extraMessageContext.text || context.SHARE_CONTEXT.extraMessageContext.caption + "\n" + text;
+  if (ENV.EXTRA_MESSAGE_CONTEXT && (context.SHARE_CONTEXT.extraMessageContext?.text || context.SHARE_CONTEXT.extraMessageContext?.caption)) {
+    text = "> " + (context.SHARE_CONTEXT.extraMessageContext?.text || "") + (context.SHARE_CONTEXT.extraMessageContext?.caption || "") + "\n" + text;
   }
   try {
     let result = null;
