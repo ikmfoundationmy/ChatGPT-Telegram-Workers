@@ -1,8 +1,8 @@
 import { DATABASE } from '../config/env.js';
 import md2node from "../utils/md2node.js";
 
-async function createAccount(name) {
-  const { short_name = 'Mewo', author_name = 'A Cat' } = name || {};
+async function createAccount(author) {
+  const { short_name = 'Mewo', author_name = 'A Cat' } = author || {};
   const url = `https://api.telegra.ph/createAccount?short_name=${short_name}&author_name=${author_name}`;
   const resp = await fetch(url).then((r) => r.json());
   if (resp.ok) {
@@ -74,7 +74,7 @@ async function sendTelegraph(context, title, content, author) {
   let access_token = context.telegraphAccessToken;
   let path = context.telegraphPath;
   if (!access_token) {
-    access_token = (await createAccount(name)).access_token;
+    access_token = (await createAccount(author)).access_token;
     context.telegraphAccessToken = access_token;
     await DATABASE.put(context.telegraphAccessTokenKey, access_token);
   }

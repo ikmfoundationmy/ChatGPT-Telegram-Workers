@@ -185,9 +185,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1722944170;
+  BUILD_TIMESTAMP = 1722944659;
   // 当前版本 commit id
-  BUILD_VERSION = "eaa2e66";
+  BUILD_VERSION = "dfc93f9";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -1531,15 +1531,15 @@ async function handleOpenaiFunctionCall(url, header, body, context) {
         for (const func of llm_resp.tool_calls) {
           if (exec_times <= 0)
             break;
-          const name2 = func.function.name;
-          call_body.tools = call_body.tools.filter((t) => t.function.name !== name2);
+          const name = func.function.name;
+          call_body.tools = call_body.tools.filter((t) => t.function.name !== name);
           const args = JSON.parse(func.function.arguments);
           let args_i = Object.values(args).join();
           if (args_i.length > 80)
             args_i = args_i.substring(0, 80) + "...";
-          context._info.setCallInfo(`${name2}:${args_i}`, "f_i");
-          console.log("start use function: ", name2);
-          funcPromise.push(ENV.TOOLS[name2].func(args, opt, signal));
+          context._info.setCallInfo(`${name}:${args_i}`, "f_i");
+          console.log("start use function: ", name);
+          funcPromise.push(ENV.TOOLS[name].func(args, opt, signal));
           exec_times--;
         }
         const func_resp = await raceTimeout(funcPromise);
@@ -2370,8 +2370,8 @@ Token: ${Object.values(this.token_info[this.step_index]).join(" | ")}`;
     }
   }
   // x修改mode
-  config(name2, value = null) {
-    if (name2 === "mode") {
+  config(name, value = null) {
+    if (name === "mode") {
       this.processes = this._bp_config.MODES[value][this.msg_type];
     }
   }
@@ -2576,8 +2576,8 @@ function processInlineElements(text) {
 var md2node_default = markdownToTelegraphNodes;
 
 // src/telegram/telegraph.js
-async function createAccount(name2) {
-  const { short_name = "Mewo", author_name = "A Cat" } = name2 || {};
+async function createAccount(author) {
+  const { short_name = "Mewo", author_name = "A Cat" } = author || {};
   const url = `https://api.telegra.ph/createAccount?short_name=${short_name}&author_name=${author_name}`;
   const resp = await fetch(url).then((r) => r.json());
   if (resp.ok) {
@@ -2612,7 +2612,7 @@ async function sendTelegraph(context, title, content, author) {
   let access_token = context.telegraphAccessToken;
   let path = context.telegraphPath;
   if (!access_token) {
-    access_token = (await createAccount(name)).access_token;
+    access_token = (await createAccount(author)).access_token;
     context.telegraphAccessToken = access_token;
     await DATABASE.put(context.telegraphAccessTokenKey, access_token);
   }
