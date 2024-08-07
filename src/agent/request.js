@@ -122,7 +122,6 @@ export async function requestChatCompletions(url, header, body, context, onStrea
   // 排除 function call耗时
   context._info.updateStartTime();
   console.log('chat start.');
-  setTimeout(() => sendMessageToTelegramWithContext(context)(`\`chat with llm.\``), 0);
 
   const resp = await fetch(url, {
     method: 'POST',

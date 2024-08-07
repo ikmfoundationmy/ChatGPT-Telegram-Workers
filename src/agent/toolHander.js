@@ -60,14 +60,17 @@ export async function handleOpenaiFunctionCall(url, header, body, context) {
       const exposure_vars = ['JINA_API_KEY'];
       exposure_vars.forEach((i) => (opt[i] = context.USER_CONFIG[i]));
       const original_question = body.messages.at(-1).content;
-      // let final_prompt = context.USER_CONFIG.SYSTEM_INIT_MESSAGE;
       const stopLoopType = 'web_crawler';
       const INFO_LENGTH_LIMIT = 80;
       let final_tool_type = null;
+      let chatPromise = Promise.resolve();
 
-      while (call_times > 0 && call_body.tools.length > 0){
+      while (call_times > 0 && call_body.tools.length > 0) {
         const start_time = new Date();
-        // setTimeout(() => sendMessageToTelegramWithContext(context)(`\`ask llm about func call.\``), 0);
+        await chatPromise;
+        setTimeout(() => {
+          chatPromise = sendMessageToTelegramWithContext(context)(`\`chat with llm.\``);
+        }, 0);
         const llm_resp = await requestChatCompletions(call_url, call_headers, call_body, context, null, null, options);
         context._info.setCallInfo(((new Date() - start_time) / 1000).toFixed(1) + 's', 'c_t');
         llm_resp.tool_calls =
@@ -78,8 +81,6 @@ export async function handleOpenaiFunctionCall(url, header, body, context) {
 
         if (llm_resp.tool_calls.length === 0 || llm_resp.content?.startsWith?.('NO_CALL_NEEDED')) {
           throw new Error('No need call function.');
-          // body.messages[0].content = context.USER_CONFIG.SYSTEM_INIT_MESSAGE;
-          // return { type: 'continue', message: 'No need call function.' };
         }
 
         if (llm_resp?.content?.startsWith?.('NEED_MORE_INFO:')) {
@@ -96,17 +97,18 @@ export async function handleOpenaiFunctionCall(url, header, body, context) {
         const raceTimeout = async (promises, ms = ENV.FUNC_TIMEOUT * 1e3) => {
           if (ms <= 0) return Promise.all(promises);
           return Promise.all(
-            promises.map((p) =>
-              Promise.race([p, new Promise((resolve) => setTimeout(() => resolve('Timeout'), ms))]),
-            ),
-          ).then((results) => results.filter((result) => result !== 'Timeout'));
+            promises.map((p) => Promise.race([p, new Promise((resolve) => setTimeout(resolve, ms))])),
+          ).then((results) => results.filter(Boolean));
         };
         let exec_times = ENV.CON_EXEC_FUN_NUM;
-        setTimeout(() => sendMessageToTelegramWithContext(context)(`\`call ${llm_resp.tool_calls[0].function.name}\``), 0);
+        await chatPromise;
+        setTimeout(() => {
+          chatPromise = sendMessageToTelegramWithContext(context)(`\`call ${llm_resp.tool_calls[0].function.name}\``);
+        }, 0);
         for (const func of llm_resp.tool_calls) {
           if (exec_times <= 0) break;
           const name = func.function.name;
-          call_body.tools = call_body.tools.filter(t => t.function.name !== name);
+          call_body.tools = call_body.tools.filter((t) => t.function.name !== name);
           const args = JSON.parse(func.function.arguments);
           let args_i = Object.values(args).join();
           if (args_i.length > INFO_LENGTH_LIMIT) args_i = args_i.substring(0, INFO_LENGTH_LIMIT) + '...';
@@ -126,12 +128,11 @@ export async function handleOpenaiFunctionCall(url, header, body, context) {
           })
           .join('\n\n')
           .trim();
-        console.log("func call content: ", content_text.substring(0,500));
-        if(func_time.join(' ').trim()) context._info.setCallInfo(func_time.join(), 'f_t');
+        console.log('func call content: ', content_text.substring(0, 500));
+        if (func_time.join(' ').trim()) context._info.setCallInfo(func_time.join(), 'f_t');
         if (!content_text) {
           context._info.setCallInfo(`func call response is none or timeout.`);
           throw new Error('None response in func call.');
-          
         }
 
         // call_messages.pop();
@@ -151,6 +152,7 @@ export async function handleOpenaiFunctionCall(url, header, body, context) {
           body[key] = value;
         }
       }
+      await chatPromise;
     }
     return { type: 'continue' };
   } catch (e) {

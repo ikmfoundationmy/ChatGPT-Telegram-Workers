@@ -185,7 +185,7 @@ export async function chatWithLLM(text, context, modifier, pointerLLM = loadChat
                   author,
                 );
                 const url = `https://telegra.ph/${context.SHARE_CONTEXT.telegraphPath}`;
-                const msg = `回答已经转换成完整文章~\n[🔗**点击查看**](${url})`;
+                const msg = `回答已经转换成完整文章~\n[🔗点击进行查看](${url})`;
                   const show_info_tag = ENV.ENABLE_SHOWINFO;
                   ENV.ENABLE_SHOWINFO = false;
                 await sendMessageToTelegramWithContext(context)(msg);

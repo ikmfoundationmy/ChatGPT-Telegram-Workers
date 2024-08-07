@@ -137,9 +137,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1723037430;
+  BUILD_TIMESTAMP = 1723043605;
   // 当前版本 commit id
-  BUILD_VERSION = "622fd85";
+  BUILD_VERSION = "44c5d89";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -1311,7 +1311,6 @@ ${JSON.stringify(body, null, 2)}`);
   }
   context._info.updateStartTime();
   console.log("chat start.");
-  setTimeout(() => sendMessageToTelegramWithContext(context)(`\`chat with llm.\``), 0);
   const resp = await fetch(url, {
     method: "POST",
     headers: header,
@@ -1505,8 +1504,13 @@ async function handleOpenaiFunctionCall(url, header, body, context) {
       const stopLoopType = "web_crawler";
       const INFO_LENGTH_LIMIT = 80;
       let final_tool_type = null;
+      let chatPromise = Promise.resolve();
       while (call_times > 0 && call_body.tools.length > 0) {
         const start_time = /* @__PURE__ */ new Date();
+        await chatPromise;
+        setTimeout(() => {
+          chatPromise = sendMessageToTelegramWithContext(context)(`\`chat with llm.\``);
+        }, 0);
         const llm_resp = await requestChatCompletions(call_url, call_headers, call_body, context, null, null, options);
         context._info.setCallInfo(((/* @__PURE__ */ new Date() - start_time) / 1e3).toFixed(1) + "s", "c_t");
         llm_resp.tool_calls = llm_resp?.tool_calls?.filter((i) => Object.keys(ENV.TOOLS).includes(i.function.name)) || [];
@@ -1530,13 +1534,14 @@ async function handleOpenaiFunctionCall(url, header, body, context) {
           if (ms <= 0)
             return Promise.all(promises);
           return Promise.all(
-            promises.map(
-              (p) => Promise.race([p, new Promise((resolve) => setTimeout(() => resolve("Timeout"), ms))])
-            )
-          ).then((results) => results.filter((result) => result !== "Timeout"));
+            promises.map((p) => Promise.race([p, new Promise((resolve) => setTimeout(resolve, ms))]))
+          ).then((results) => results.filter(Boolean));
         };
         let exec_times = ENV.CON_EXEC_FUN_NUM;
-        setTimeout(() => sendMessageToTelegramWithContext(context)(`\`call ${llm_resp.tool_calls[0].function.name}\``), 0);
+        await chatPromise;
+        setTimeout(() => {
+          chatPromise = sendMessageToTelegramWithContext(context)(`\`call ${llm_resp.tool_calls[0].function.name}\``);
+        }, 0);
         for (const func of llm_resp.tool_calls) {
           if (exec_times <= 0)
             break;
@@ -1582,6 +1587,7 @@ async function handleOpenaiFunctionCall(url, header, body, context) {
           body[key] = value;
         }
       }
+      await chatPromise;
     }
     return { type: "continue" };
   } catch (e) {
@@ -2768,7 +2774,7 @@ ${ENV.CALL_INFO ? "" : context._info.call_info.replace("$$f_t$$", "") + "\n"}${c
             );
             const url = `https://telegra.ph/${context.SHARE_CONTEXT.telegraphPath}`;
             const msg = `\u56DE\u7B54\u5DF2\u7ECF\u8F6C\u6362\u6210\u5B8C\u6574\u6587\u7AE0~
-[\u{1F517}**\u70B9\u51FB\u67E5\u770B**](${url})`;
+[\u{1F517}\u70B9\u51FB\u8FDB\u884C\u67E5\u770B](${url})`;
             const show_info_tag = ENV.ENABLE_SHOWINFO;
             ENV.ENABLE_SHOWINFO = false;
             await sendMessageToTelegramWithContext(context)(msg);
