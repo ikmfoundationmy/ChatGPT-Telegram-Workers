@@ -5,6 +5,7 @@
  * @return {object[]}
  */
 function markdownToTelegraphNodes(markdown) {
+  // console.log(markdown);
   const lines = markdown.split('\n');
   const nodes = [];
   let currentList = null;
@@ -42,15 +43,15 @@ function markdownToTelegraphNodes(markdown) {
       continue;
     }
 
-    line = line.trim();
+    // line = line.trim();
     if (!line) continue;
 
     // 标题
     if (line.startsWith('#')) {
       const level = line.match(/^#+/)[0].length;
       const text = line.replace(/^#+\s*/, '');
-      // nodes.push({ tag: `h${level}`, children: processInlineElements(text) });
-      nodes.push({ tag: `h${level}`, children: [text] }); // 简化处理
+      nodes.push({ tag: `h${level}`, children: processInlineElements(text) });
+      // nodes.push({ tag: `h${level}`, children: [text] }); // 简化处理
     }
     // 引用
     else if (line.startsWith("> ")) {
@@ -58,23 +59,23 @@ function markdownToTelegraphNodes(markdown) {
       nodes.push({ tag: 'blockquote', children: processInlineElements(text) });
     }
     // 无序列表
-    else if (line.startsWith('- ') || line.startsWith('* ')) {
-      const text = line.slice(2);
-      if (!currentList) {
-        currentList = { tag: 'ul', children: [] };
-        nodes.push(currentList);
-      }
-      currentList.children.push({ tag: 'li', children: processInlineElements(text) });
-    }
+    // else if (line.startsWith('- ') || line.startsWith('* ')) {
+    //   const text = line.slice(2);
+    //   if (!currentList) {
+    //     currentList = { tag: 'ul', children: [] };
+    //     nodes.push(currentList);
+    //   }
+    //   currentList.children.push({ tag: 'li', children: processInlineElements(text) });
+    // }
     // 有序列表
-    else if (/^\d+\.\s/.test(line)) {
-      const text = line.replace(/^\d+\.\s/, '');
-      if (!currentList) {
-        currentList = { tag: 'ol', children: [] };
-        nodes.push(currentList);
-      }
-      currentList.children.push({ tag: 'li', children: processInlineElements(text) });
-    }
+    // else if (/^\d+\.\s/.test(line)) {
+    //   const text = line.replace(/^\d+\.\s/, '');
+    //   if (!currentList) {
+    //     currentList = { tag: 'ol', children: [] };
+    //     nodes.push(currentList);
+    //   }
+    //   currentList.children.push({ tag: 'li', children: processInlineElements(text) });
+    // }
     // 分割线
     else if (line === '---') {
     nodes.push({ tag: "hr" });

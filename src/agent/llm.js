@@ -165,7 +165,7 @@ export async function chatWithLLM(text, context, modifier, pointerLLM = loadChat
         let nextEnableTime = null;
         const sendHandler = (() => {
           const question = text;
-          const telegraph_prefix = `Question\n> ${question.substring(0, 200)}\n---\n#Answer\n🤖 __${context._info.model}__\n`;
+            const telegraph_prefix = `#Question\n\`\`\`\n${question.length > 100 ? question.slice(0, 50) + '...' + question.slice(-50) : question}\n\`\`\`\n---\n#Answer\n🤖 __${context._info.model}:__\n`;
             let first_time_than = true;
             const author = {
               short_name: context.SHARE_CONTEXT.currentBotName,
@@ -177,7 +177,7 @@ export async function chatWithLLM(text, context, modifier, pointerLLM = loadChat
               text.length > ENV.TELEGRAPH_NUM_LIMIT &&
               ENV.ENABLE_TELEGRAPH && CONST.GROUP_TYPES.includes(context.SHARE_CONTEXT.chatType)
             ) {
-              let telegraph_suffix = `\n---\n\n\`\`\`\ndebug info:\n${context._info.message_title}\n\`\`\``;
+                let telegraph_suffix = `\n---\n\`\`\`\ndebug info:\n\n${ENV.CALL_INFO ? '' : context._info.call_info.replace('$$f_t$$', '') + '\n'}${context._info.message_title}\n\`\`\``;
               if (first_time_than) {
                 const resp = await sendTelegraphWithContext(context)(
                   null,
@@ -185,10 +185,11 @@ export async function chatWithLLM(text, context, modifier, pointerLLM = loadChat
                   author,
                 );
                 const url = `https://telegra.ph/${context.SHARE_CONTEXT.telegraphPath}`;
-                const suffix_msg = ` ...\n\n[点击查看更多~~](${url})`;
-                await sendMessageToTelegramWithContext(context)(
-                  text.substring(0, ENV.TELEGRAPH_NUM_LIMIT) + suffix_msg
-                );
+                const msg = `回答已经转换成完整文章~\n[🔗**点击查看**](${url})`;
+                  const show_info_tag = ENV.ENABLE_SHOWINFO;
+                  ENV.ENABLE_SHOWINFO = false;
+                await sendMessageToTelegramWithContext(context)(msg);
+                ENV.ENABLE_SHOWINFO = show_info_tag;
                 first_time_than = false;
                 return resp;
               }
@@ -323,7 +324,7 @@ export async function chatViaFileWithLLM(context) {
         }
         return null;
     } catch (e) {
-        // context.CURRENT_CHAT_CONTEXT.disable_web_page_preview = true;
+        context.CURRENT_CHAT_CONTEXT.disable_web_page_preview = true;
         return sendMessageToTelegramWithContext(context)(e.substring(2048));
     }
 }
