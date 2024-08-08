@@ -34,7 +34,6 @@ export async function requestCompletionsFromAnthropicAI(message, prompt, history
     model,
     messages: [...(history || []), { role: 'user', content: message }],
     stream: onStream != null,
-    max_tokens: ENV.MAX_TOKEN_LENGTH,
   };
   if (!body.system) {
     delete body.system;

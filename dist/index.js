@@ -97,7 +97,7 @@ var UserConfig = class {
   // 文字生成语音模型
   OPENAI_TTS_MODEL = "tts-1";
   // 图像识别模型
-  OPENAI_VISION_MODEL = "gpt-4o";
+  OPENAI_VISION_MODEL = "gpt-4o-mini";
   // cohere extra Params
   COHERE_API_EXTRA_PARAMS = {};
   // 提供商来源 {"foo": { PROXY_URL: "https://xxxxxx", API_KEY: "xxxxxx" }}
@@ -126,7 +126,17 @@ var UserConfig = class {
       text: [{ prompt: "dall-e" }, { process_type: "text:image" }]
     }
   };
+  // 历史最大长度 调整为用户配置
+  MAX_HISTORY_LENGTH = 8;
+  // /set 指令映射变量 | 分隔多个关系，:分隔映射
+  MAPPING_KEY = "-p:SYSTEM_INIT_MESSAGE|-n:MAX_HISTORY_LENGTH|-a:AI_PROVIDER|-ai:AI_IMAGE_PROVIDER|-m:CHAT_MODEL|-v:OPENAI_VISION_MODEL|-t:OPENAI_TTS_MODEL|-ex:OPENAI_API_EXTRA_PARAMS|-mk:MAPPING_KEY|-mv:MAPPING_VALUE";
+  // /set 指令映射值  | 分隔多个关系，:分隔映射
+  MAPPING_VALUE = "";
+  // MAPPING_VALUE = "cson:claude-3-5-sonnet-20240620|haiku:claude-3-haiku-20240307|g4m:gpt-4o-mini|g4:gpt-4o|rp+:command-r-plus";
   CURRENT_MODE = "default";
+  // 需要使用的函数 当前有 duckduckgo_search 和jina_reader
+  // '["duckduckgo_search", "jina_reader"]'
+  USE_TOOLS = [];
   JINA_API_KEY = "";
   // openai格式调用FUNCTION CALL参数
   FUNCTION_CALL_MODEL = "gpt-4o-mini";
@@ -137,9 +147,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1723043605;
+  BUILD_TIMESTAMP = 1723118243;
   // 当前版本 commit id
-  BUILD_VERSION = "44c5d89";
+  BUILD_VERSION = "c9ca022";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -148,7 +158,7 @@ var Environment = class {
   // 多语言支持
   LANGUAGE = "zh-cn";
   // 检查更新的分支
-  UPDATE_BRANCH = "dev";
+  UPDATE_BRANCH = "test";
   // 对话首轮获得数据时间限制
   CHAT_COMPLETE_API_TIMEOUT = 15;
   // 对话总时长时间限制
@@ -189,14 +199,6 @@ var Environment = class {
   GROUP_CHAT_BOT_ENABLE = true;
   // 群组机器人共享模式,关闭后，一个群组只有一个会话和配置。开启的话群组的每个人都有自己的会话上下文
   GROUP_CHAT_BOT_SHARE_MODE = false;
-  // -- 历史记录相关 --
-  //
-  // 为了避免4096字符限制，将消息删减
-  AUTO_TRIM_HISTORY = true;
-  // 最大历史记录长度
-  MAX_HISTORY_LENGTH = 8;
-  // 最大消息长度
-  MAX_TOKEN_LENGTH = 2048;
   // -- 特性开关 --
   //
   // 隐藏部分命令按钮
@@ -242,14 +244,6 @@ var Environment = class {
   // 可配合CHAT_MESSAGE_TRIGGER: 'role:':'/setenv SYSTEM_INIT_MESSAGE=~role'
   // 快速修改变量:'model:':'/setenv OPENAI_CHAT_MODEL='  'pro:':'/setenv AI_PROVIDER='
   PROMPT = prompt_default;
-  // /set 指令映射变量 | 分隔多个关系，:分隔映射
-  MAPPING_KEY = "-p:SYSTEM_INIT_MESSAGE|-n:MAX_HISTORY_LENGTH|-a:AI_PROVIDER|-ai:AI_IMAGE_PROVIDER|-m:CHAT_MODEL|-v:OPENAI_VISION_MODEL|-t :OPENAI_TTS_MODEL|-ex:OPENAI_API_EXTRA_PARAMS";
-  // /set 指令映射值  | 分隔多个关系，:分隔映射
-  MAPPING_VALUE = "";
-  // MAPPING_VALUE = "c35son:claude-3-5-sonnet-20240620|haiku:claude-3-haiku-20240307|g4m:gpt-4o-mini|g4:gpt-4o|rp+:command-r-plus";
-  // 需要使用的函数 当前仅 duckduckgo_search 和jina_reader
-  // '["duckduckgo_search", "jina_reader"]'
-  USE_TOOLS = [];
   // 询问AI调用function的次数
   FUNC_LOOP_TIMES = 1;
   // 显示调用信息
@@ -1921,8 +1915,7 @@ async function requestCompletionsFromAnthropicAI(message, prompt, history, conte
     system: prompt,
     model,
     messages: [...history || [], { role: "user", content: message }],
-    stream: onStream != null,
-    max_tokens: ENV.MAX_TOKEN_LENGTH
+    stream: onStream != null
   };
   if (!body.system) {
     delete body.system;
@@ -2450,7 +2443,6 @@ Token: ${Object.values(this.token_info[this.step_index]).join(" | ")}`;
 function markdownToTelegraphNodes(markdown) {
   const lines = markdown.split("\n");
   const nodes = [];
-  let currentList = null;
   let inCodeBlock = false;
   let codeBlockContent = "";
   let codeBlockLanguage = "";
@@ -2483,16 +2475,20 @@ function markdownToTelegraphNodes(markdown) {
     if (!line)
       continue;
     if (line.startsWith("#")) {
-      const level = line.match(/^#+/)[0].length;
+      let level = line.match(/^#+/)[0].length;
+      level = level <= 2 ? 3 : 4;
       const text = line.replace(/^#+\s*/, "");
       nodes.push({ tag: `h${level}`, children: processInlineElements(text) });
     } else if (line.startsWith("> ")) {
       const text = line.slice(2);
       nodes.push({ tag: "blockquote", children: processInlineElements(text) });
-    } else if (line === "---") {
+    } else if (line === "---" || line === "***") {
       nodes.push({ tag: "hr" });
     } else {
-      currentList = null;
+      const matches = line.match(/^(\s*)(-|\*)\s/);
+      if (matches) {
+        line = matches[1] + "\u2022 " + line.slice(matches[0].length);
+      }
       nodes.push({ tag: "p", children: processInlineElements(line) });
     }
   }
@@ -2512,20 +2508,32 @@ function markdownToTelegraphNodes(markdown) {
 }
 function processInlineElementsHelper(text) {
   let children = [];
-  const boldRegex = /\*\*(.*?)\*\*/g;
-  const italicRegex = /__(.*?)__/g;
-  let boldMatch;
-  let italicMatch;
+  const boldRegex = /\*\*(.+?)\*\*/g;
+  const underlineRegex = /__(.+?)__/g;
+  const italicRegex = /_(.+?)_/g;
+  const strikethroughRegex = /~~(.+?)~~/g;
+  let tagMatch = null;
   let lastIndex = 0;
-  while ((boldMatch = boldRegex.exec(text)) !== null || (italicMatch = italicRegex.exec(text)) !== null) {
-    if ((boldMatch || italicMatch).index > lastIndex) {
-      children.push(text.slice(lastIndex, (boldMatch || italicMatch).index));
+  while ((tagMatch = boldRegex.exec(text) || underlineRegex.exec(text) || italicRegex.exec(text) || strikethroughRegex.exec(text)) !== null) {
+    if (tagMatch.index > lastIndex) {
+      children.push(text.slice(lastIndex, tagMatch.index));
+    }
+    let tag = "";
+    if (tagMatch[0].startsWith("**")) {
+      tag = "strong";
+    } else if (tagMatch[0].startsWith("__")) {
+      tag = "u";
+    } else if (tagMatch[0].startsWith("_")) {
+      tag = "i";
+    } else if (tagMatch[0].startsWith("~~")) {
+      tag = "s";
     }
     children.push({
-      tag: boldMatch ? "strong" : "i",
-      children: [(boldMatch || italicMatch)[1]]
+      tag,
+      children: [tagMatch[1]]
     });
-    lastIndex = (boldMatch || italicMatch).index + (boldMatch || italicMatch)[0].length;
+    lastIndex = tagMatch.index + tagMatch[0].length;
+    boldRegex.lastIndex = underlineRegex.lastIndex = italicRegex.lastIndex = strikethroughRegex.lastIndex = lastIndex;
   }
   if (lastIndex < text.length) {
     children.push(text.slice(lastIndex));
@@ -2638,11 +2646,6 @@ function sendTelegraphWithContext(context) {
 }
 
 // src/agent/llm.js
-function tokensCounter() {
-  return (text) => {
-    return text.length;
-  };
-}
 async function loadHistory(key) {
   let history = [];
   try {
@@ -2659,37 +2662,10 @@ async function loadHistory(key) {
   if (!history || !Array.isArray(history)) {
     history = [];
   }
-  const counter = tokensCounter();
-  const trimHistory = (list, initLength, maxLength, maxToken) => {
-    if (maxLength >= 0 && list.length > maxLength) {
-      list = list.splice(list.length - maxLength);
-    }
-    if (maxToken >= 0) {
-      let tokenLength = initLength;
-      for (let i = list.length - 1; i >= 0; i--) {
-        const historyItem = list[i];
-        let length = 0;
-        if (historyItem.content) {
-          length = counter(historyItem.content);
-        } else {
-          historyItem.content = "";
-        }
-        tokenLength += length;
-        if (tokenLength > maxToken) {
-          list = list.splice(i + 1);
-          break;
-        }
-      }
-    }
-    return list;
-  };
-  if (ENV.AUTO_TRIM_HISTORY && ENV.MAX_HISTORY_LENGTH > 0) {
-    history = trimHistory(history, 0, ENV.MAX_HISTORY_LENGTH, ENV.MAX_TOKEN_LENGTH);
-  }
   return history;
 }
 async function requestCompletionsFromLLM(text, prompt, context, llm, modifier, onStream) {
-  const historyDisable = context._info.lastStepHasFile || ENV.AUTO_TRIM_HISTORY && ENV.MAX_HISTORY_LENGTH <= 0;
+  const historyDisable = context._info.lastStepHasFile || ENV.MAX_HISTORY_LENGTH <= 0;
   const historyKey = context.SHARE_CONTEXT.chatHistoryKey;
   const readStartTime = performance.now();
   let history = [];
@@ -2745,7 +2721,7 @@ async function chatWithLLM(text, context, modifier, pointerLLM = loadChatLLM) {
       const question = text;
       const telegraph_prefix = `#Question
 \`\`\`
-${question.length > 100 ? question.slice(0, 50) + "..." + question.slice(-50) : question}
+${question.length > 400 ? question.slice(0, 200) + "..." + question.slice(-200) : question}
 \`\`\`
 ---
 #Answer
@@ -3258,7 +3234,7 @@ async function commandFetchUpdate(message, command, subcommand, context) {
     sha: ENV.BUILD_VERSION
   };
   try {
-    const info = `https://raw.githubusercontent.com/TBXark/ChatGPT-Telegram-Workers/${ENV.UPDATE_BRANCH}/dist/buildinfo.json`;
+    const info = `https://raw.githubusercontent.com/adolphnov/ChatGPT-Telegram-Workers/${ENV.UPDATE_BRANCH}/dist/buildinfo.json`;
     const online = await fetch(info).then((r) => r.json());
     const timeFormat = (ts) => {
       return new Date(ts * 1e3).toLocaleString("en-US", {});

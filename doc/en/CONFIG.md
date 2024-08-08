@@ -49,7 +49,6 @@ An empty string in the array indicates that no value has been set. If a value ne
 |--------------------|---------------------------------------|---------|---------------------------------------------------------------|
 | AUTO_TRIM_HISTORY  | Automatic trimming of message history | `true`  | Automatically trim messages to avoid the 4096 character limit |
 | MAX_HISTORY_LENGTH | Maximum length of message history     | `20`    | Maximum number of message history entries to keep             |
-| MAX_TOKEN_LENGTH   | Maximum token length                  | `2048`  | Maximum token length for message history                      |
 
 ### Feature configuration
 

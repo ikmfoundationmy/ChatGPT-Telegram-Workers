@@ -1,14 +1,13 @@
 /**
  * @description: markdown 转 nodes
- * 简单支持 #标题, 引用, * - 无序列表, 有序列表, 粗体, 斜体, 链接, 分割线, 行内代码块, 跨行代码块
+ * 简单支持 #标题, * - 无序列表, 有序列表, 加粗, 斜体, 下划线, 链接, 分割线, 行内代码块, 跨行代码块
  * @param {string} markdown
  * @return {object[]}
  */
 function markdownToTelegraphNodes(markdown) {
-  // console.log(markdown);
   const lines = markdown.split('\n');
   const nodes = [];
-  let currentList = null;
+  // let currentList = null;
   let inCodeBlock = false;
   let codeBlockContent = '';
   let codeBlockLanguage = '';
@@ -48,7 +47,8 @@ function markdownToTelegraphNodes(markdown) {
 
     // 标题
     if (line.startsWith('#')) {
-      const level = line.match(/^#+/)[0].length;
+      let level = line.match(/^#+/)[0].length;
+      level = level <= 2 ? 3 : 4; // telegram 仅支持h3 h4
       const text = line.replace(/^#+\s*/, '');
       nodes.push({ tag: `h${level}`, children: processInlineElements(text) });
       // nodes.push({ tag: `h${level}`, children: [text] }); // 简化处理
@@ -77,12 +77,15 @@ function markdownToTelegraphNodes(markdown) {
     //   currentList.children.push({ tag: 'li', children: processInlineElements(text) });
     // }
     // 分割线
-    else if (line === '---') {
+    else if (line === '---' || line === '***') {
     nodes.push({ tag: "hr" });
     }
     // 段落
     else {
-      currentList = null;
+      const matches = line.match(/^(\s*)(-|\*)\s/);
+      if (matches) {
+        line = matches[1] + '• ' + line.slice(matches[0].length);
+      }
       nodes.push({ tag: 'p', children: processInlineElements(line) });
     }
   }
@@ -107,29 +110,43 @@ function markdownToTelegraphNodes(markdown) {
 function processInlineElementsHelper(text) {
   let children = [];
 
-  // 处理粗体与斜体
-  const boldRegex = /\*\*(.*?)\*\*/g;
-  const italicRegex = /__(.*?)__/g;
-  let boldMatch;
-  let italicMatch;
+  // 处理粗体 下划线 斜体 删除线
+  const boldRegex = /\*\*(.+?)\*\*/g;
+  const underlineRegex = /__(.+?)__/g;
+  const italicRegex = /_(.+?)_/g;
+  const strikethroughRegex = /~~(.+?)~~/g;
+  let tagMatch = null;
   let lastIndex = 0;
 
-  while ((boldMatch = boldRegex.exec(text)) !== null || (italicMatch = italicRegex.exec(text)) !== null) {
-    if ((boldMatch || italicMatch).index > lastIndex) {
-      children.push(text.slice(lastIndex, (boldMatch || italicMatch).index));
+  while (
+    (tagMatch =
+      boldRegex.exec(text) || underlineRegex.exec(text) || italicRegex.exec(text) || strikethroughRegex.exec(text)) !==
+    null
+  ) {
+    if (tagMatch.index > lastIndex) {
+      children.push(text.slice(lastIndex, tagMatch.index));
+    }
+    let tag = '';
+    if (tagMatch[0].startsWith('**')) {
+      tag = 'strong';
+    } else if (tagMatch[0].startsWith('__')) {
+      tag = 'u';
+    } else if (tagMatch[0].startsWith('_')) {
+      tag = 'i';
+    } else if (tagMatch[0].startsWith('~~')) {
+      tag = 's';
     }
     children.push({
-      tag: boldMatch ? 'strong' : 'i',
-      children: [(boldMatch||italicMatch)[1]],
+      tag: tag,
+      children: [tagMatch[1]],
     });
-    lastIndex = (boldMatch || italicMatch).index + (boldMatch || italicMatch)[0].length;
-    
+    lastIndex = tagMatch.index + tagMatch[0].length;
+    boldRegex.lastIndex = underlineRegex.lastIndex = italicRegex.lastIndex = strikethroughRegex.lastIndex = lastIndex;
   }
 
   if (lastIndex < text.length) {
     children.push(text.slice(lastIndex));
   }
-
 
   // 处理链接
   children = children.map((child) => {

@@ -95,7 +95,6 @@ export class Context {
     async _initUserConfig(storeKey) {
         try {
             // 复制默认配置
-            // this.USER_CONFIG = JSON.parse(JSON.stringify(ENV.USER_CONFIG));
             this.USER_CONFIG = {
                 ...ENV.USER_CONFIG
             };

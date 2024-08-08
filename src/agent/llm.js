@@ -10,15 +10,6 @@ import { handleFile } from '../config/middle.js';
 import { sendTelegraphWithContext } from '../telegram/telegraph.js';
 
 /**
- * @return {(function(string): number)}
- */
-function tokensCounter() {
-    return (text) => {
-        return text.length;
-    };
-}
-
-/**
  * @typedef {object} HistoryItem
  * @property {string} role
  * @property {string} content
@@ -48,40 +39,6 @@ async function loadHistory(key) {
         history = [];
     }
 
-    const counter = tokensCounter();
-
-    const trimHistory = (list, initLength, maxLength, maxToken) => {
-        // 历史记录超出长度需要裁剪, 小于0不裁剪
-        if (maxLength >= 0 && list.length > maxLength) {
-            list = list.splice(list.length - maxLength);
-        }
-        // 处理token长度问题, 小于0不裁剪
-        if (maxToken >= 0) {
-            let tokenLength = initLength;
-            for (let i = list.length - 1; i >= 0; i--) {
-                const historyItem = list[i];
-                let length = 0;
-                if (historyItem.content) {
-                    length = counter(historyItem.content);
-                } else {
-                    historyItem.content = '';
-                }
-                // 如果最大长度超过maxToken,裁剪history
-                tokenLength += length;
-                if (tokenLength > maxToken) {
-                    list = list.splice(i + 1);
-                    break;
-                }
-            }
-        }
-        return list;
-    };
-
-    // 裁剪
-    if (ENV.AUTO_TRIM_HISTORY && ENV.MAX_HISTORY_LENGTH > 0) {
-        history = trimHistory(history, 0, ENV.MAX_HISTORY_LENGTH, ENV.MAX_TOKEN_LENGTH);
-    }
-
     return history;
 }
 
@@ -97,7 +54,7 @@ async function loadHistory(key) {
  * @return {Promise<string>}
  */
 async function requestCompletionsFromLLM(text, prompt, context, llm, modifier, onStream) {
-    const historyDisable = context._info.lastStepHasFile || ENV.AUTO_TRIM_HISTORY && ENV.MAX_HISTORY_LENGTH <= 0;
+    const historyDisable = context._info.lastStepHasFile || ENV.MAX_HISTORY_LENGTH <= 0;
     const historyKey = context.SHARE_CONTEXT.chatHistoryKey;
     const readStartTime = performance.now();
     let history = [];
@@ -165,7 +122,7 @@ export async function chatWithLLM(text, context, modifier, pointerLLM = loadChat
         let nextEnableTime = null;
         const sendHandler = (() => {
           const question = text;
-            const telegraph_prefix = `#Question\n\`\`\`\n${question.length > 100 ? question.slice(0, 50) + '...' + question.slice(-50) : question}\n\`\`\`\n---\n#Answer\n🤖 __${context._info.model}:__\n`;
+            const telegraph_prefix = `#Question\n\`\`\`\n${question.length > 400 ? question.slice(0, 200) + '...' + question.slice(-200) : question}\n\`\`\`\n---\n#Answer\n🤖 __${context._info.model}:__\n`;
             let first_time_than = true;
             const author = {
               short_name: context.SHARE_CONTEXT.currentBotName,
