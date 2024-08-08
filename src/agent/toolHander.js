@@ -12,7 +12,7 @@ import tools_settings from '../prompt/tools.js';
  */
 export async function handleOpenaiFunctionCall(url, header, body, context) {
   try {
-    const filter_tools = ENV.USE_TOOLS.filter((i) => Object.keys(ENV.TOOLS).includes(i)).map((t) => ENV.TOOLS[t]);
+    const filter_tools = context.USER_CONFIG.USE_TOOLS.filter((i) => Object.keys(ENV.TOOLS).includes(i)).map((t) => ENV.TOOLS[t]);
     if (filter_tools.length > 0) {
       let tools = filter_tools.map((tool) => {
         return {

@@ -338,16 +338,16 @@ async function commandSetUserConfigs(message, command, subcommand, context) {
     if (!subcommand) {
       return sendMessageToTelegramWithContext(context)('```plaintext\n' + ENV.I18N.command.detail.set + '\n```');
     }
-    const keys = Object.fromEntries(ENV.MAPPING_KEY.split('|').map((k) => k.split(':')));
+    const keys = Object.fromEntries(context.USER_CONFIG.MAPPING_KEY.split('|').map((k) => k.split(':')));
     if (keys['-u']) {
       delete keys['-u'];
     }
-    const values = Object.fromEntries(ENV.MAPPING_VALUE.split('|').map((k) => k.split(':')));
+    const values = Object.fromEntries(context.USER_CONFIG.MAPPING_VALUE.split('|').map((k) => k.split(':')));
     const updateTagReg = /\s+-u(\s+|$)/;
     const needUpdate = updateTagReg.test(subcommand);
     subcommand = subcommand.replace(updateTagReg, '$1');
 
-    const msgCommand = subcommand.matchAll(/(-\w+)\s+(.+?)(\s+|$)/g);
+    const msgCommand = subcommand.matchAll(/(-\w+)\s+([^-]+)?\s*/g);
     let msg = '';
     let hasKey = false;
 
@@ -358,21 +358,6 @@ async function commandSetUserConfigs(message, command, subcommand, context) {
         if (ENV.LOCK_USER_CONFIG_KEYS.includes(key)) {
           return sendMessageToTelegramWithContext(context)(`Key ${key} is locked`);
         }
-        // if (key === 'SYSTEM_INIT_MESSAGE') {
-        //   const role_perfix = '~';
-        //   if (v?.startsWith(role_perfix)) {
-        //     value = ENV.PROMPT[v.substring(1)];
-        //     if (!value) {
-        //       msg += `>\`${v} is not exist, will use default prompt\`\n`;
-        //       value = ENV.I18N?.env?.system_init_message || 'You are a helpful assistant';
-        //     }
-        //   }
-        // } else if (key === 'CURRENT_MODE') {
-        //   if (!Object.keys(context.USER_CONFIG.MODES).includes(v)) {
-        //     return sendMessageToTelegramWithContext(context)(`mode ${v} is not exist`);
-        //   }
-        //   context._info.config('mode', value || v);
-        // }
         const role_perfix = '~';
         switch (key) {
           case 'SYSTEM_INIT_MESSAGE':
@@ -411,12 +396,6 @@ async function commandSetUserConfigs(message, command, subcommand, context) {
         context.USER_CONFIG[key] = value || v;
         context.USER_CONFIG.DEFINE_KEYS.push(key);
         console.log(`/set ${key || 'unknown'} ${(value || v).substring(0, 6)}...'`);
-
-        // if (key.endsWith('_MODEL')) {
-        //   context._info.config('model', value);
-        // } else if (key === 'CURRENT_MODE') {
-        //   context._info.config('mode', v);
-        // }
       } else return sendMessageToTelegramWithContext(context)(`Mapping Key ${k} is not exist`);
       if(!hasKey) hasKey = true;
     }

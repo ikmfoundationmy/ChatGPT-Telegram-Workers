@@ -147,9 +147,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1723118243;
+  BUILD_TIMESTAMP = 1723124372;
   // 当前版本 commit id
-  BUILD_VERSION = "c9ca022";
+  BUILD_VERSION = "c98bafd";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -1457,7 +1457,7 @@ ${result}`
 // src/agent/toolHander.js
 async function handleOpenaiFunctionCall(url, header, body, context) {
   try {
-    const filter_tools = ENV.USE_TOOLS.filter((i) => Object.keys(ENV.TOOLS).includes(i)).map((t) => ENV.TOOLS[t]);
+    const filter_tools = context.USER_CONFIG.USE_TOOLS.filter((i) => Object.keys(ENV.TOOLS).includes(i)).map((t) => ENV.TOOLS[t]);
     if (filter_tools.length > 0) {
       let tools = filter_tools.map((tool) => {
         return {
@@ -1635,7 +1635,7 @@ async function requestCompletionsFromOpenAI(message, prompt, history, context, o
     "Authorization": `Bearer ${API_KEY}`
   };
   const options = {};
-  if (message && !context._info?.lastStepHasFile && ENV.TOOLS && ENV.USE_TOOLS?.length > 0) {
+  if (message && !context._info?.lastStepHasFile && ENV.TOOLS && context.USER_CONFIG.USE_TOOLS?.length > 0) {
     const result = await handleOpenaiFunctionCall(url, header, body, context);
     if (result.type === "stop") {
       return result.message;
@@ -3121,15 +3121,15 @@ async function commandSetUserConfigs(message, command, subcommand, context) {
     if (!subcommand) {
       return sendMessageToTelegramWithContext(context)("```plaintext\n" + ENV.I18N.command.detail.set + "\n```");
     }
-    const keys = Object.fromEntries(ENV.MAPPING_KEY.split("|").map((k) => k.split(":")));
+    const keys = Object.fromEntries(context.USER_CONFIG.MAPPING_KEY.split("|").map((k) => k.split(":")));
     if (keys["-u"]) {
       delete keys["-u"];
     }
-    const values = Object.fromEntries(ENV.MAPPING_VALUE.split("|").map((k) => k.split(":")));
+    const values = Object.fromEntries(context.USER_CONFIG.MAPPING_VALUE.split("|").map((k) => k.split(":")));
     const updateTagReg = /\s+-u(\s+|$)/;
     const needUpdate = updateTagReg.test(subcommand);
     subcommand = subcommand.replace(updateTagReg, "$1");
-    const msgCommand = subcommand.matchAll(/(-\w+)\s+(.+?)(\s+|$)/g);
+    const msgCommand = subcommand.matchAll(/(-\w+)\s+([^-]+)?\s*/g);
     let msg = "";
     let hasKey = false;
     for (const [, k, v] of msgCommand) {
