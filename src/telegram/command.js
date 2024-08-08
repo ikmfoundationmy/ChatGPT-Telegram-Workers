@@ -527,7 +527,8 @@ async function commandSystem(message, command, subcommand, context) {
   }
   agent.STT_MODEL = context.USER_CONFIG.OPENAI_STT_MODEL;
   agent.VISION_MODEL = context.USER_CONFIG.OPENAI_VISION_MODEL;
-  let msg = `<pre>AGENT: ${JSON.stringify(agent, null, 2)}\n` + customInfo(context.USER_CONFIG) + '\n</pre>';
+  let msg = `<pre>AGENT: ${JSON.stringify(agent, null, 2)}\n` + `others: ${ customInfo(context.USER_CONFIG)
+}` + '\n</pre>';
   if (ENV.DEV_MODE) {
     const shareCtx = { ...context.SHARE_CONTEXT };
     shareCtx.currentBotToken = '******';

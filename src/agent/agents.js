@@ -131,23 +131,15 @@ export function chatModelKey(agentName) {
  * @return {string} info
  */
 export function customInfo(config) {
-  let info = `MODE: ${config.CURRENT_MODE}`;
-  const PROCESS = config.MODES[config.CURRENT_MODE] || [];
-  for (const [k, v] of Object.entries(PROCESS)) {
-    info +=
-      `\n- ${k}\n` +
-      ' '.repeat(4) +
-      v
-        .map((i) => {
-          if (Object.keys(i).indexOf('API_KEY') > -1) {
-            delete i.API_KEY;
-            delete i.PROXY_URL;
-          }
-          return Object.values(i).join(' ') || `${k}:text`;
-        })
-        .join('\n' + ' '.repeat(4));
-  }
-  return info;
+  const other_info = {
+    mode: config.CURRENT_MODE,
+    prompt: config.SYSTEM_INIT_MESSAGE.slice(-10) + '...',
+    'MAPPING_KEY': config.MAPPING_KEY,
+    'MAPPING_VALUE': config.MAPPING_VALUE,
+    'USE_TOOLS': config.USE_TOOLS,
+    'FUNCTION_CALL_MODEL': config.FUNCTION_CALL_MODEL,
+  };
+  return JSON.stringify(other_info, null, 2);
 }
 
 

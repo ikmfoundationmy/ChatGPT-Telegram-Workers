@@ -151,9 +151,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1723124907;
+  BUILD_TIMESTAMP = 1723126351;
   // 当前版本 commit id
-  BUILD_VERSION = "a02fe36";
+  BUILD_VERSION = "69a1cc4";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -2077,20 +2077,15 @@ function chatModelKey(agentName) {
   }
 }
 function customInfo(config) {
-  let info = `MODE: ${config.CURRENT_MODE}`;
-  const PROCESS = config.MODES[config.CURRENT_MODE] || [];
-  for (const [k, v] of Object.entries(PROCESS)) {
-    info += `
-- ${k}
-` + " ".repeat(4) + v.map((i) => {
-      if (Object.keys(i).indexOf("API_KEY") > -1) {
-        delete i.API_KEY;
-        delete i.PROXY_URL;
-      }
-      return Object.values(i).join(" ") || `${k}:text`;
-    }).join("\n" + " ".repeat(4));
-  }
-  return info;
+  const other_info = {
+    mode: config.CURRENT_MODE,
+    prompt: config.SYSTEM_INIT_MESSAGE.slice(-10) + "...",
+    "MAPPING_KEY": config.MAPPING_KEY,
+    "MAPPING_VALUE": config.MAPPING_VALUE,
+    "USE_TOOLS": config.USE_TOOLS,
+    "FUNCTION_CALL_MODEL": config.FUNCTION_CALL_MODEL
+  };
+  return JSON.stringify(other_info, null, 2);
 }
 function loadChatLLM(context) {
   const AI_PROVIDER = context.USER_CONFIG.AI_PROVIDER;
@@ -3265,7 +3260,8 @@ async function commandSystem(message, command, subcommand, context) {
   agent.STT_MODEL = context.USER_CONFIG.OPENAI_STT_MODEL;
   agent.VISION_MODEL = context.USER_CONFIG.OPENAI_VISION_MODEL;
   let msg = `<pre>AGENT: ${JSON.stringify(agent, null, 2)}
-` + customInfo(context.USER_CONFIG) + "\n</pre>";
+others: ${customInfo(context.USER_CONFIG)}
+</pre>`;
   if (ENV.DEV_MODE) {
     const shareCtx = { ...context.SHARE_CONTEXT };
     shareCtx.currentBotToken = "******";
