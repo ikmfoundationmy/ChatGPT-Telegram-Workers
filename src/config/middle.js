@@ -150,7 +150,7 @@ export class MiddleInfo {
     }
     const step_count = this.process_count;
     const stepInfo = step_count > 1 ? `[STEP ${this.step_index}/${step_count}]\n` : '';
-    if (!ENV.ENABLE_SHOWINFO) {
+    if (!this._bp_config.ENABLE_SHOWINFO) {
       return stepInfo.trim();
     }
     const time = ((new Date() - this.process_start_time[this.step_index]) / 1000).toFixed(1);
@@ -159,7 +159,7 @@ export class MiddleInfo {
     if (ENV.CALL_INFO) call_info = (this.call_info && (this.call_info + '\n')).replace('$$f_t$$', '');
 
     let info = stepInfo + call_info + `${this.model} ${time}s`;
-    if (ENV.ENABLE_SHOWTOKENINFO && this.token_info[this.step_index]) {
+    if (this._bp_config.ENABLE_SHOWTOKEN && this.token_info[this.step_index]) {
       info += `\nToken: ${Object.values(this.token_info[this.step_index]).join(' | ')}`;
     }
     return info;

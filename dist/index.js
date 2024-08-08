@@ -134,6 +134,10 @@ var UserConfig = class {
   MAPPING_VALUE = "";
   // MAPPING_VALUE = "cson:claude-3-5-sonnet-20240620|haiku:claude-3-haiku-20240307|g4m:gpt-4o-mini|g4:gpt-4o|rp+:command-r-plus";
   CURRENT_MODE = "default";
+  // 消息中是否显示模型、时间额外信息
+  ENABLE_SHOWINFO = false;
+  // 消息中是否显示token信息(如果有)
+  ENABLE_SHOWTOKEN = false;
   // 需要使用的函数 当前有 duckduckgo_search 和jina_reader
   // '["duckduckgo_search", "jina_reader"]'
   USE_TOOLS = [];
@@ -147,9 +151,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1723124372;
+  BUILD_TIMESTAMP = 1723124907;
   // 当前版本 commit id
-  BUILD_VERSION = "c98bafd";
+  BUILD_VERSION = "a02fe36";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -231,10 +235,6 @@ var Environment = class {
   ENABLE_REPLY_TO_MENTION = false;
   // 忽略指定文本开头的消息
   IGNORE_TEXT = "";
-  // 消息中是否显示模型、时间额外信息
-  ENABLE_SHOWINFO = false;
-  // 消息中是否显示token信息(如果有)
-  ENABLE_SHOWTOKENINFO = false;
   // 多流程时, 是否隐藏中间步骤信息
   HIDE_MIDDLE_MESSAGE = false;
   // 群聊中, 指定文本触发对话, 键为触发文本, 值为替换的文本
@@ -793,7 +793,7 @@ async function sendMessageToTelegram(message, token, context, _info = null) {
     if (msgIndex > 1 && context.message_id[msgIndex] && i + limit < message.length) {
       continue;
     }
-    if (msgIndex == 1 && context.message_id.length > 1 && !ENV.ENABLE_SHOWINFO && !ENV.ENABLE_SHOWTOKENINFO) {
+    if (msgIndex == 1 && context.message_id.length > 1 && !context.USER_CONFIG.ENABLE_SHOWINFO && !context.USER_CONFIG.ENABLE_SHOWTOKEN) {
       continue;
     }
     const msg = message.slice(i, Math.min(i + limit, message.length));
@@ -1628,7 +1628,7 @@ async function requestCompletionsFromOpenAI(message, prompt, history, context, o
     ...extra_params,
     messages,
     stream: onStream != null,
-    ...!!onStream && ENV.ENABLE_SHOWTOKENINFO && { stream_options: { include_usage: true } }
+    ...!!onStream && context.USER_CONFIG.ENABLE_SHOWTOKEN && { stream_options: { include_usage: true } }
   };
   const header = {
     "Content-Type": "application/json",
@@ -2331,7 +2331,7 @@ var MiddleInfo = class {
     const step_count = this.process_count;
     const stepInfo = step_count > 1 ? `[STEP ${this.step_index}/${step_count}]
 ` : "";
-    if (!ENV.ENABLE_SHOWINFO) {
+    if (!this._bp_config.ENABLE_SHOWINFO) {
       return stepInfo.trim();
     }
     const time = ((/* @__PURE__ */ new Date() - this.process_start_time[this.step_index]) / 1e3).toFixed(1);
@@ -2339,7 +2339,7 @@ var MiddleInfo = class {
     if (ENV.CALL_INFO)
       call_info = (this.call_info && this.call_info + "\n").replace("$$f_t$$", "");
     let info = stepInfo + call_info + `${this.model} ${time}s`;
-    if (ENV.ENABLE_SHOWTOKENINFO && this.token_info[this.step_index]) {
+    if (this._bp_config.ENABLE_SHOWTOKEN && this.token_info[this.step_index]) {
       info += `
 Token: ${Object.values(this.token_info[this.step_index]).join(" | ")}`;
     }
@@ -2751,10 +2751,10 @@ ${ENV.CALL_INFO ? "" : context._info.call_info.replace("$$f_t$$", "") + "\n"}${c
             const url = `https://telegra.ph/${context.SHARE_CONTEXT.telegraphPath}`;
             const msg = `\u56DE\u7B54\u5DF2\u7ECF\u8F6C\u6362\u6210\u5B8C\u6574\u6587\u7AE0~
 [\u{1F517}\u70B9\u51FB\u8FDB\u884C\u67E5\u770B](${url})`;
-            const show_info_tag = ENV.ENABLE_SHOWINFO;
-            ENV.ENABLE_SHOWINFO = false;
+            const show_info_tag = context.USER_CONFIG.ENABLE_SHOWINFO;
+            context.USER_CONFIG.ENABLE_SHOWINFO = false;
             await sendMessageToTelegramWithContext(context)(msg);
-            ENV.ENABLE_SHOWINFO = show_info_tag;
+            context.USER_CONFIG.ENABLE_SHOWINFO = show_info_tag;
             first_time_than = false;
             return resp;
           }

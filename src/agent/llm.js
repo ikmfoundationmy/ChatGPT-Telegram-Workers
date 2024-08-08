@@ -143,10 +143,10 @@ export async function chatWithLLM(text, context, modifier, pointerLLM = loadChat
                 );
                 const url = `https://telegra.ph/${context.SHARE_CONTEXT.telegraphPath}`;
                 const msg = `回答已经转换成完整文章~\n[🔗点击进行查看](${url})`;
-                  const show_info_tag = ENV.ENABLE_SHOWINFO;
-                  ENV.ENABLE_SHOWINFO = false;
+                  const show_info_tag = context.USER_CONFIG.ENABLE_SHOWINFO;
+                  context.USER_CONFIG.ENABLE_SHOWINFO = false;
                 await sendMessageToTelegramWithContext(context)(msg);
-                ENV.ENABLE_SHOWINFO = show_info_tag;
+                context.USER_CONFIG.ENABLE_SHOWINFO = show_info_tag;
                 first_time_than = false;
                 return resp;
               }

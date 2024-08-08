@@ -111,7 +111,7 @@ export async function sendMessageToTelegram(message, token, context, _info = nul
       continue;
     }
     // 当隐藏INFO与TOKEN信息，跳过二次发送头部消息
-    if (msgIndex == 1 && context.message_id.length > 1 && !ENV.ENABLE_SHOWINFO && !ENV.ENABLE_SHOWTOKENINFO) {
+    if (msgIndex == 1 && context.message_id.length > 1 && !context.USER_CONFIG.ENABLE_SHOWINFO && !context.USER_CONFIG.ENABLE_SHOWTOKEN) {
       continue;
     }
 

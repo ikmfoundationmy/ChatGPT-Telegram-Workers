@@ -67,7 +67,7 @@ export async function requestCompletionsFromOpenAI(message, prompt, history, con
     ...extra_params,
     messages,
     stream: onStream != null,
-    ...(!!onStream && ENV.ENABLE_SHOWTOKENINFO && { stream_options: { include_usage: true } }),
+    ...(!!onStream && context.USER_CONFIG.ENABLE_SHOWTOKEN && { stream_options: { include_usage: true } }),
   };
 
   const header = {

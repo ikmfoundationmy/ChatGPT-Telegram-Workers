@@ -148,6 +148,10 @@ export class UserConfig {
   MAPPING_VALUE = '';
   // MAPPING_VALUE = "cson:claude-3-5-sonnet-20240620|haiku:claude-3-haiku-20240307|g4m:gpt-4o-mini|g4:gpt-4o|rp+:command-r-plus";
   CURRENT_MODE = 'default';
+  // 消息中是否显示模型、时间额外信息
+  ENABLE_SHOWINFO = false;
+  // 消息中是否显示token信息(如果有)
+  ENABLE_SHOWTOKEN = false;
   // 需要使用的函数 当前有 duckduckgo_search 和jina_reader
   // '["duckduckgo_search", "jina_reader"]'
   USE_TOOLS = [];
@@ -257,10 +261,6 @@ class Environment {
     ENABLE_REPLY_TO_MENTION = false;
     // 忽略指定文本开头的消息
     IGNORE_TEXT = '';
-    // 消息中是否显示模型、时间额外信息
-    ENABLE_SHOWINFO = false;
-    // 消息中是否显示token信息(如果有)
-    ENABLE_SHOWTOKENINFO = false;
     // 多流程时, 是否隐藏中间步骤信息
     HIDE_MIDDLE_MESSAGE = false;
     // 群聊中, 指定文本触发对话, 键为触发文本, 值为替换的文本

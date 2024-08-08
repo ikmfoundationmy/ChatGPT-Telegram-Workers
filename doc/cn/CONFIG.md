@@ -44,7 +44,7 @@
 | ENABLE_REPLY_TO_MENTION   | 回复对象为被提及的人 | `false`                           | 当回复他人并触发机器人则回复对象为提及的人                |
 | IGNORE_TEXT               | 忽略文本             | `''`                              | 以关键字开头不会触发机器人对话                            |
 | ENABLE_SHOWINFO           | 开启附加信息         | `false`                           | 开启时，会在消息中插入模型数据与对话时间                  |
-| ENABLE_SHOWTOKENINFO      | 开启TOKEN信息显示    | `false`                           | 开启时，尝试读取结果中的token信息并显示在消息中           |
+| ENABLE_SHOWTOKEN      | 开启TOKEN信息显示    | `false`                           | 开启时，尝试读取结果中的token信息并显示在消息中           |
 | HIDE_MIDDLE_MESSAGE       | 隐藏中间信息         | `false`                           | 在多流程中，开启只会发送最后一步的结果                    |
 | CHAT_MESSAGE_TRIGGER      | 对话触发关键词       | `{}(object)`                      | 将关键词替换成对应的文本，可以简化某些操作                |
 | PROMPT                    | 提示词               | `{}(object)`                      | 使用set命令时会自动替换SYSTEM_INIT_MESSAGE                |
