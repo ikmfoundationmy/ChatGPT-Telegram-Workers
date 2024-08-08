@@ -78,7 +78,7 @@ export async function requestCompletionsFromOpenAI(message, prompt, history, con
 
   if (message && !context._info?.lastStepHasFile && ENV.TOOLS && context.USER_CONFIG.USE_TOOLS?.length > 0) {
     const result = await handleOpenaiFunctionCall(url, header, body, context);
-    if (result.type === 'stop') {
+    if (result.type === 'answer' && result.message) {
       return result.message;
     } else if (result.type === 'error') {
       throw new Error(result.message);

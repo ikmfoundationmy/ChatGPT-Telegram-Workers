@@ -160,6 +160,8 @@ export class UserConfig {
   FUNCTION_CALL_MODEL = 'gpt-4o-mini';
   FUNCTION_CALL_API_KEY = '';
   FUNCTION_CALL_BASE = '';
+  // 启用FUNCTION CALL未命中函数时，尽快回复，而不是再次与LLM交互
+  FUNCTION_REPLY_ASAP = true;
 }
 
 

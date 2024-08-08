@@ -146,14 +146,16 @@ var UserConfig = class {
   FUNCTION_CALL_MODEL = "gpt-4o-mini";
   FUNCTION_CALL_API_KEY = "";
   FUNCTION_CALL_BASE = "";
+  // 启用FUNCTION CALL未命中函数时，尽快回复，而不是再次与LLM交互
+  FUNCTION_REPLY_ASAP = true;
 };
 var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1723126351;
+  BUILD_TIMESTAMP = 1723135908;
   // 当前版本 commit id
-  BUILD_VERSION = "69a1cc4";
+  BUILD_VERSION = "09b111f";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -1449,7 +1451,30 @@ ${result}`
 
 \u8BB0\u4F4F:\u51C6\u786E\u6027\u4F18\u5148\u4E8E\u901F\u5EA6\u3002\u5B81\u53EF\u591A\u82B1\u65F6\u95F4\u8C03\u7528\u51FD\u6570\u83B7\u53D6\u51C6\u786E\u4FE1\u606F,\u4E5F\u4E0D\u8981\u4EC5\u57FA\u4E8E\u73B0\u6709\u77E5\u8BC6\u63D0\u4F9B\u53EF\u80FD\u4E0D\u51C6\u786E\u6216\u8FC7\u65F6\u7684\u56DE\u7B54\u3002
 
-\u6CE8\u610F\uFF1A\u4E0D\u8981\u56DE\u590D\u4EFB\u4F55\u65E0\u5173\u4FE1\u606F: \u5982\u679C\u4E0D\u9700\u8981\u8C03\u7528\u4EFB\u4F55\u51FD\u6570\u3001\u65E0\u6CD5\u8BFB\u53D6\u5230\u51FD\u6570\u4FE1\u606F\u3001\u4E0D\u652F\u6301\u51FD\u6570\u8C03\u7528\uFF0Crespond with 'NO_CALL_NEEDED'; \u5982\u679C\u9700\u8981\u8FDB\u4E00\u6B65\u7684\u4FE1\u606F\u624D\u80FD\u8C03\u7528\u51FD\u6570\uFF0Crespond start with 'NEED_MORE_INFO:';\u5982\u679C\u8981\u8C03\u7528\u51FD\u6570\uFF0C\u8BF7\u6309\u7167\u51FD\u6570\u8981\u6C42\u7684\u683C\u5F0F\u8FD4\u56DE\u53C2\u6570`,
+\u6CE8\u610F: \u5982\u679C\u4E0D\u9700\u8981\u8C03\u7528\u4EFB\u4F55\u51FD\u6570\u3001\u65E0\u6CD5\u8BFB\u53D6\u5230\u51FD\u6570\u4FE1\u606F\u3001\u4E0D\u652F\u6301\u51FD\u6570\u8C03\u7528, \u6216\u8005\u9700\u8981\u8FDB\u4E00\u6B65\u7684\u4FE1\u606F, \u8BF7\u76F4\u63A5\u7ED9\u51FA\u4F60\u7684\u7B54\u6848\u6216\u63D0\u793A; \u5982\u679C\u9700\u8981\u8C03\u7528\u51FD\u6570\u6309\u7167\u8981\u6C42\u7684\u683C\u5F0F\u8FD4\u56DE\u9700\u8981\u7684\u53C2\u6570`,
+    // 'response_format': {
+    //   'type': 'json_schema',
+    //   'json_schema': {
+    //     'name': 'call_or_answer',
+    //     'schema': {
+    //       'type': 'object',
+    //       'properties': {
+    //         'need_ask_more': {
+    //           'type': 'string',
+    //           'description': 'Whether need to ask the user for more information to call a function or not',
+    //           'enum': ['true', 'false'],
+    //         },
+    //         'answer': {
+    //           'type': 'string',
+    //           'description': 'When no function call is need to call, the field is the answer to the question, otherwise it is null',
+    //         },
+    //       },
+    //       'required': ['need_ask_more', 'answer'],
+    //       'additionalProperties': false,
+    //     },
+    //     'strict': true,
+    //   },
+    // },
     extra_params: { temperature: 0.5, "top_p": 0.4, "max_tokens": 100 }
   }
 };
@@ -1485,6 +1510,9 @@ async function handleOpenaiFunctionCall(url, header, body, context) {
         messages: body.messages,
         stream: false
       };
+      if (context.USER_CONFIG.FUNCTION_REPLY_ASAP) {
+        delete call_body["max_tokens"];
+      }
       if (body.messages[0].role === context.USER_CONFIG.SYSTEM_INIT_MESSAGE_ROLE) {
         body.messages[0].content = prompt;
       } else
@@ -1511,11 +1539,8 @@ async function handleOpenaiFunctionCall(url, header, body, context) {
         if (llm_resp.content?.startsWith("```json\n")) {
           llm_resp.content = llm_resp.content?.match(/\{[\s\S]+\}/)[0];
         }
-        if (llm_resp.tool_calls.length === 0 || llm_resp.content?.startsWith?.("NO_CALL_NEEDED")) {
-          throw new Error("No need call function.");
-        }
-        if (llm_resp?.content?.startsWith?.("NEED_MORE_INFO:")) {
-          return { type: "stop", message: llm_resp.content.substring("NEED_MORE_INFO:".length) };
+        if (llm_resp.tool_calls.length === 0 || llm_resp.content?.startsWith?.("ANSWER")) {
+          return { type: "answer", message: llm_resp.content.replace("ANSWER:", "") };
         }
         const funcPromise = [];
         const controller = new AbortController();
@@ -1637,7 +1662,7 @@ async function requestCompletionsFromOpenAI(message, prompt, history, context, o
   const options = {};
   if (message && !context._info?.lastStepHasFile && ENV.TOOLS && context.USER_CONFIG.USE_TOOLS?.length > 0) {
     const result = await handleOpenaiFunctionCall(url, header, body, context);
-    if (result.type === "stop") {
+    if (result.type === "answer" && result.message) {
       return result.message;
     } else if (result.type === "error") {
       throw new Error(result.message);

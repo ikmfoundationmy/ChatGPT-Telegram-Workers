@@ -44,12 +44,10 @@ export async function handleOpenaiFunctionCall(url, header, body, context) {
         messages: body.messages,
         stream: false,
       };
+      if (context.USER_CONFIG.FUNCTION_REPLY_ASAP) {
+        delete call_body['max_tokens'];
+      }
 
-      // if (prompt.includes('json') || prompt.includes('JSON')) {
-      //   body.response_format = {
-      //     'type': 'json_object',
-      //   };
-      // }
       if (body.messages[0].role === context.USER_CONFIG.SYSTEM_INIT_MESSAGE_ROLE) {
         body.messages[0].content = prompt;
       } else body.messages.unshift({ role: 'system', content: prompt });
@@ -79,12 +77,8 @@ export async function handleOpenaiFunctionCall(url, header, body, context) {
           llm_resp.content = llm_resp.content?.match(/\{[\s\S]+\}/)[0];
         }
 
-        if (llm_resp.tool_calls.length === 0 || llm_resp.content?.startsWith?.('NO_CALL_NEEDED')) {
-          throw new Error('No need call function.');
-        }
-
-        if (llm_resp?.content?.startsWith?.('NEED_MORE_INFO:')) {
-          return { type: 'stop', message: llm_resp.content.substring('NEED_MORE_INFO:'.length) };
+        if (llm_resp.tool_calls.length === 0 || llm_resp.content?.startsWith?.('ANSWER')) {
+          return { type: 'answer', message: llm_resp.content.replace('ANSWER:','') };
         }
 
         const funcPromise = [];
