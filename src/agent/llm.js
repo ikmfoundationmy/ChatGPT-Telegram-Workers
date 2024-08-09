@@ -122,7 +122,7 @@ export async function chatWithLLM(text, context, modifier, pointerLLM = loadChat
         let nextEnableTime = null;
         const sendHandler = (() => {
           const question = text;
-            const telegraph_prefix = `#Question\n\`\`\`\n${question.length > 400 ? question.slice(0, 200) + '...' + question.slice(-200) : question}\n\`\`\`\n---\n#Answer\n🤖 __${context._info.model}:__\n`;
+            const telegraph_prefix = `#Question\n\`\`\`\n${question?.length > 400 ? question.slice(0, 200) + '...' + question.slice(-200) : question}\n\`\`\`\n---\n#Answer\n🤖 __${context._info.model}:__\n`;
             let first_time_than = true;
             const author = {
               short_name: context.SHARE_CONTEXT.currentBotName,

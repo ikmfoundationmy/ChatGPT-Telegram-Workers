@@ -347,7 +347,7 @@ async function commandSetUserConfigs(message, command, subcommand, context) {
     const needUpdate = updateTagReg.test(subcommand);
     subcommand = subcommand.replace(updateTagReg, '$1');
 
-    const msgCommand = subcommand.matchAll(/(-\w+)\s+([^-]+)?\s*/g);
+    const msgCommand = subcommand.matchAll(/(-\w+)\s+(.+?)(\s|$)/g);
     let msg = '';
     let hasKey = false;
 

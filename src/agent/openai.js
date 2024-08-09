@@ -74,22 +74,19 @@ export async function requestCompletionsFromOpenAI(message, prompt, history, con
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${API_KEY}`,
   };
-  const options = {};
 
   if (message && !context._info?.lastStepHasFile && ENV.TOOLS && context.USER_CONFIG.USE_TOOLS?.length > 0) {
-    const result = await handleOpenaiFunctionCall(url, header, body, context);
-    if (result.type === 'answer' && result.message) {
+    const result = await handleOpenaiFunctionCall(url, header, body, context, onStream);
+    if (result.type === 'answer' && result.message && context.USER_CONFIG.FUNCTION_REPLY_ASAP) {
       return result.message;
-    } else if (result.type === 'error') {
-      throw new Error(result.message);
     }
     const resp_obj = { q: body.messages.at(-1).content }; // 修正问题内容
-    resp_obj.a = await requestChatCompletions(url, header, body, context, onStream, null, options);
+    resp_obj.a = await requestChatCompletions(url, header, body, context, onStream, null, null);
     return resp_obj;
     
   }
 
-  return requestChatCompletions(url, header, body, context, onStream, null, options);
+  return requestChatCompletions(url, header, body, context, onStream, null, null);
 }
 
 

@@ -48,6 +48,23 @@ function fixOpenAICompatibleOptions(options) {
     function (d) {
       return d?.choices?.[0]?.delta?.content;
     };
+  options.functionCallExtractor =
+    options.functionCallExtractor ||
+    function (d, call_list) {
+      const chunck = d?.choices?.[0]?.delta?.tool_calls;
+      if (!Array.isArray(chunck)) return;
+      for (const a of chunck) {
+        if (!Object.hasOwn(a, 'index')) {
+          throw new Error(`The function chunck dont have index: ${JSON.stringify(chunck)}`);
+        }
+        if (a.type && a.type === 'function') {
+          call_list[a.index] = a;
+        } else {
+          const args_chunck = a.function.arguments;
+          call_list[a.index].function.arguments += args_chunck;
+        }
+      }
+    };
   options.fullContentExtractor =
     options.fullContentExtractor ||
     function (d) {
@@ -136,10 +153,12 @@ export async function requestChatCompletions(url, header, body, context, onStrea
 
   options = fixOpenAICompatibleOptions(options);
   const immediatePromise = Promise.resolve('immediate');
+  let isNeedToSend = true;
 
   if (onStream && resp.ok && isEventStreamResponse(resp)) {
     const stream = options.streamBuilder(resp, controller);
     let contentFull = '';
+    const tool_calls = [];
     let lengthDelta = 0;
     let updateStep = 20;
     let msgPromise = null;
@@ -148,27 +167,35 @@ export async function requestChatCompletions(url, header, body, context, onStrea
     try {
       for await (const data of stream) {
         const c = options.contentExtractor(data) || '';
-        if (c === '') {
-          continue;
-        }
+        if (body.tools?.length > 0) options?.functionCallExtractor(data, tool_calls);
+        if (c === '' && tool_calls.length === 0) continue;
         usage = data?.usage;
         lengthDelta += c.length;
         if (lastChunk) contentFull = contentFull + lastChunk;
+        if (tool_calls.length > 0) {
+          if (isNeedToSend) {
+            msgPromise = onStream(`\`Starting call...\``);
+            isNeedToSend = false;
+          }
+          lastChunk = c;
+          continue;
+        }
         if (lastChunk && lengthDelta > updateStep) {
           lengthDelta = 0;
           updateStep += 25;
+          
           if (!msgPromise || (await Promise.race([msgPromise, immediatePromise])) !== 'immediate') {
             msgPromise = onStream(`${contentFull}●`);
           }
         }
         lastChunk = c;
       }
+      contentFull += lastChunk;
     } catch (e) {
       contentFull += `\nERROR: ${e.message}`;
     }
-    contentFull += lastChunk;
-    if (ENV.GPT3_TOKENS_COUNT && usage) {
-      onResult?.(result);
+    if (usage) {
+      // onResult?.(result);
       context._info.setToken(usage?.prompt_tokens ?? 0, usage?.completion_tokens ?? 0);
     }
 
@@ -177,8 +204,12 @@ export async function requestChatCompletions(url, header, body, context, onStrea
     if (alltimeoutID) {
       clearTimeout(alltimeoutID);
     }
-
-    return contentFull;
+    if (body.tools?.length > 0){
+      return {
+        tool_calls: tool_calls,
+        content: contentFull,
+      };
+    } else return contentFull;
   }
 
   if (alltimeoutID) {

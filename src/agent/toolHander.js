@@ -10,7 +10,7 @@ import tools_settings from '../prompt/tools.js';
  * @param {Context} context
  * @return {Promise<Response>}
  */
-export async function handleOpenaiFunctionCall(url, header, body, context) {
+export async function handleOpenaiFunctionCall(url, header, body, context, onStream) {
   try {
     const filter_tools = context.USER_CONFIG.USE_TOOLS.filter((i) => Object.keys(ENV.TOOLS).includes(i)).map((t) => ENV.TOOLS[t]);
     if (filter_tools.length > 0) {
@@ -42,17 +42,19 @@ export async function handleOpenaiFunctionCall(url, header, body, context) {
         tool_choice: 'auto',
         ...tools_settings.default.extra_params,
         messages: body.messages,
-        stream: false,
+        stream: context.USER_CONFIG.FUNCTION_REPLY_ASAP,
       };
+      let isOnstream = null;
       if (context.USER_CONFIG.FUNCTION_REPLY_ASAP) {
         delete call_body['max_tokens'];
+        isOnstream = onStream;
       }
 
       if (body.messages[0].role === context.USER_CONFIG.SYSTEM_INIT_MESSAGE_ROLE) {
         body.messages[0].content = prompt;
       } else body.messages.unshift({ role: 'system', content: prompt });
 
-      const call_messages = body.messages;
+      // const call_messages = body.messages;
       let call_times = ENV.FUNC_LOOP_TIMES; //最多循环调用次数
       const opt = {};
       const exposure_vars = ['JINA_API_KEY'];
@@ -69,16 +71,20 @@ export async function handleOpenaiFunctionCall(url, header, body, context) {
         setTimeout(() => {
           chatPromise = sendMessageToTelegramWithContext(context)(`\`chat with llm.\``);
         }, 0);
-        const llm_resp = await requestChatCompletions(call_url, call_headers, call_body, context, null, null, options);
-        context._info.setCallInfo(((new Date() - start_time) / 1000).toFixed(1) + 's', 'c_t');
-        llm_resp.tool_calls =
-          llm_resp?.tool_calls?.filter((i) => Object.keys(ENV.TOOLS).includes(i.function.name)) || [];
-        if (llm_resp.content?.startsWith('```json\n')) {
-          llm_resp.content = llm_resp.content?.match(/\{[\s\S]+\}/)[0];
+        const llm_resp = await requestChatCompletions(call_url, call_headers, call_body, context, isOnstream, null, options);
+        if (!llm_resp.tool_calls) {
+          llm_resp.tool_calls = [];
         }
-
+        llm_resp.tool_calls =
+          llm_resp?.tool_calls?.filter((i) => Object.keys(ENV.TOOLS).includes(i.function.name));
+        
         if (llm_resp.tool_calls.length === 0 || llm_resp.content?.startsWith?.('ANSWER')) {
           return { type: 'answer', message: llm_resp.content.replace('ANSWER:','') };
+        }
+        context._info.setCallInfo(((new Date() - start_time) / 1000).toFixed(1) + 's', 'c_t');
+
+        if (llm_resp.content?.startsWith('```json\n')) {
+          llm_resp.content = llm_resp.content?.match(/\{[\s\S]+\}/)[0];
         }
 
         const funcPromise = [];
@@ -129,19 +135,19 @@ export async function handleOpenaiFunctionCall(url, header, body, context) {
           throw new Error('None response in func call.');
         }
 
-        // call_messages.pop();
+        if (call_times === ENV.FUNC_LOOP_TIMES) call_body.messages.pop();
         final_tool_type = ENV.TOOLS[llm_resp.tool_calls[0].function.name].type;
         const render = tools_settings[final_tool_type].render;
-        call_messages.push({
+        call_body.messages.push({
           role: 'user',
           content: render?.(original_question, content_text) || original_question + '\n\n' + content_text,
         });
-        // if (tools_settings[tool_type].prompt) final_prompt = tools_settings[tool_type].prompt;
+        // if (tools_settings[final_tool_type].prompt) call_body.messages[0].content = tools_settings[final_tool_type].prompt;
         if (final_tool_type === stopLoopType) break;
         call_times--;
       }
       if (final_tool_type) {
-        body.messages[0].content = tools_settings[final_tool_type].prompt;
+        // call_body.messages[0].content = tools_settings[final_tool_type].prompt;
         for (const [key, value] of Object.entries(tools_settings[final_tool_type].extra_params)) {
           body[key] = value;
         }

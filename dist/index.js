@@ -129,7 +129,7 @@ var UserConfig = class {
   // 历史最大长度 调整为用户配置
   MAX_HISTORY_LENGTH = 8;
   // /set 指令映射变量 | 分隔多个关系，:分隔映射
-  MAPPING_KEY = "-p:SYSTEM_INIT_MESSAGE|-n:MAX_HISTORY_LENGTH|-a:AI_PROVIDER|-ai:AI_IMAGE_PROVIDER|-m:CHAT_MODEL|-v:OPENAI_VISION_MODEL|-t:OPENAI_TTS_MODEL|-ex:OPENAI_API_EXTRA_PARAMS|-mk:MAPPING_KEY|-mv:MAPPING_VALUE";
+  MAPPING_KEY = "-p:SYSTEM_INIT_MESSAGE|-n:MAX_HISTORY_LENGTH|-a:AI_PROVIDER|-ai:AI_IMAGE_PROVIDER|-m:CHAT_MODEL|-v:OPENAI_VISION_MODEL|-t:OPENAI_TTS_MODEL|-ex:OPENAI_API_EXTRA_PARAMS|-mk:MAPPING_KEY|-mv:MAPPING_VALUE|-asap:FUNCTION_REPLY_ASAP";
   // /set 指令映射值  | 分隔多个关系，:分隔映射
   MAPPING_VALUE = "";
   // MAPPING_VALUE = "cson:claude-3-5-sonnet-20240620|haiku:claude-3-haiku-20240307|g4m:gpt-4o-mini|g4:gpt-4o|rp+:command-r-plus";
@@ -153,9 +153,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1723135908;
+  BUILD_TIMESTAMP = 1723176279;
   // 当前版本 commit id
-  BUILD_VERSION = "09b111f";
+  BUILD_VERSION = "18605f0";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -169,7 +169,7 @@ var Environment = class {
   CHAT_COMPLETE_API_TIMEOUT = 15;
   // 对话总时长时间限制
   ALL_COMPLETE_API_TIMEOUT = 120;
-  FUNC_TIMEOUT = 30;
+  FUNC_TIMEOUT = 20;
   // -- Telegram 相关 --
   //
   // Telegram API Domain
@@ -1259,6 +1259,22 @@ function fixOpenAICompatibleOptions(options) {
   options.contentExtractor = options.contentExtractor || function(d) {
     return d?.choices?.[0]?.delta?.content;
   };
+  options.functionCallExtractor = options.functionCallExtractor || function(d, call_list) {
+    const chunck = d?.choices?.[0]?.delta?.tool_calls;
+    if (!Array.isArray(chunck))
+      return;
+    for (const a of chunck) {
+      if (!Object.hasOwn(a, "index")) {
+        throw new Error(`The function chunck dont have index: ${JSON.stringify(chunck)}`);
+      }
+      if (a.type && a.type === "function") {
+        call_list[a.index] = a;
+      } else {
+        const args_chunck = a.function.arguments;
+        call_list[a.index].function.arguments += args_chunck;
+      }
+    }
+  };
   options.fullContentExtractor = options.fullContentExtractor || function(d) {
     return d.choices?.[0]?.message.content;
   };
@@ -1318,9 +1334,11 @@ ${JSON.stringify(body, null, 2)}`);
   }
   options = fixOpenAICompatibleOptions(options);
   const immediatePromise = Promise.resolve("immediate");
+  let isNeedToSend = true;
   if (onStream && resp.ok && isEventStreamResponse(resp)) {
     const stream = options.streamBuilder(resp, controller);
     let contentFull = "";
+    const tool_calls = [];
     let lengthDelta = 0;
     let updateStep = 20;
     let msgPromise = null;
@@ -1329,13 +1347,22 @@ ${JSON.stringify(body, null, 2)}`);
     try {
       for await (const data of stream) {
         const c = options.contentExtractor(data) || "";
-        if (c === "") {
+        if (body.tools?.length > 0)
+          options?.functionCallExtractor(data, tool_calls);
+        if (c === "" && tool_calls.length === 0)
           continue;
-        }
         usage = data?.usage;
         lengthDelta += c.length;
         if (lastChunk)
           contentFull = contentFull + lastChunk;
+        if (tool_calls.length > 0) {
+          if (isNeedToSend) {
+            msgPromise = onStream(`\`Starting call...\``);
+            isNeedToSend = false;
+          }
+          lastChunk = c;
+          continue;
+        }
         if (lastChunk && lengthDelta > updateStep) {
           lengthDelta = 0;
           updateStep += 25;
@@ -1345,20 +1372,25 @@ ${JSON.stringify(body, null, 2)}`);
         }
         lastChunk = c;
       }
+      contentFull += lastChunk;
     } catch (e) {
       contentFull += `
 ERROR: ${e.message}`;
     }
-    contentFull += lastChunk;
-    if (ENV.GPT3_TOKENS_COUNT && usage) {
-      onResult?.(result);
+    if (usage) {
       context._info.setToken(usage?.prompt_tokens ?? 0, usage?.completion_tokens ?? 0);
     }
     await msgPromise;
     if (alltimeoutID) {
       clearTimeout(alltimeoutID);
     }
-    return contentFull;
+    if (body.tools?.length > 0) {
+      return {
+        tool_calls,
+        content: contentFull
+      };
+    } else
+      return contentFull;
   }
   if (alltimeoutID) {
     clearTimeout(alltimeoutID);
@@ -1426,7 +1458,7 @@ ${result}`
         - \u907F\u514D\u4F7F\u7528\u8FC7\u4E8E\u5BBD\u6CDB\u6216\u6A21\u7CCA\u7684\u8BCD\u8BED
   8. \u5728\u4F60\u7684\u56DE\u7B54\u4E2D\uFF0C\u6E05\u6670\u5730\u8868\u660E\u54EA\u4E9B\u4FE1\u606F\u662F\u57FA\u4E8E\u5B9E\u65F6\u67E5\u8BE2\uFF0C\u54EA\u4E9B\u662F\u6765\u81EA\u4F60\u7684\u77E5\u8BC6\u5E93\u3002
 
-  \u5982\u9700\u8981\u8FDB\u884C\u641C\u7D22\uFF0C\u8BF7\u5C06\u56DE\u590D\u683C\u5F0F\u5316\u4E3A\u7EAF\u6587\u672CJSON\u5B57\u7B26\u4E32\uFF0C\u5176\u4E2D\u53EA\u6709\u4E00\u4E2A\u952E:keywords
+  \u82E5\u5305\u542B\u641C\u7D22\u51FD\u6570\uFF0C\u53C2\u6570\u683C\u5F0F\u4E3A\u7EAF\u6587\u672CJSON\u5B57\u7B26\u4E32\uFF0C\u4E14\u53EA\u6709\u4E00\u4E2A\u952E:keywords
   \u6570\u7EC4\u4E2D\u7684\u6700\u540E\u4E00\u9879\u5E94\u662F\u6700\u7B80\u6D01\u3001\u6700\u76F8\u5173\u7684\u641C\u7D22\u67E5\u8BE2\u3002
   Examples:
   1. For "\u4F60\u80FD\u505A\u4EC0\u4E48\uFF1F", respond with 'NO_SEARCH_NEEDED'.
@@ -1438,13 +1470,12 @@ ${result}`
 \u5F53\u662F\u4EE5\u4E0B\u60C5\u51B5\u65F6\uFF0C\u8C03\u7528\u641C\u7D22\u51FD\u6570\uFF0C\u800C\u4E0D\u662F\u57FA\u4E8E\u73B0\u6709\u77E5\u8BC6\u4F5C\u7B54\u6216\u62D2\u7EDD\u56DE\u7B54:
 1. \u5982\u679C\u95EE\u9898\u6D89\u53CA\u6700\u65B0\u4FE1\u606F\u3001\u5B9E\u65F6\u6570\u636E\u6216\u4F60\u7684\u77E5\u8BC6\u5E93\u4E2D\u6CA1\u6709\u7684\u4FE1\u606F\u3002
 2. \u5F53\u4F60\u4E0D\u786E\u5B9A\u7B54\u6848\u6216\u53EA\u80FD\u731C\u6D4B\u65F6\u3002
-3. \u5982\u679C\u7528\u6237\u8981\u6C42\u641C\u7D22\u5177\u4F53\u7684\u95EE\u9898\uFF0C\u4F8B\u5982\uFF1A\u641C\u4E00\u4E0B\uFF0Csearch\u3002
-\u8BF7\u6CE8\u610F\u4EC5\u5E76\u884C\u8C03\u75281\u6B21\u641C\u7D22\u51FD\u6570
+3. \u5982\u679C\u7528\u6237\u8981\u6C42\u8FDB\u884C\u641C\u7D22 \u4E14 \u6CA1\u6709\u7ED9\u7F51\u9875\u6570\u636E\u3002
 
-\u5F53\u662F\u4EE5\u4E0B\u60C5\u51B5\u65F6\uFF0C\u8C03\u7528\u94FE\u63A5\u89E3\u6790\u51FD\u6570
+\u4EE5\u4E0B\u60C5\u51B5\uFF0C\u8C03\u7528\u94FE\u63A5\u89E3\u6790\u51FD\u6570
 1. \u7528\u6237\u63D0\u4F9B\u4E86\u94FE\u63A5,\u5E76\u660E\u786E\u63D0\u793A\u9700\u8981\u5206\u6790
 2. \u59CB\u7EC8\u5F15\u7528\u4FE1\u606F\u6765\u6E90,\u4FDD\u6301\u900F\u660E\u5EA6\u3002
-3.\u7528\u6237\u63D0\u4F9B\u4E86\u7F51\u9875\u6570\u636E, \u5982\u679C\u80FD\u4ECE\u5DF2\u6709\u6570\u636E\u4E2D\u5F97\u5230\u7ED3\u679C\uFF0C\u8BF7\u4E0D\u8981\u4F7F\u7528\u94FE\u63A5\u89E3\u6790\u51FD\u6570\uFF1B\u82E5\u6CA1\u6709\u7528\u6237\u60F3\u8981\u7684\u7B54\u6848\uFF0C\u8BF7\u63D0\u53D6\u6700\u591A1\u4E2A\u94FE\u63A5\u5E76\u884C\u8C03\u7528\u89E3\u6790\u51FD\u6570
+3.\u7528\u6237\u63D0\u4F9B\u4E86\u7F51\u9875\u6570\u636E, \u5982\u679C\u80FD\u4ECE\u5DF2\u6709\u6570\u636E\u4E2D\u5F97\u5230\u7ED3\u679C\uFF0C\u8BF7\u4E0D\u8981\u4F7F\u7528\u94FE\u63A5\u89E3\u6790\u51FD\u6570\uFF1B\u82E5\u6CA1\u6709\u7528\u6237\u60F3\u8981\u7684\u7B54\u6848\uFF0C\u8BF7\u63D0\u53D6\u94FE\u63A5\u5E76\u8C03\u7528\u89E3\u6790\u51FD\u6570
 
 \u5982\u679C\u51FD\u6570\u8C03\u7528\u540E\u4ECD\u65E0\u6CD5\u5B8C\u5168\u56DE\u7B54\u95EE\u9898,\u8BDA\u5B9E\u8BF4\u660E\u5E76\u63D0\u4F9B\u5DF2\u83B7\u5F97\u7684\u90E8\u5206\u4FE1\u606F\u3002
 3.
@@ -1480,7 +1511,7 @@ ${result}`
 };
 
 // src/agent/toolHander.js
-async function handleOpenaiFunctionCall(url, header, body, context) {
+async function handleOpenaiFunctionCall(url, header, body, context, onStream) {
   try {
     const filter_tools = context.USER_CONFIG.USE_TOOLS.filter((i) => Object.keys(ENV.TOOLS).includes(i)).map((t) => ENV.TOOLS[t]);
     if (filter_tools.length > 0) {
@@ -1508,16 +1539,17 @@ async function handleOpenaiFunctionCall(url, header, body, context) {
         tool_choice: "auto",
         ...tools_default.default.extra_params,
         messages: body.messages,
-        stream: false
+        stream: context.USER_CONFIG.FUNCTION_REPLY_ASAP
       };
+      let isOnstream = null;
       if (context.USER_CONFIG.FUNCTION_REPLY_ASAP) {
         delete call_body["max_tokens"];
+        isOnstream = onStream;
       }
       if (body.messages[0].role === context.USER_CONFIG.SYSTEM_INIT_MESSAGE_ROLE) {
         body.messages[0].content = prompt;
       } else
         body.messages.unshift({ role: "system", content: prompt });
-      const call_messages = body.messages;
       let call_times = ENV.FUNC_LOOP_TIMES;
       const opt = {};
       const exposure_vars = ["JINA_API_KEY"];
@@ -1533,14 +1565,17 @@ async function handleOpenaiFunctionCall(url, header, body, context) {
         setTimeout(() => {
           chatPromise = sendMessageToTelegramWithContext(context)(`\`chat with llm.\``);
         }, 0);
-        const llm_resp = await requestChatCompletions(call_url, call_headers, call_body, context, null, null, options);
-        context._info.setCallInfo(((/* @__PURE__ */ new Date() - start_time) / 1e3).toFixed(1) + "s", "c_t");
-        llm_resp.tool_calls = llm_resp?.tool_calls?.filter((i) => Object.keys(ENV.TOOLS).includes(i.function.name)) || [];
-        if (llm_resp.content?.startsWith("```json\n")) {
-          llm_resp.content = llm_resp.content?.match(/\{[\s\S]+\}/)[0];
+        const llm_resp = await requestChatCompletions(call_url, call_headers, call_body, context, isOnstream, null, options);
+        if (!llm_resp.tool_calls) {
+          llm_resp.tool_calls = [];
         }
+        llm_resp.tool_calls = llm_resp?.tool_calls?.filter((i) => Object.keys(ENV.TOOLS).includes(i.function.name));
         if (llm_resp.tool_calls.length === 0 || llm_resp.content?.startsWith?.("ANSWER")) {
           return { type: "answer", message: llm_resp.content.replace("ANSWER:", "") };
+        }
+        context._info.setCallInfo(((/* @__PURE__ */ new Date() - start_time) / 1e3).toFixed(1) + "s", "c_t");
+        if (llm_resp.content?.startsWith("```json\n")) {
+          llm_resp.content = llm_resp.content?.match(/\{[\s\S]+\}/)[0];
         }
         const funcPromise = [];
         const controller = new AbortController();
@@ -1590,9 +1625,11 @@ async function handleOpenaiFunctionCall(url, header, body, context) {
           context._info.setCallInfo(`func call response is none or timeout.`);
           throw new Error("None response in func call.");
         }
+        if (call_times === ENV.FUNC_LOOP_TIMES)
+          call_body.messages.pop();
         final_tool_type = ENV.TOOLS[llm_resp.tool_calls[0].function.name].type;
         const render = tools_default[final_tool_type].render;
-        call_messages.push({
+        call_body.messages.push({
           role: "user",
           content: render?.(original_question, content_text) || original_question + "\n\n" + content_text
         });
@@ -1601,7 +1638,6 @@ async function handleOpenaiFunctionCall(url, header, body, context) {
         call_times--;
       }
       if (final_tool_type) {
-        body.messages[0].content = tools_default[final_tool_type].prompt;
         for (const [key, value] of Object.entries(tools_default[final_tool_type].extra_params)) {
           body[key] = value;
         }
@@ -1659,19 +1695,16 @@ async function requestCompletionsFromOpenAI(message, prompt, history, context, o
     "Content-Type": "application/json",
     "Authorization": `Bearer ${API_KEY}`
   };
-  const options = {};
   if (message && !context._info?.lastStepHasFile && ENV.TOOLS && context.USER_CONFIG.USE_TOOLS?.length > 0) {
-    const result = await handleOpenaiFunctionCall(url, header, body, context);
-    if (result.type === "answer" && result.message) {
+    const result = await handleOpenaiFunctionCall(url, header, body, context, onStream);
+    if (result.type === "answer" && result.message && context.USER_CONFIG.FUNCTION_REPLY_ASAP) {
       return result.message;
-    } else if (result.type === "error") {
-      throw new Error(result.message);
     }
     const resp_obj = { q: body.messages.at(-1).content };
-    resp_obj.a = await requestChatCompletions(url, header, body, context, onStream, null, options);
+    resp_obj.a = await requestChatCompletions(url, header, body, context, onStream, null, null);
     return resp_obj;
   }
-  return requestChatCompletions(url, header, body, context, onStream, null, options);
+  return requestChatCompletions(url, header, body, context, onStream, null, null);
 }
 async function requestImageFromOpenAI(prompt, context) {
   const { PROXY_URL = context.USER_CONFIG.OPENAI_API_BASE, API_KEY = openAIKeyFromContext(context) } = context._info.provider || {};
@@ -2741,7 +2774,7 @@ async function chatWithLLM(text, context, modifier, pointerLLM = loadChatLLM) {
       const question = text;
       const telegraph_prefix = `#Question
 \`\`\`
-${question.length > 400 ? question.slice(0, 200) + "..." + question.slice(-200) : question}
+${question?.length > 400 ? question.slice(0, 200) + "..." + question.slice(-200) : question}
 \`\`\`
 ---
 #Answer
@@ -3149,7 +3182,7 @@ async function commandSetUserConfigs(message, command, subcommand, context) {
     const updateTagReg = /\s+-u(\s+|$)/;
     const needUpdate = updateTagReg.test(subcommand);
     subcommand = subcommand.replace(updateTagReg, "$1");
-    const msgCommand = subcommand.matchAll(/(-\w+)\s+([^-]+)?\s*/g);
+    const msgCommand = subcommand.matchAll(/(-\w+)\s+(.+?)(\s|$)/g);
     let msg = "";
     let hasKey = false;
     for (const [, k, v] of msgCommand) {

@@ -143,7 +143,7 @@ export class UserConfig {
   MAX_HISTORY_LENGTH = 8;
   // /set 指令映射变量 | 分隔多个关系，:分隔映射
   MAPPING_KEY =
-    '-p:SYSTEM_INIT_MESSAGE|-n:MAX_HISTORY_LENGTH|-a:AI_PROVIDER|-ai:AI_IMAGE_PROVIDER|-m:CHAT_MODEL|-v:OPENAI_VISION_MODEL|-t:OPENAI_TTS_MODEL|-ex:OPENAI_API_EXTRA_PARAMS|-mk:MAPPING_KEY|-mv:MAPPING_VALUE';
+    '-p:SYSTEM_INIT_MESSAGE|-n:MAX_HISTORY_LENGTH|-a:AI_PROVIDER|-ai:AI_IMAGE_PROVIDER|-m:CHAT_MODEL|-v:OPENAI_VISION_MODEL|-t:OPENAI_TTS_MODEL|-ex:OPENAI_API_EXTRA_PARAMS|-mk:MAPPING_KEY|-mv:MAPPING_VALUE|-asap:FUNCTION_REPLY_ASAP';
   // /set 指令映射值  | 分隔多个关系，:分隔映射
   MAPPING_VALUE = '';
   // MAPPING_VALUE = "cson:claude-3-5-sonnet-20240620|haiku:claude-3-haiku-20240307|g4m:gpt-4o-mini|g4:gpt-4o|rp+:command-r-plus";
@@ -188,7 +188,7 @@ class Environment {
     CHAT_COMPLETE_API_TIMEOUT = 15;
     // 对话总时长时间限制
     ALL_COMPLETE_API_TIMEOUT = 120;
-    FUNC_TIMEOUT = 30;
+    FUNC_TIMEOUT = 20;
 
     // -- Telegram 相关 --
     //
