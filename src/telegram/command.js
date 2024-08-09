@@ -347,7 +347,7 @@ async function commandSetUserConfigs(message, command, subcommand, context) {
     const needUpdate = updateTagReg.test(subcommand);
     subcommand = subcommand.replace(updateTagReg, '$1');
 
-    const msgCommand = subcommand.matchAll(/(-\w+)\s+(.+?)(\s|$)/g);
+    const msgCommand = subcommand.matchAll(/(-\w+)\s+(.+?)(\s+|$)/g);
     let msg = '';
     let hasKey = false;
 
@@ -669,6 +669,7 @@ export async function handleCommandMessage(message, context) {
       } catch (e) {
         return sendMessageToTelegramWithContext(context)(e.message);
       }
+      break;
     }
   }
   // 除命令外, 以 / 开头 的文本不再处理

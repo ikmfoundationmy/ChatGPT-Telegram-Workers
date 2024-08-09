@@ -189,7 +189,9 @@ async function msgHandleGroupMessage(message, context) {
     (message?.text || message?.caption || '').startsWith(key),
   );
   if (chatMsgKey) {
-    message.text = message.text.replace(chatMsgKey, ENV.CHAT_MESSAGE_TRIGGER[chatMsgKey]);
+    if (message?.text) {
+      message.text = message.text.replace(chatMsgKey, ENV.CHAT_MESSAGE_TRIGGER[chatMsgKey]);
+    } else message.caption = message.caption.replace(chatMsgKey, ENV.CHAT_MESSAGE_TRIGGER[chatMsgKey]);
   }
 
   // 存在被回复对象 被回复对象是机器人时直接返回 否则处理共享上下文

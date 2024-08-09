@@ -10,7 +10,7 @@ import tools_settings from '../prompt/tools.js';
  * @param {Context} context
  * @return {Promise<Response>}
  */
-export async function handleOpenaiFunctionCall(url, header, body, context, onStream) {
+export async function handleOpenaiFunctionCall(url, header, body, prompt, context, onStream) {
   try {
     const filter_tools = context.USER_CONFIG.USE_TOOLS.filter((i) => Object.keys(ENV.TOOLS).includes(i)).map((t) => ENV.TOOLS[t]);
     if (filter_tools.length > 0) {
@@ -18,6 +18,7 @@ export async function handleOpenaiFunctionCall(url, header, body, context, onStr
         return {
           'type': 'function',
           'function': tool.schema,
+          'strict': true,
         };
       });
 
@@ -50,7 +51,7 @@ export async function handleOpenaiFunctionCall(url, header, body, context, onStr
         isOnstream = onStream;
       }
 
-      if (body.messages[0].role === context.USER_CONFIG.SYSTEM_INIT_MESSAGE_ROLE) {
+      if (prompt) {
         body.messages[0].content = prompt;
       } else body.messages.unshift({ role: 'system', content: prompt });
 
@@ -71,15 +72,26 @@ export async function handleOpenaiFunctionCall(url, header, body, context, onStr
         setTimeout(() => {
           chatPromise = sendMessageToTelegramWithContext(context)(`\`chat with llm.\``);
         }, 0);
-        const llm_resp = await requestChatCompletions(call_url, call_headers, call_body, context, isOnstream, null, options);
+        const llm_resp = await requestChatCompletions(
+          call_url,
+          call_headers,
+          call_body,
+          context,
+          isOnstream,
+          null,
+          options,
+        );
         if (!llm_resp.tool_calls) {
           llm_resp.tool_calls = [];
         }
-        llm_resp.tool_calls =
-          llm_resp?.tool_calls?.filter((i) => Object.keys(ENV.TOOLS).includes(i.function.name));
-        
-        if (llm_resp.tool_calls.length === 0 || llm_resp.content?.startsWith?.('ANSWER')) {
-          return { type: 'answer', message: llm_resp.content.replace('ANSWER:','') };
+        llm_resp.tool_calls = llm_resp?.tool_calls?.filter((i) => Object.keys(ENV.TOOLS).includes(i.function.name));
+
+        if (llm_resp.tool_calls.length === 0) {
+          if (final_tool_type) call_body.messages[0].content = tools_settings[final_tool_type].prompt;
+          if (call_times === ENV.FUNC_LOOP_TIMES) {
+            // 第一次立即返回
+            return { type: 'first_answer', message: llm_resp.content };
+          } else return { type: 'next_answer', message: llm_resp.content };
         }
         context._info.setCallInfo(((new Date() - start_time) / 1000).toFixed(1) + 's', 'c_t');
 
@@ -147,7 +159,7 @@ export async function handleOpenaiFunctionCall(url, header, body, context, onStr
         call_times--;
       }
       if (final_tool_type) {
-        // call_body.messages[0].content = tools_settings[final_tool_type].prompt;
+        call_body.messages[0].content = tools_settings[final_tool_type].prompt;
         for (const [key, value] of Object.entries(tools_settings[final_tool_type].extra_params)) {
           body[key] = value;
         }

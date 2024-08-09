@@ -9,10 +9,11 @@ export const jina_reader = {
         'url': {
           'type': 'string',
           'description':
-            "The full URL address of the content to be crawled. Please remember to directly send a plain text JSON object string with only the key 'url'. For example: {'url': 'https://example.com/article'}",
+            "The full URL address of the content to be crawled. If the user explicitly requests to read/analyze the content of the link, then call the function. If the data provided by the user is web content with links, but the content is sufficient to answer the question, then there is no need to call the function.",
         },
       },
       'required': ['url'],
+      "additionalProperties": false
     },
   },
 

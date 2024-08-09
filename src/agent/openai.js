@@ -76,14 +76,33 @@ export async function requestCompletionsFromOpenAI(message, prompt, history, con
   };
 
   if (message && !context._info?.lastStepHasFile && ENV.TOOLS && context.USER_CONFIG.USE_TOOLS?.length > 0) {
-    const result = await handleOpenaiFunctionCall(url, header, body, context, onStream);
-    if (result.type === 'answer' && result.message && context.USER_CONFIG.FUNCTION_REPLY_ASAP) {
+    const result = await handleOpenaiFunctionCall(url, header, body, prompt, context, onStream);
+    if (
+      ['first_answer', 'next_answer'].indexOf(result.type) > -1 &&
+      result.message &&
+      context.USER_CONFIG.FUNCTION_REPLY_ASAP
+    ) {
+      // 如果不需要重新生成结果
       return result.message;
+      // body.messages.shift(); //
+      // body.messages[0].content = prompt;
     }
-    const resp_obj = { q: body.messages.at(-1).content }; // 修正问题内容
-    resp_obj.a = await requestChatCompletions(url, header, body, context, onStream, null, null);
-    return resp_obj;
-    
+    if (result.type === 'first_answer') {
+      // 如果没有调用任何函数
+      if (prompt) {
+        body.messages[0].content = prompt; // 回复原来的prompt
+      } else body.messages.shift(); //去掉多余的prompt
+    } else {
+      const resp_obj = { q: body.messages.at(-1).content }; // 修正问题内容 // 没有调用函数时，不需要修正
+      resp_obj.a = await requestChatCompletions(url, header, body, context, onStream, null, null);
+      return resp_obj;
+    }
+    // if (result.type === 'next_answer') { // 如果调用过函数，且已经是答案
+    //   //无需任何处理 保留最后一次函数的提示词 重新生成一份答案
+    // }
+    // if (result.type === 'continue') { // 如果调用过函数，且没有生成答案
+    //   //无需任何处理 保留最后一次函数的提示词 生成一份答案
+    // }
   }
 
   return requestChatCompletions(url, header, body, context, onStream, null, null);

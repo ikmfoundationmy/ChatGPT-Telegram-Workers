@@ -54,7 +54,7 @@ async function loadHistory(key) {
  * @return {Promise<string>}
  */
 async function requestCompletionsFromLLM(text, prompt, context, llm, modifier, onStream) {
-    const historyDisable = context._info.lastStepHasFile || ENV.MAX_HISTORY_LENGTH <= 0;
+    const historyDisable = ENV.MAX_HISTORY_LENGTH <= 0;
     const historyKey = context.SHARE_CONTEXT.chatHistoryKey;
     const readStartTime = performance.now();
     let history = [];
