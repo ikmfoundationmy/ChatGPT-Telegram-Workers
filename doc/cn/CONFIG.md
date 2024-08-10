@@ -12,7 +12,7 @@
 
 为每个用户通用的配置，只能在Workers配置界面或者toml中配置填写，不支持通过Telegram发送消息来修改。
 
-数组为空字符串，表示没有设置值，如果需要设置值，设置为`'value1,value2'`，多个值用逗号分隔。
+> `array string`: 数组为空字符串，表示没有设置值，如果需要设置值，设置为`'value1,value2'`，多个值用逗号分隔。
 
 ### 基础配置
 
@@ -24,40 +24,35 @@
 
 ### Telegram配置
 
-| KEY                       | 名称                 | 默认值                            | 描述                                                      |
-| ------------------------- | -------------------- | --------------------------------- | --------------------------------------------------------- |
-| TELEGRAM_API_DOMAIN       | Telegram API域名     | `https://api.telegram.org/`       | Telegram API的域名                                        |
-| TELEGRAM_AVAILABLE_TOKENS | 可用的Telegram令牌   | `''//()`                          | 允许访问的Telegram Token，设置时以逗号分隔                |
-| DEFAULT_PARSE_MODE        | 默认解析模式         | `Markdown`                        | 默认消息解析模式                                          |
-| I_AM_A_GENEROUS_PERSON    | 允许所有人使用       | `false`                           | 是否允许所有人使用                                        |
-| CHAT_WHITE_LIST           | 聊天白名单           | `''//(array string)`              | 允许使用的聊天ID白名单                                    |
-| LOCK_USER_CONFIG_KEYS     | 锁定的用户配置键     | 默认值为所有API的URL              | 防止被替换导致token泄露的配置键                           |
-| TELEGRAM_BOT_NAME         | Telegram机器人名称   | `''//(array string)`              | 允许访问的Telegram Token对应的Bot Name，设置时以逗号分隔  |
-| CHAT_GROUP_WHITE_LIST     | 群组白名单           | `''//(array string)`              | 允许使用的群组ID白名单                                    |
-| GROUP_CHAT_BOT_ENABLE     | 群组机器人开关       | `true`                            | 是否启用群组机器人                                        |
-| GROUP_CHAT_BOT_SHARE_MODE | 群组机器人共享模式   | `false`                           | 开启后同个群组的人使用同一个聊天上下文                    |
-| ---                       | ---                  | ---                               | ---                                                       |
-| 以下为新增变量        |                      |                                   |                                                           |
-| COHERE_CONNECT_TRIGGER    | cohere增加connector  | `{}(object)`                      | cohere模型增加web-search选项进行网页查询，速度较慢        |
-| ENABLE_FILE               | 开启文件读取功能     | `false`                           | 开启时可读取音频文件与图片文件                            |
-| LOAD_IMAGE_FILE           | 下载图片文件         | `true`                            | 默认开启，防止机器人token泄露,（文件大小建议不要超过10M） |
-| ENABLE_REPLY_TO_MENTION   | 回复对象为被提及的人 | `false`                           | 当回复他人并触发机器人则回复对象为提及的人                |
-| IGNORE_TEXT               | 忽略文本             | `''`                              | 以关键字开头不会触发机器人对话                            |
-| ENABLE_SHOWINFO           | 开启附加信息         | `false`                           | 开启时，会在消息中插入模型数据与对话时间                  |
-| ENABLE_SHOWTOKEN      | 开启TOKEN信息显示    | `false`                           | 开启时，尝试读取结果中的token信息并显示在消息中           |
-| HIDE_MIDDLE_MESSAGE       | 隐藏中间信息         | `false`                           | 在多流程中，开启只会发送最后一步的结果                    |
-| CHAT_MESSAGE_TRIGGER      | 对话触发关键词       | `{}(object)`                      | 将关键词替换成对应的文本，可以简化某些操作                |
-| PROMPT                    | 提示词               | `{}(object)`                      | 使用set命令时会自动替换SYSTEM_INIT_MESSAGE                |
-| MAPPING_KEY               | /set命令 变量键      | `'-p:SYSTEM_INIT_MESSAGE...'`     | 简化修改变量的操作                                        |
-| MAPPING_VALUE             | /set命令 变量值      | `'g4:gpt-4o\|rp+:command-r-plus'` | 简化修改变量的操作                                        |
-|                           |                      |                                   |                                                           |
-
+| KEY                       | 名称             | 默认值                         | 描述                                      |
+|---------------------------|----------------|-----------------------------|-----------------------------------------|
+| TELEGRAM_API_DOMAIN       | Telegram API域名 | `https://api.telegram.org/` | Telegram API的域名                         |
+| TELEGRAM_AVAILABLE_TOKENS | 可用的Telegram令牌  | `''//(array string)`                    | 允许访问的Telegram Token，设置时以逗号分隔            |
+| DEFAULT_PARSE_MODE        | 默认解析模式         | `Markdown`                  | 默认消息解析模式                                |
+| I_AM_A_GENEROUS_PERSON    | 允许所有人使用        | `false`                     | 是否允许所有人使用                               |
+| CHAT_WHITE_LIST           | 聊天白名单          | `''//(array string)`        | 允许使用的聊天ID白名单                            |
+| LOCK_USER_CONFIG_KEYS     | 锁定的用户配置键       | 默认值为所有API的URL               | 防止被替换导致token泄露的配置键                      |
+| TELEGRAM_BOT_NAME         | Telegram机器人名称  | `''//(array string)`        | 允许访问的Telegram Token对应的Bot Name，设置时以逗号分隔 |
+| CHAT_GROUP_WHITE_LIST     | 群组白名单          | `''//(array string)`        | 允许使用的群组ID白名单                            |
+| GROUP_CHAT_BOT_ENABLE     | 群组机器人开关        | `true`                      | 是否启用群组机器人                               |
+| GROUP_CHAT_BOT_SHARE_MODE | 群组机器人共享模式      | `false`                     | 开启后同个群组的人使用同一个聊天上下文                     |
 
 > IMPORTANT: 必须把群ID加到白名单`CHAT_GROUP_WHITE_LIST`才能使用, 否则任何人都可以把你的机器人加到群组中，然后消耗你的配额。
 
 > IMPORTANT: 受限TG的隐私安全策略，如果你的群组是公开群组或超过2000人，请将机器人设置为`管理员`，否则机器人无法响应`@机器人`的聊天消息。
 
 > IMPORTANT: 必须在botfather中设置`/setprivacy`为`Disable`，否则机器人无法响应`@机器人`的聊天消息。
+
+#### 锁定配置 `LOCK_USER_CONFIG_KEYS`
+
+> IMPORTANT: 如果你遇到`Key XXX is locked`的错误，说明你的配置被锁定了，需要解锁才能修改。
+
+`LOCK_USER_CONFIG_KEYS`的默认值为所有API的BASE URL。为了防止用户替换API BASE URL导致token泄露，所以默认情况下会锁定所有API的BASE URL。如果你想解锁某个API的BASE URL，可以将其从`LOCK_USER_CONFIG_KEYS`中删除。
+`LOCK_USER_CONFIG_KEYS`是一个字符串数组，默认值为：
+
+```
+OPENAI_API_BASE,GOOGLE_COMPLETIONS_API,MISTRAL_API_BASE,COHERE_API_BASE,ANTHROPIC_API_BASE,AZURE_COMPLETIONS_API,AZURE_DALLE_API
+```
 
 ### 历史记录配置
 
@@ -107,7 +102,7 @@
 
 ### Azure OpenAI
 
->  AZURE_COMPLETIONS_API `https://RESOURCE_NAME.openai.azure.com/openai/deployments/MODEL_NAME/chat/completions?api-version=VERSION_NAME`
+> AZURE_COMPLETIONS_API `https://RESOURCE_NAME.openai.azure.com/openai/deployments/MODEL_NAME/chat/completions?api-version=VERSION_NAME`
 
 > AZURE_DALLE_API `https://RESOURCE_NAME.openai.azure.com/openai/deployments/MODEL_NAME/images/generations?api-version=VERSION_NAME`
 
@@ -181,7 +176,7 @@ cloudflare workers 暂时不支持访问
 
 除了上述系统定义的指令，你也可以自定义快捷指令， 可以将某些较长的指令简化为一个单词的指令。
 
-自定义指令使用环境变量设置 CUSTOM_COMMAND_XXX，其中XXX为指令名，比如`CUSTOM_COMMAND_azure`，值为指令内容，比如`/setenvs {"AI_PROVIDER": "azure"}`。 这样就可以使用`/azure`来代替`/setenvs {"AI_PROVIDER": "azure"}`实现快速切换AI提供商。
+自定义指令使用环境变量设置 `CUSTOM_COMMAND_XXX`，其中XXX为指令名，比如`CUSTOM_COMMAND_azure`，值为指令内容，比如`/setenvs {"AI_PROVIDER": "azure"}`。 这样就可以使用`/azure`来代替`/setenvs {"AI_PROVIDER": "azure"}`实现快速切换AI提供商。
 
 下面是一些自定义指令例子
 
@@ -220,9 +215,9 @@ CUSTOM_COMMAND_cn2en = '/setenvs {"SYSTEM_INIT_MESSAGE": "你是一个翻译下�
 如果你是用toml进行配置，可以使用下面的方式：
 
 ```toml
-COMMAND_DESCRIPTION_azure = '切换AI提供商为Azure'
-COMMAND_DESCRIPTION_workers = '切换AI提供商为Workers'
-COMMAND_DESCRIPTION_gpt3 = '切换AI提供商为OpenAI GPT-3.5 Turbo'
-COMMAND_DESCRIPTION_gpt4 = '切换AI提供商为OpenAI GPT-4'
-COMMAND_DESCRIPTION_cn2en = '将对话内容翻译成英文'
+COMMAND_DESCRIPTION_azure = '/setenvs {"AI_PROVIDER": "azure"}'
+COMMAND_DESCRIPTION_workers = '/setenvs {"AI_PROVIDER": "workers"}'
+COMMAND_DESCRIPTION_gpt3 = '/setenvs {"AI_PROVIDER": "openai", "OPENAI_CHAT_MODEL": "gpt-3.5-turbo"}'
+COMMAND_DESCRIPTION_gpt4 = '/setenvs {"AI_PROVIDER": "openai", "OPENAI_CHAT_MODEL": "gpt-4"}'
+COMMAND_DESCRIPTION_cn2en = '/setenvs {"SYSTEM_INIT_MESSAGE": "You are a translator. Please translate everything I say below into English."}'
 ```

@@ -8,17 +8,20 @@ import {DATABASE, ENV, CONST} from '../config/env.js';
 import { loadAudioLLM, loadChatLLM } from "./agents.js";
 import { handleFile } from '../config/middle.js';
 import { sendTelegraphWithContext } from '../telegram/telegraph.js';
+import "../types/agent.js";
 
 /**
- * @typedef {object} HistoryItem
- * @property {string} role
- * @property {string} content
+ * @returns {(function(string): number)}
  */
+function tokensCounter() {
+    return (text) => {
+        return text.length;
+    };
+}
 /**
  * 加载历史TG消息
- *
  * @param {string} key
- * @return {Promise<HistoryItem[]>}
+ * @returns {Promise<HistoryItem[]>}
  */
 async function loadHistory(key) {
 
@@ -26,12 +29,6 @@ async function loadHistory(key) {
     let history = [];
     try {
         history = JSON.parse((await DATABASE.get(key)) || '[]');
-        history = history.map((item) => {
-            return {
-                role: item.role,
-                content: item.content,
-            };
-        });
     } catch (e) {
         console.error(e);
     }
@@ -39,47 +36,93 @@ async function loadHistory(key) {
         history = [];
     }
 
+    const counter = tokensCounter();
+
+    const trimHistory = (list, initLength, maxLength, maxToken) => {
+        // 历史记录超出长度需要裁剪, 小于0不裁剪
+        if (maxLength >= 0 && list.length > maxLength) {
+            list = list.splice(list.length - maxLength);
+        }
+        // 处理token长度问题, 小于0不裁剪
+        if (maxToken > 0) {
+            let tokenLength = initLength;
+            for (let i = list.length - 1; i >= 0; i--) {
+                const historyItem = list[i];
+                let length = 0;
+                if (historyItem.content) {
+                    length = counter(historyItem.content);
+                } else {
+                    historyItem.content = '';
+                }
+                // 如果最大长度超过maxToken,裁剪history
+                tokenLength += length;
+                if (tokenLength > maxToken) {
+                    list = list.splice(i + 1);
+                    break;
+                }
+            }
+        }
+        return list;
+    };
+
+    // 裁剪
+    if (ENV.AUTO_TRIM_HISTORY && ENV.MAX_HISTORY_LENGTH > 0) {
+        history = trimHistory(history, 0, ENV.MAX_HISTORY_LENGTH, ENV.MAX_TOKEN_LENGTH);
+    }
+
     return history;
 }
 
+/**
+ * @typedef {object} LlmModifierResult
+ * @property {HistoryItem[]} history
+ * @property {string} message
+ * @typedef {function(HistoryItem[], string): LlmModifierResult} LlmModifier
+ */
+
+/**
+ * @typedef {function (string): Promise<any>} StreamResultHandler
+ */
 
 /**
  *
- * @param {string} text
- * @param {string | null} prompt
+ * @param {LlmRequestParams} params
  * @param {ContextType} context
- * @param {function(string, string, HistoryItem[], ContextType, function)} llm
- * @param {function(HistoryItem[], string)} modifier
- * @param {function(string)} onStream
- * @return {Promise<string>}
+ * @param {ChatAgentRequest} llm
+ * @param {LlmModifier} modifier
+ * @param {StreamResultHandler} onStream
+ * @returns {Promise<string>}
  */
-async function requestCompletionsFromLLM(text, prompt, context, llm, modifier, onStream) {
-    const historyDisable = ENV.MAX_HISTORY_LENGTH <= 0;
+async function requestCompletionsFromLLM(params, context, llm, modifier, onStream) {
+    const historyDisable = ENV.AUTO_TRIM_HISTORY && ENV.MAX_HISTORY_LENGTH <= 0;
     const historyKey = context.SHARE_CONTEXT.chatHistoryKey;
+    let {message, images} = params;
     const readStartTime = performance.now();
-    let history = [];
-    if (!historyDisable) {
-        history = await loadHistory(historyKey);
-    }
+    let history = await loadHistory(historyKey);
     const readTime = ((performance.now() - readStartTime) / 1000).toFixed(2);
     console.log(`readHistoryTime: ${readTime}s`);
 
     if (modifier) {
-        const modifierData = modifier(history, text);
+        const modifierData = modifier(history, message);
         history = modifierData.history;
-        text = modifierData.text;
+        params.message = modifierData.message;
     }
-    let answer = await llm(text, prompt, history, context, onStream);
-    if (context._info.lastStepHasFile) {
-        text = '[A FILE] ' + text;
+    const llmParams = {
+        ...params,
+        history: history,
+        prompt: context.USER_CONFIG.SYSTEM_INIT_MESSAGE,
+    };
+    let answer = await llm(llmParams, context, onStream);
+    if (images) {
+        message = '[A FILE] ' + message;
     }
     if (typeof answer === 'object') {
-        text = answer.q;
+        message = answer.q;
         answer = answer.a;
     }
     
     if (!historyDisable && answer) {
-        history.push({ role: 'user', content: text || '' });
+        history.push({ role: 'user', content: message || ''});
         history.push({ role: 'assistant', content: answer });
         await DATABASE.put(historyKey, JSON.stringify(history)).catch(console.error);
     }
@@ -91,16 +134,15 @@ async function requestCompletionsFromLLM(text, prompt, context, llm, modifier, o
 
 /**
  * 与LLM聊天
- *
- * @param {string|null} text
+ * @param {LlmRequestParams} params
  * @param {ContextType} context
- * @param {function} modifier
- * @return {Promise<Response>}
+ * @param {LlmModifier} modifier
+ * @returns {Promise<Response>}
  */
-export async function chatWithLLM(text, context, modifier, pointerLLM = loadChatLLM) {
+export async function chatWithLLM(params, context, modifier, pointerLLM = loadChatLLM) {
     try {
 
-        text = context._info.isFirstStep ? text : context._info.lastStep.text;
+        params.message = context._info.isFirstStep ? params.message : context._info.lastStep.text;
         const parseMode = context.CURRENT_CHAT_CONTEXT.parse_mode;
         try {
             if (context._info.lastStepHasFile) {
@@ -121,7 +163,7 @@ export async function chatWithLLM(text, context, modifier, pointerLLM = loadChat
         let onStream = null;
         let nextEnableTime = null;
         const sendHandler = (() => {
-          const question = text;
+          const question = params.message;
             const telegraph_prefix = `#Question\n\`\`\`\n${question?.length > 400 ? question.slice(0, 200) + '...' + question.slice(-200) : question}\n\`\`\`\n---\n#Answer\n🤖 __${context._info.model}:__\n`;
             let first_time_than = true;
             const author = {
@@ -191,7 +233,7 @@ export async function chatWithLLM(text, context, modifier, pointerLLM = loadChat
         const prompt = context.USER_CONFIG.SYSTEM_INIT_MESSAGE;
         console.log(`[START] Chat via ${llm.name}`);
 
-        const answer = await requestCompletionsFromLLM(text, prompt, context, llm, modifier, onStream);
+        const answer = await requestCompletionsFromLLM(params, context, llm, modifier, onStream);
         if (!answer) {
             return sendMessageToTelegramWithContext(context)('None response');
         }

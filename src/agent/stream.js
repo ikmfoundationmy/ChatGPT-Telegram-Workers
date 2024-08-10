@@ -108,6 +108,23 @@ export class SSEDecoder {
   }
 }
 
+/**
+ * @typedef {object} SSEMessage
+ * @property {string} [event]
+ * @property {string} [data]
+ */
+
+/**
+ * @typedef {object} SSEParserResult
+ * @property {boolean} [finish]
+ * @property {any} [data]
+ */
+
+/**
+ *
+ * @param {SSEMessage} sse
+ * @returns {SSEParserResult}
+ */
 export function openaiSseJsonParser(sse) {
   // example:
   //      data: {}
@@ -125,6 +142,11 @@ export function openaiSseJsonParser(sse) {
   return {};
 }
 
+/**
+ *
+ * @param {SSEMessage} sse
+ * @returns {SSEParserResult}
+ */
 export function cohereSseJsonParser(sse) {
   // example:
   //      event: text-generation
@@ -149,6 +171,11 @@ export function cohereSseJsonParser(sse) {
   }
 }
 
+/**
+ *
+ * @param {SSEMessage} sse
+ * @returns {SSEParserResult}
+ */
 export function anthropicSseJsonParser(sse) {
   // example:
   //      event: content_block_delta

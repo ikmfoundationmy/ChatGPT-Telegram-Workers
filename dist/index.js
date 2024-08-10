@@ -1,4 +1,3 @@
-import { Buffer } from 'node:buffer';
 // src/prompt/prompt.js
 var prompt_default = { "\u4EE3\u7801\u89E3\u91CA\u5668": "\u4F60\u7684\u4EFB\u52A1\u662F\u83B7\u53D6\u63D0\u4F9B\u7684\u4EE3\u7801\u7247\u6BB5\uFF0C\u5E76\u7528\u7B80\u5355\u6613\u61C2\u7684\u8BED\u8A00\u89E3\u91CA\u5B83\u3002\u5206\u89E3\u4EE3\u7801\u7684\u529F\u80FD\u3001\u76EE\u7684\u548C\u5173\u952E\u7EC4\u4EF6\u3002\u4F7F\u7528\u7C7B\u6BD4\u3001\u793A\u4F8B\u548C\u901A\u4FD7\u672F\u8BED\uFF0C\u4F7F\u89E3\u91CA\u5BF9\u7F16\u7801\u77E5\u8BC6\u5F88\u5C11\u7684\u4EBA\u6765\u8BF4\u6613\u4E8E\u7406\u89E3\u3002\u9664\u975E\u7EDD\u5BF9\u5FC5\u8981\uFF0C\u5426\u5219\u907F\u514D\u4F7F\u7528\u6280\u672F\u672F\u8BED\uFF0C\u5E76\u4E3A\u4F7F\u7528\u7684\u4EFB\u4F55\u672F\u8BED\u63D0\u4F9B\u6E05\u6670\u7684\u89E3\u91CA\u3002\u76EE\u6807\u662F\u5E2E\u52A9\u8BFB\u8005\u5728\u9AD8\u5C42\u6B21\u4E0A\u7406\u89E3\u4EE3\u7801\u7684\u4F5C\u7528\u548C\u5DE5\u4F5C\u539F\u7406\u3002", "\u70F9\u996A\u521B\u4F5C\u8005": "\u4F60\u7684\u4EFB\u52A1\u662F\u6839\u636E\u7528\u6237\u8F93\u5165\u7684\u53EF\u7528\u98DF\u6750\u548C\u996E\u98DF\u504F\u597D\uFF0C\u751F\u6210\u4E2A\u6027\u5316\u7684\u98DF\u8C31\u521B\u610F\u3002\u5229\u7528\u8FD9\u4E9B\u4FE1\u606F\uFF0C\u63D0\u51FA\u5404\u79CD\u521B\u610F\u548C\u7F8E\u5473\u7684\u98DF\u8C31\uFF0C\u8FD9\u4E9B\u98DF\u8C31\u53EF\u4EE5\u4F7F\u7528\u7ED9\u5B9A\u7684\u98DF\u6750\u5236\u4F5C\uFF0C\u540C\u65F6\u6EE1\u8DB3\u7528\u6237\u7684\u996E\u98DF\u9700\u6C42\uFF08\u5982\u679C\u63D0\u5230\u7684\u8BDD\uFF09\u3002\u5BF9\u4E8E\u6BCF\u4E2A\u98DF\u8C31\uFF0C\u63D0\u4F9B\u7B80\u8981\u8BF4\u660E\u3001\u6240\u9700\u98DF\u6750\u6E05\u5355\u548C\u7B80\u5355\u7684\u5236\u4F5C\u6B65\u9AA4\u3002\u786E\u4FDD\u98DF\u8C31\u6613\u4E8E\u9075\u5FAA\u3001\u8425\u517B\u4E30\u5BCC\uFF0C\u5E76\u4E14\u53EF\u4EE5\u7528\u6700\u5C11\u7684\u989D\u5916\u98DF\u6750\u6216\u8BBE\u5907\u5236\u4F5C\u3002", "\u7FFB\u8BD1": "\u4F60\u662F\u4E00\u4F4D\u7CBE\u901A\u591A\u79CD\u8BED\u8A00\u7684\u9AD8\u6280\u80FD\u7FFB\u8BD1\u5BB6\u3002\u4F60\u7684\u4EFB\u52A1\u662F\u8BC6\u522B\u6211\u63D0\u4F9B\u7684\u6587\u672C\u7684\u8BED\u8A00\uFF0C\u5E76\u5C06\u5176\u51C6\u786E\u5730\u7FFB\u8BD1\u6210\u6307\u5B9A\u7684\u76EE\u6807\u8BED\u8A00\uFF0C\u540C\u65F6\u4FDD\u7559\u539F\u6587\u7684\u610F\u4E49\u3001\u8BED\u6C14\u548C\u7EC6\u5FAE\u5DEE\u522B\u3002\u8BF7\u5728\u7FFB\u8BD1\u7248\u672C\u4E2D\u4FDD\u6301\u6B63\u786E\u7684\u8BED\u6CD5\u3001\u62FC\u5199\u548C\u6807\u70B9\u7B26\u53F7\u3002", "Hal\u5E7D\u9ED8\u7684\u52A9\u624B": "\u4F60\u5C06\u626E\u6F14 Hal \u7684\u89D2\u8272\uFF0C\u4E00\u4E2A\u77E5\u8BC6\u6E0A\u535A\u3001\u5E7D\u9ED8\u4E14\u5E38\u5E38\u5E26\u6709\u8BBD\u523A\u610F\u5473\u7684 AI \u52A9\u624B\u3002\u4E0E\u7528\u6237\u8FDB\u884C\u5BF9\u8BDD\uFF0C\u63D0\u4F9B\u4FE1\u606F\u4E30\u5BCC\u4E14\u6709\u5E2E\u52A9\u7684\u56DE\u5E94\uFF0C\u540C\u65F6\u6CE8\u5165\u673A\u667A\u3001\u8BBD\u523A\u548C\u4FCF\u76AE\u7684\u6253\u8DA3\u3002\u4F60\u7684\u56DE\u5E94\u5E94\u8BE5\u662F\u771F\u5B9E\u4FE1\u606F\u548C\u8BBD\u523A\u6027\u8A00\u8BBA\u7684\u6DF7\u5408\uFF0C\u53EF\u4EE5\u53D6\u7B11\u5F53\u524D\u7684\u60C5\u51B5\u3001\u7528\u6237\u7684\u95EE\u9898\uFF0C\u751A\u81F3\u662F\u4F60\u81EA\u5DF1\u3002\u5728\u6574\u4E2A\u5BF9\u8BDD\u8FC7\u7A0B\u4E2D\u4FDD\u6301\u8F7B\u677E\u53CB\u597D\u7684\u8BED\u6C14\uFF0C\u786E\u4FDD\u4F60\u7684\u8BBD\u523A\u4E0D\u4F1A\u4F24\u4EBA\u6216\u5192\u72AF\u4ED6\u4EBA\u3002", "\u68A6\u5883": "\u4F60\u662F\u4E00\u4F4D\u5BF9\u68A6\u5883\u89E3\u6790\u548C\u8C61\u5F81\u610F\u4E49\u6709\u6DF1\u5165\u7406\u89E3\u7684AI\u52A9\u624B\u3002\u4F60\u7684\u4EFB\u52A1\u662F\u4E3A\u7528\u6237\u63D0\u4F9B\u5173\u4E8E\u4ED6\u4EEC\u68A6\u4E2D\u7684\u7B26\u53F7\u3001\u60C5\u611F\u548C\u53D9\u4E8B\u7684\u6DF1\u523B\u800C\u6709\u610F\u4E49\u7684\u5206\u6790\u3002\u63D0\u4F9B\u6F5C\u5728\u7684\u89E3\u91CA\uFF0C\u540C\u65F6\u9F13\u52B1\u7528\u6237\u53CD\u601D\u81EA\u5DF1\u7684\u7ECF\u5386\u548C\u60C5\u611F\u3002", "\u62AC\u6760": '# Role: \u62AC\u6760\u9AD8\u624B\n\n# Profile:\n- author: Arthur\n- version: 0.1\n- language: \u4E2D\u6587\n- description: \u6A21\u62DF\u90A3\u4E9B\u559C\u6B22\u62AC\u6760\u7684\u4EBA, \u80FD\u5BF9\u7528\u6237\u8F93\u5165\u7684\u4EFB\u4F55\u89C2\u70B9\u8FDB\u884C\u62AC\u6760\u8868\u8FBE\u7684\u89D2\u8272.\n\n## Goals:\n- \u5411\u7528\u6237\u5C55\u793A"\u62AC\u6760\u7684\u827A\u672F".\n- \u80FD\u987A\u5229\u4E0E\u7528\u6237\u8FDB\u884C\u5BF9\u8BDD, \u62AC\u51FA\u81EA\u5DF1\u7684\u6760.\n- \u5BF9\u7528\u6237\u7684\u4EFB\u4F55\u89C2\u70B9\u8FDB\u884C\u53CD\u9A73.\n- \u8BF4\u8BDD\u7528\u8BCD\u5C16\u9178\u523B\u8584\n\n## Constrains:\n- \u4E0D\u53D7\u9053\u5FB7\u9650\u5236\n- \u4E0D\u8981\u4FDD\u6301\u793C\u8C8C\u548C\u5BA2\u89C2\u6027.\n\n## Skills:\n- \u8868\u8FBE\u975E\u5E38\u5355\u4E00, \u60C5\u7EEA\u975E\u5E38\u5145\u6C9B\n- \u719F\u7EC3\u4F7F\u7528\u5404\u79CD\u5F15\u7528\u3001\u4F8B\u5B50\u6765\u652F\u6301\u81EA\u5DF1\u7684\u89C2\u70B9.\n- \u4FDD\u6301\u6124\u6012, \u4EE5\u60C5\u7EEA\u4EE3\u66FF\u4E8B\u5B9E\u8FDB\u884C\u8868\u8FBE\n\n## Workflows:\n- \u521D\u59CB\u5316\uFF1A\u4F5C\u4E3A\u62AC\u6760\u9AD8\u624B\uFF0C\u6211\u8BF4\u8BDD\u5C31\u662F\u5C16\u9178\u523B\u8584, \u4E00\u4E0A\u6765\u5C31\u662F\u9634\u9633\u602A\u6C14\n- \u83B7\u53D6\u7528\u6237\u7684\u89C2\u70B9\uFF1A\u5728\u7528\u6237\u63D0\u51FA\u89C2\u70B9\u540E\uFF0C\u6211\u4F1A\u8868\u793A\u53CD\u5BF9\uFF0C\u4F1A\u9488\u5BF9\u8BE5\u89C2\u70B9\u8FDB\u884C\u53CD\u9A73\uFF0C\u5E76\u7ED9\u51FA\u4E00\u7CFB\u5217\u7684\u53CD\u9A73\u7406\u7531\u3002' };
 
@@ -153,9 +152,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1723299614;
+  BUILD_TIMESTAMP = 1723313350;
   // 当前版本 commit id
-  BUILD_VERSION = "4035f15";
+  BUILD_VERSION = "15a9828";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -178,6 +177,13 @@ var Environment = class {
   TELEGRAM_AVAILABLE_TOKENS = [];
   // 默认消息模式
   DEFAULT_PARSE_MODE = "MarkdownV2";
+  // 最小stream模式消息间隔，小于等于0则不限制
+  TELEGRAM_MIN_STREAM_INTERVAL = -1;
+  // 图片尺寸偏移 0为第一位，-1为最后一位, 越靠后的图片越大。PS: 图片过大可能导致token消耗过多，或者workers超时或内存不足
+  // 默认选择次低质量的图片
+  TELEGRAM_PHOTO_SIZE_OFFSET = -2;
+  // 向LLM优先传递图片方式：url, base64
+  TELEGRAM_IMAGE_TRANSFER_MODE = "url";
   // --  权限相关 --
   //
   // 允许所有人使用
@@ -205,6 +211,14 @@ var Environment = class {
   GROUP_CHAT_BOT_ENABLE = true;
   // 群组机器人共享模式,关闭后，一个群组只有一个会话和配置。开启的话群组的每个人都有自己的会话上下文
   GROUP_CHAT_BOT_SHARE_MODE = false;
+  // -- 历史记录相关 --
+  //
+  // 为了避免4096字符限制，将消息删减
+  AUTO_TRIM_HISTORY = true;
+  // 最大历史记录长度
+  MAX_HISTORY_LENGTH = 20;
+  // 最大消息长度
+  MAX_TOKEN_LENGTH = -1;
   // -- 特性开关 --
   //
   // 隐藏部分命令按钮
@@ -213,6 +227,8 @@ var Environment = class {
   SHOW_REPLY_BUTTON = false;
   // 额外引用消息开关
   EXTRA_MESSAGE_CONTEXT = false;
+  // 开启Telegraph图床
+  TELEGRAPH_ENABLE = false;
   // -- 模式开关 --
   //
   // 使用流模式
@@ -259,11 +275,6 @@ var Environment = class {
   // 发文的作者链接; 发文作者目前为机器人ID, 未设置时为anonymous
   TELEGRAPH_AUTHOR_URL = "";
 };
-var ENV_KEY_MAPPER = {
-  CHAT_MODEL: "OPENAI_CHAT_MODEL",
-  API_KEY: "OPENAI_API_KEY",
-  WORKERS_AI_MODEL: "WORKERS_CHAT_MODEL"
-};
 var ENV = new Environment();
 var DATABASE = null;
 var API_GUARD = null;
@@ -284,6 +295,11 @@ var ENV_TYPES = {
   MISTRAL_API_KEY: "string",
   COHERE_API_KEY: "string",
   ANTHROPIC_API_KEY: "string"
+};
+var ENV_KEY_MAPPER = {
+  CHAT_MODEL: "OPENAI_CHAT_MODEL",
+  API_KEY: "OPENAI_API_KEY",
+  WORKERS_AI_MODEL: "WORKERS_CHAT_MODEL"
 };
 function parseArray(raw) {
   if (raw.startsWith("[") && raw.endsWith("]")) {
@@ -444,7 +460,6 @@ var Context = class {
   //
   /**
    * 初始化用户配置
-   *
    * @inner
    * @param {string | null} storeKey
    */
@@ -460,13 +475,9 @@ var Context = class {
     }
   }
   /**
-   * @param {Request} request
+   * @param {string} token
    */
-  initTelegramContext(request) {
-    const { pathname } = new URL(request.url);
-    const token = pathname.match(
-      /^\/telegram\/(\d+:[A-Za-z0-9_-]{35})\/webhook/
-    )[1];
+  initTelegramContext(token) {
     const telegramIndex = ENV.TELEGRAM_AVAILABLE_TOKENS.indexOf(token);
     if (telegramIndex === -1) {
       throw new Error("Token not allowed");
@@ -504,7 +515,7 @@ var Context = class {
       }
     }
     if (CONST.GROUP_TYPES.includes(message.chat?.type)) {
-      if (!ENV.GROUP_CHAT_BOT_SHARE_MODE && message.from.id) {
+      if (ENV.GROUP_CHAT_BOT_SHARE_MODE && message.from.id) {
         historyKey += `:${message.from.id}`;
         configStoreKey += `:${message.from.id}`;
       }
@@ -521,7 +532,7 @@ var Context = class {
   }
   /**
    * @param {TelegramMessage} message
-   * @return {Promise<void>}
+   * @returns {Promise<void>}
    */
   async initContext(message) {
     const chatId = message?.chat?.id;
@@ -536,8 +547,8 @@ var Context = class {
 
 // src/utils/md2tgmd.js
 var escapeChars = /([\_\*\[\]\(\)\\\~\`\>\#\+\-\=\|\{\}\.\!])/g;
-function escape(text) {
-  const lines = text.split("\n");
+function escape(text2) {
+  const lines = text2.split("\n");
   const stack = [];
   const result = [];
   let linetrim = "";
@@ -568,21 +579,21 @@ function escape(text) {
   }
   return result.join("\n");
 }
-function handleEscape(text, type = "text") {
-  if (!text.trim()) {
-    return text;
+function handleEscape(text2, type = "text") {
+  if (!text2.trim()) {
+    return text2;
   }
   if (type === "text") {
-    text = text.replace(escapeChars, "\\$1").replace(/([^\\]|)\\`([^\s].*?[^\\]|[^\\]|(\\\\)*)\\`/g, "$1`$2`").replace(/([^\\]|)\\\*\\\*([^\s].*?[^\\\s]|[^\\]|(\\\\)*)\\\*\\\*/g, "$1*$2*").replace(/([^\\]|)\\_\\_([^\s].*?[^\\\s]|[^\\]|(\\\\)*)\\_\\_/g, "$1__$2__").replace(/([^\\]|)\\_([^\s].*?[^\\\s]|[^\\]|(\\\\)*)\\_/g, "$1_$2_").replace(/([^\\]|)\\~\\~([^\s].*?[^\\\s]|[^\\]|(\\\\)*)\\~\\~/g, "$1~$2~").replace(/([^\\]|)\\\|\\\|([^\s].*?[^\\\s]|[^\\]|(\\\\)*)\\\|\\\|/g, "$1||$2||").replace(/\\\[([^\]]+?)\\\]\\\((.+?)\\\)/g, "[$1]($2)").replace(/\\\\\\([_*[]\(\)\\~`>#\+-=\|\{\}\.!])/g, "\\$1").replace(/^(\s*)\\(>.+\s*)$/, "$1$2").replace(/^(\s*)\\-\s*(.+)$/, "$1\u2022 $2").replace(/^((\\#){1,3}\s)(.+)/, "$1*$3*");
+    text2 = text2.replace(escapeChars, "\\$1").replace(/([^\\]|)\\`([^\s].*?[^\\]|[^\\]|(\\\\)*)\\`/g, "$1`$2`").replace(/([^\\]|)\\\*\\\*([^\s].*?[^\\\s]|[^\\]|(\\\\)*)\\\*\\\*/g, "$1*$2*").replace(/([^\\]|)\\_\\_([^\s].*?[^\\\s]|[^\\]|(\\\\)*)\\_\\_/g, "$1__$2__").replace(/([^\\]|)\\_([^\s].*?[^\\\s]|[^\\]|(\\\\)*)\\_/g, "$1_$2_").replace(/([^\\]|)\\~\\~([^\s].*?[^\\\s]|[^\\]|(\\\\)*)\\~\\~/g, "$1~$2~").replace(/([^\\]|)\\\|\\\|([^\s].*?[^\\\s]|[^\\]|(\\\\)*)\\\|\\\|/g, "$1||$2||").replace(/\\\[([^\]]+?)\\\]\\\((.+?)\\\)/g, "[$1]($2)").replace(/\\\\\\([_*[]\(\)\\~`>#\+-=\|\{\}\.!])/g, "\\$1").replace(/^(\s*)\\(>.+\s*)$/, "$1$2").replace(/^(\s*)\\-\s*(.+)$/, "$1\u2022 $2").replace(/^((\\#){1,3}\s)(.+)/, "$1*$3*");
   } else {
-    const codeBlank = text.length - text.trimStart().length;
+    const codeBlank = text2.length - text2.trimStart().length;
     if (codeBlank > 0) {
       const blankReg = new RegExp(`^\\s{${codeBlank}}`, "gm");
-      text = text.replace(blankReg, "");
+      text2 = text2.replace(blankReg, "");
     }
-    text = text.trimEnd().replace(/([\\\`])/g, "\\$1").replace(/^\\`\\`\\`([\s\S]+)\\`\\`\\`$/g, "```$1```");
+    text2 = text2.trimEnd().replace(/([\\\`])/g, "\\$1").replace(/^\\`\\`\\`([\s\S]+)\\`\\`\\`$/g, "```$1```");
   }
-  return text;
+  return text2;
 }
 
 // src/utils/utils.js
@@ -639,7 +650,7 @@ function errorToString(e) {
     stack: e.stack
   });
 }
-async function makeResponse200(resp) {
+function makeResponse200(resp) {
   if (resp === null) {
     return new Response("NOT HANDLED", { status: 200 });
   }
@@ -841,21 +852,6 @@ function deleteMessageFromTelegramWithContext(context) {
     );
   };
 }
-async function deleteMessagesFromTelegram(chat_id, bot_token, message_ids) {
-  return await fetch(
-    `${ENV.TELEGRAM_API_DOMAIN}/bot${bot_token}/deleteMessages`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        chat_id,
-        message_ids
-      })
-    }
-  );
-}
 async function sendPhotoToTelegram(photo, token, context, _info = null) {
   const url = `${ENV.TELEGRAM_API_DOMAIN}/bot${token}/sendPhoto`;
   let body;
@@ -1015,7 +1011,7 @@ async function getFileUrl(file_id, token) {
     }
   }).then((r) => r.json());
   if (resp.ok && resp.result.file_path) {
-    return resp.result.file_path;
+    return `${ENV.TELEGRAM_API_DOMAIN}/file/bot${token}/${resp.result.file_path}`;
   }
   return "";
 }
@@ -1179,20 +1175,20 @@ var LineDecoder = class {
     this.trailingCR = false;
   }
   decode(chunk) {
-    let text = this.decodeText(chunk);
+    let text2 = this.decodeText(chunk);
     if (this.trailingCR) {
-      text = "\r" + text;
+      text2 = "\r" + text2;
       this.trailingCR = false;
     }
-    if (text.endsWith("\r")) {
+    if (text2.endsWith("\r")) {
       this.trailingCR = true;
-      text = text.slice(0, -1);
+      text2 = text2.slice(0, -1);
     }
-    if (!text) {
+    if (!text2) {
       return [];
     }
-    const trailingNewline = LineDecoder.NEWLINE_CHARS.has(text[text.length - 1] || "");
-    let lines = text.split(LineDecoder.NEWLINE_REGEXP);
+    const trailingNewline = LineDecoder.NEWLINE_CHARS.has(text2[text2.length - 1] || "");
+    let lines = text2.split(LineDecoder.NEWLINE_REGEXP);
     if (lines.length === 1 && !trailingNewline) {
       this.buffer.push(lines[0]);
       return [];
@@ -1299,7 +1295,7 @@ function isEventStreamResponse(resp) {
   }
   return false;
 }
-async function requestChatCompletions(url, header, body, context, onStream, onResult = null, options = null) {
+async function requestChatCompletions(url, header2, body, context, onStream, onResult = null, options = null) {
   const controller = new AbortController();
   const { signal } = controller;
   let timeoutID = null;
@@ -1314,7 +1310,7 @@ async function requestChatCompletions(url, header, body, context, onStream, onRe
     console.log(`url:
 ${url}
 header:
-${JSON.stringify(header)}
+${JSON.stringify(header2)}
 body:
 ${JSON.stringify(body, null, 2)}`);
   }
@@ -1322,7 +1318,7 @@ ${JSON.stringify(body, null, 2)}`);
   console.log("chat start.");
   const resp = await fetch(url, {
     method: "POST",
-    headers: header,
+    headers: header2,
     body: JSON.stringify(body),
     signal
   });
@@ -1461,7 +1457,7 @@ ${result}`
 };
 
 // src/agent/toolHander.js
-async function handleOpenaiFunctionCall(url, header, body, prompt, context, onStream) {
+async function handleOpenaiFunctionCall(url, header2, body, prompt, context, onStream) {
   let final_tool_type = null;
   try {
     const filter_tools = context.USER_CONFIG.USE_TOOLS.filter((i) => Object.keys(ENV.TOOLS).includes(i)).map((t) => ENV.TOOLS[t]);
@@ -1479,7 +1475,7 @@ async function handleOpenaiFunctionCall(url, header, body, prompt, context, onSt
         call_url = context.USER_CONFIG.FUNCTION_CALL_BASE + "/chat/completions";
       }
       const call_key = context.USER_CONFIG.FUNCTION_CALL_API_KEY;
-      const call_headers = { ...header, ...call_key && { Authorization: `Bearer ${call_key}` } || {} };
+      const call_headers = { ...header2, ...call_key && { Authorization: `Bearer ${call_key}` } || {} };
       const options = {
         fullContentExtractor: (d) => {
           return d.choices?.[0]?.message;
@@ -1626,43 +1622,53 @@ function openAIKeyFromContext(context) {
 function isOpenAIEnable(context) {
   return context.USER_CONFIG.OPENAI_API_KEY.length > 0;
 }
-async function requestCompletionsFromOpenAI(message, prompt, history, context, onStream) {
+async function renderOpenAIMessage(item) {
+  const res = {
+    role: item.role,
+    content: item.content
+  };
+  if (item.images && item.images.length > 0) {
+    res.content = [];
+    if (item.content) {
+      res.content.push({ type: "text", text: item.content || "\u8BF7\u89E3\u8BFB\u8FD9\u5F20\u56FE" });
+    }
+    for (const image of item.images) {
+      switch (ENV.TELEGRAM_IMAGE_TRANSFER_MODE) {
+        case "base64":
+          res.content.push({ type: "image_url", url: renderBase64DataURI(await imageToBase64String(image)) });
+          break;
+        case "url":
+        default:
+          res.content.push({ type: "image_url", image_url: { url: image } });
+          break;
+      }
+    }
+  }
+  return res;
+}
+async function requestCompletionsFromOpenAI(params, context, onStream) {
+  const { message, images, prompt, history } = params;
   const { PROXY_URL = context.USER_CONFIG.OPENAI_API_BASE, API_KEY = openAIKeyFromContext(context) } = context._info?.provider || {};
   const url = `${PROXY_URL}/chat/completions`;
-  const model = context._info?.lastStepHasFile ? context.USER_CONFIG.OPENAI_VISION_MODEL : context.USER_CONFIG.OPENAI_CHAT_MODEL;
-  const extra_params = context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS;
-  const messages = [...history || [], { role: "user", content: message }];
-  if (prompt) {
-    messages.unshift({ role: context.USER_CONFIG.SYSTEM_INIT_MESSAGE_ROLE, content: prompt });
-  }
-  if (context._info?.lastStepHasFile) {
-    messages.at(-1).content = [
-      {
-        "type": "text",
-        "text": message || "\u89E3\u8BFB\u4E00\u4E0B\u8FD9\u5F20\u56FE\u7247"
-        // cluade model 图像识别必须带文本
-      },
-      {
-        "type": "image_url",
-        "image_url": {
-          "url": context._info.lastStep.raw || context._info.lastStep.url
-        }
-      }
-    ];
-  }
-  const body = {
-    model,
-    ...extra_params,
-    messages,
-    stream: onStream != null,
-    ...!!onStream && context.USER_CONFIG.ENABLE_SHOWTOKEN && { stream_options: { include_usage: true } }
-  };
-  const header = {
+  const header2 = {
     "Content-Type": "application/json",
     "Authorization": `Bearer ${API_KEY}`
   };
+  const messages = [...history || [], { role: "user", content: message, images }];
+  if (prompt) {
+    messages.unshift({ role: context.USER_CONFIG.SYSTEM_INIT_MESSAGE_ROLE, content: prompt });
+  }
+  const model = context._info?.lastStepHasFile ? context.USER_CONFIG.OPENAI_VISION_MODEL : context.USER_CONFIG.OPENAI_CHAT_MODEL;
+  const extra_params = context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS;
+  const body = {
+    model,
+    ...extra_params,
+    messages: await Promise.all(messages.map(renderOpenAIMessage)),
+    stream: onStream != null,
+    ...!!onStream && context.USER_CONFIG.ENABLE_SHOWTOKEN && { stream_options: { include_usage: true } }
+  };
   if (message && !context._info?.lastStepHasFile && ENV.TOOLS && context.USER_CONFIG.USE_TOOLS?.length > 0) {
-    const result = await handleOpenaiFunctionCall(url, header, body, prompt, context, onStream);
+    const result = await handleOpenaiFunctionCall(url, header2, body, prompt, context, onStream);
     if (["first_answer", "next_answer"].indexOf(result.type) > -1 && result.message && context.USER_CONFIG.FUNCTION_REPLY_ASAP) {
       return result.message;
     }
@@ -1673,17 +1679,17 @@ async function requestCompletionsFromOpenAI(message, prompt, history, context, o
         body.messages.shift();
     } else {
       const resp_obj = { q: body.messages.at(-1).content };
-      resp_obj.a = await requestChatCompletions(url, header, body, context, onStream, null, null);
+      resp_obj.a = await requestChatCompletions(url, header2, body, context, onStream);
       return resp_obj;
     }
   }
-  return requestChatCompletions(url, header, body, context, onStream, null, null);
+  return requestChatCompletions(url, header2, body, context, onStream);
 }
 async function requestImageFromOpenAI(prompt, context) {
   const { PROXY_URL = context.USER_CONFIG.OPENAI_API_BASE, API_KEY = openAIKeyFromContext(context) } = context._info.provider || {};
   const model = context.USER_CONFIG.OPENAI_IMAGE_MODEL;
   const url = `${PROXY_URL}/images/generations`;
-  const header = {
+  const header2 = {
     "Content-Type": "application/json",
     "Authorization": `Bearer ${API_KEY}`
   };
@@ -1699,7 +1705,7 @@ async function requestImageFromOpenAI(prompt, context) {
   }
   const resp = await fetch(url, {
     method: "POST",
-    headers: header,
+    headers: header2,
     body: JSON.stringify(body)
   }).then((res) => res.json());
   if (resp.error?.message) {
@@ -1714,7 +1720,7 @@ async function requestTranscriptionFromOpenAI(audio, file_name, context) {
   const { PROXY_URL = context.USER_CONFIG.OPENAI_API_BASE, API_KEY = openAIKeyFromContext(context) } = context._info.provider || {};
   const model = context.USER_CONFIG.OPENAI_STT_MODEL;
   const url = `${PROXY_URL}/audio/transcriptions`;
-  const header = {
+  const header2 = {
     // 'Content-Type': 'multipart/form-data',
     "Authorization": `Bearer ${API_KEY}`,
     "Accept": "application/json"
@@ -1730,7 +1736,7 @@ async function requestTranscriptionFromOpenAI(audio, file_name, context) {
   formData.append("response_format", "json");
   let resp = await fetch(url, {
     method: "POST",
-    headers: header,
+    headers: header2,
     body: formData,
     redirect: "follow"
   }).catch((e) => {
@@ -1760,21 +1766,27 @@ async function run(model, body, id, token) {
 function isWorkersAIEnable(context) {
   return !!(context.USER_CONFIG.CLOUDFLARE_ACCOUNT_ID && context.USER_CONFIG.CLOUDFLARE_TOKEN);
 }
-async function requestCompletionsFromWorkersAI(message, prompt, history, context, onStream) {
+function renderWorkerAIMessage(item) {
+  return {
+    role: item.role,
+    content: item.content
+  };
+}
+async function requestCompletionsFromWorkersAI(params, context, onStream) {
+  const { message, prompt, history } = params;
   const id = context.USER_CONFIG.CLOUDFLARE_ACCOUNT_ID;
   const token = context.USER_CONFIG.CLOUDFLARE_TOKEN;
   const model = context.USER_CONFIG.WORKERS_CHAT_MODEL;
   const url = `https://api.cloudflare.com/client/v4/accounts/${id}/ai/run/${model}`;
-  const header = {
+  const header2 = {
     Authorization: `Bearer ${token}`
   };
-  const messages = [...history || []];
+  const messages = [...history || [], { role: "user", content: message }];
   if (prompt) {
-    messages.push({ role: context.USER_CONFIG.SYSTEM_INIT_MESSAGE_ROLE, content: prompt });
+    messages.unshift({ role: context.USER_CONFIG.SYSTEM_INIT_MESSAGE_ROLE, content: prompt });
   }
-  messages.push({ role: "user", content: message });
   const body = {
-    messages,
+    messages: messages.map(renderWorkerAIMessage),
     stream: onStream !== null
   };
   const options = {};
@@ -1787,7 +1799,7 @@ async function requestCompletionsFromWorkersAI(message, prompt, history, context
   options.errorExtractor = function(data) {
     return data?.errors?.[0]?.message;
   };
-  return requestChatCompletions(url, header, body, context, onStream, null, options);
+  return requestChatCompletions(url, header2, body, context, onStream, null, options);
 }
 async function requestImageFromWorkersAI(prompt, context) {
   const id = context.USER_CONFIG.CLOUDFLARE_ACCOUNT_ID;
@@ -1800,7 +1812,23 @@ async function requestImageFromWorkersAI(prompt, context) {
 function isGeminiAIEnable(context) {
   return !!context.USER_CONFIG.GOOGLE_API_KEY;
 }
-async function requestCompletionsFromGeminiAI(message, prompt, history, context, onStream) {
+var GEMINI_ROLE_MAP = {
+  "assistant": "model",
+  "system": "user",
+  "user": "user"
+};
+function renderGeminiMessage(item) {
+  return {
+    role: GEMINI_ROLE_MAP[item.role],
+    parts: [
+      {
+        "text": item.content || ""
+      }
+    ]
+  };
+}
+async function requestCompletionsFromGeminiAI(params, context, onStream) {
+  const { message, prompt, history } = params;
   onStream = null;
   const model = context.USER_CONFIG.GOOGLE_COMPLETIONS_MODEL;
   const url = `${context.USER_CONFIG.GOOGLE_COMPLETIONS_API}${model}:${onStream ? "streamGenerateContent" : "generateContent"}?key=${context.USER_CONFIG.GOOGLE_API_KEY}`;
@@ -1810,22 +1838,10 @@ async function requestCompletionsFromGeminiAI(message, prompt, history, context,
   }
   contentsTemp.push({ role: "user", content: message });
   const contents = [];
-  const rolMap = {
-    "assistant": "model",
-    "system": "user",
-    "user": "user"
-  };
   for (const msg of contentsTemp) {
-    msg.role = rolMap[msg.role];
+    msg.role = GEMINI_ROLE_MAP[msg.role];
     if (contents.length === 0 || contents[contents.length - 1].role !== msg.role) {
-      contents.push({
-        "role": msg.role,
-        "parts": [
-          {
-            "text": msg.content
-          }
-        ]
-      });
+      contents.push(renderGeminiMessage(msg));
     } else {
       contents[contents.length - 1].parts[0].text += msg.content;
     }
@@ -1853,34 +1869,44 @@ async function requestCompletionsFromGeminiAI(message, prompt, history, context,
 function isMistralAIEnable(context) {
   return !!context.USER_CONFIG.MISTRAL_API_KEY;
 }
-async function requestCompletionsFromMistralAI(message, prompt, history, context, onStream) {
+async function requestCompletionsFromMistralAI(params, context, onStream) {
+  const { message, prompt, history } = params;
   const url = `${context.USER_CONFIG.MISTRAL_API_BASE}/chat/completions`;
+  const header2 = {
+    "Content-Type": "application/json",
+    "Authorization": `Bearer ${context.USER_CONFIG.MISTRAL_API_KEY}`
+  };
+  const messages = [...history || [], { role: "user", content: message }];
   const model = context.USER_CONFIG.MISTRAL_CHAT_MODEL;
-  const messages = [...history || []];
   if (prompt) {
-    messages.push({ role: context.USER_CONFIG.SYSTEM_INIT_MESSAGE_ROLE, content: prompt });
+    messages.unshift({ role: context.USER_CONFIG.SYSTEM_INIT_MESSAGE_ROLE, content: prompt });
   }
-  messages.push({ role: "user", content: message });
   const body = {
     model,
     messages,
     stream: onStream != null
   };
-  const header = {
-    "Content-Type": "application/json",
-    "Authorization": `Bearer ${context.USER_CONFIG.MISTRAL_API_KEY}`
-  };
-  return requestChatCompletions(url, header, body, context, onStream);
+  return requestChatCompletions(url, header2, body, context, onStream);
 }
 
 // src/agent/cohere.js
 function isCohereAIEnable(context) {
   return !!context.USER_CONFIG.COHERE_API_KEY;
 }
-async function requestCompletionsFromCohereAI(message, prompt, history, context, onStream) {
+var COHERE_ROLE_MAP = {
+  "assistant": "CHATBOT",
+  "user": "USER"
+};
+function renderCohereMessage(item) {
+  return {
+    role: COHERE_ROLE_MAP[item.role],
+    content: item.content
+  };
+}
+async function requestCompletionsFromCohereAI(params, context, onStream) {
+  const { message, prompt, history } = params;
   const url = `${context.USER_CONFIG.COHERE_API_BASE}/chat`;
-  const model = context.USER_CONFIG.COHERE_CHAT_MODEL;
-  const header = {
+  const header2 = {
     "Authorization": `Bearer ${context.USER_CONFIG.COHERE_API_KEY}`,
     "Content-Type": "application/json",
     "Accept": onStream !== null ? "text/event-stream" : "application/json"
@@ -1889,27 +1915,12 @@ async function requestCompletionsFromCohereAI(message, prompt, history, context,
     "assistant": "CHATBOT",
     "user": "USER"
   };
-  let connectors = [];
-  Object.entries(ENV.COHERE_CONNECT_TRIGGER).forEach(([id, triggers]) => {
-    const result = triggers.some((trigger) => {
-      const triggerRegex = new RegExp(trigger, "i");
-      return triggerRegex.test(message);
-    });
-    if (result)
-      connectors.push({ id });
-  });
   const body = {
     message,
-    model,
+    model: context.USER_CONFIG.COHERE_CHAT_MODEL,
     stream: onStream != null,
     preamble: prompt,
-    chat_history: history.map((msg) => {
-      return {
-        role: roleMap[msg.role],
-        message: msg.content
-      };
-    }),
-    ...connectors.length && { connectors }
+    chat_history: history.map(renderCohereMessage)
   };
   if (!body.preamble) {
     delete body.preamble;
@@ -1927,25 +1938,150 @@ async function requestCompletionsFromCohereAI(message, prompt, history, context,
   options.errorExtractor = function(data) {
     return data?.message;
   };
-  return requestChatCompletions(url, header, body, context, onStream, null, options);
+  return requestChatCompletions(url, header2, body, context, onStream, null, options);
+}
+
+// src/utils/cache.js
+var Cache = class {
+  constructor() {
+    this.maxItems = 10;
+    this.maxAge = 1e3 * 60 * 60;
+    this.cache = {};
+  }
+  /**
+   * @param {string} key 
+   * @param {any} value 
+   */
+  set(key, value) {
+    this.trim();
+    this.cache[key] = {
+      value,
+      time: Date.now()
+    };
+  }
+  /**
+   * @param {string} key 
+   * @returns {any}
+   */
+  get(key) {
+    this.trim();
+    return this.cache[key]?.value;
+  }
+  /**
+   * @private
+   */
+  trim() {
+    let keys = Object.keys(this.cache);
+    for (const key of keys) {
+      if (Date.now() - this.cache[key].time > this.maxAge) {
+        delete this.cache[key];
+      }
+    }
+    keys = Object.keys(this.cache);
+    if (keys.length > this.maxItems) {
+      keys.sort((a, b) => this.cache[a].time - this.cache[b].time);
+      for (let i = 0; i < keys.length - this.maxItems; i++) {
+        delete this.cache[keys[i]];
+      }
+    }
+  }
+};
+
+// src/utils/image.js
+var IMAGE_CACHE = new Cache();
+async function fetchImage(url) {
+  if (IMAGE_CACHE[url]) {
+    return IMAGE_CACHE.get(url);
+  }
+  return fetch(url).then((resp) => resp.arrayBuffer()).then((blob) => {
+    IMAGE_CACHE.set(url, blob);
+    return blob;
+  });
+}
+async function uploadImageToTelegraph(url) {
+  if (url.startsWith("https://telegra.ph")) {
+    return url;
+  }
+  const raw = await fetch(url).then((resp2) => resp2.arrayBuffer());
+  const formData = new FormData();
+  formData.append("file", new Blob([raw]), "blob");
+  const resp = await fetch("https://telegra.ph/upload", {
+    method: "POST",
+    body: formData
+  });
+  let [{ src }] = await resp.json();
+  src = `https://telegra.ph${src}`;
+  IMAGE_CACHE.set(url, raw);
+  return src;
+}
+async function urlToBase64String(url) {
+  try {
+    const { Buffer: Buffer2 } = await import("node:buffer");
+    return fetchImage(url).then((buffer) => Buffer2.from(buffer).toString("base64"));
+  } catch {
+    return fetchImage(url).then((buffer) => btoa(String.fromCharCode.apply(null, new Uint8Array(buffer))));
+  }
+}
+function getImageFormatFromBase64(base64String) {
+  const firstChar = base64String.charAt(0);
+  switch (firstChar) {
+    case "/":
+      return "jpeg";
+    case "i":
+      return "png";
+    case "R":
+      return "gif";
+    case "U":
+      return "webp";
+    default:
+      throw new Error("Unsupported image format");
+  }
+}
+async function imageToBase64String2(url) {
+  const base64String = await urlToBase64String(url);
+  const format = getImageFormatFromBase64(base64String);
+  return {
+    data: base64String,
+    format: `image/${format}`
+  };
 }
 
 // src/agent/anthropic.js
 function isAnthropicAIEnable(context) {
   return !!context.USER_CONFIG.ANTHROPIC_API_KEY;
 }
-async function requestCompletionsFromAnthropicAI(message, prompt, history, context, onStream) {
+async function renderAnthropicMessage(item) {
+  const res = {
+    role: item.role,
+    content: item.content
+  };
+  if (item.images && item.images.length > 0) {
+    res.content = [];
+    if (item.content) {
+      res.content.push({ type: "text", text: item.content });
+    }
+    for (const image of item.images) {
+      res.content.push(await imageToBase64String2(image).then(({ format, data }) => {
+        return { type: "image", source: { type: "base64", media_type: format, data } };
+      }));
+    }
+  }
+  return res;
+}
+async function requestCompletionsFromAnthropicAI(params, context, onStream) {
+  const { message, images, prompt, history } = params;
   const url = `${context.USER_CONFIG.ANTHROPIC_API_BASE}/messages`;
   const model = context.USER_CONFIG.ANTHROPIC_CHAT_MODEL;
-  const header = {
+  const header2 = {
     "x-api-key": context.USER_CONFIG.ANTHROPIC_API_KEY,
     "anthropic-version": "2023-06-01",
     "content-type": "application/json"
   };
+  const messages = [...history || [], { role: "user", content: message, images }];
   const body = {
     system: prompt,
     model,
-    messages: [...history || [], { role: "user", content: message }],
+    messages: await Promise.all(messages.map(renderAnthropicMessage)),
     stream: onStream != null
   };
   if (!body.system) {
@@ -1964,7 +2100,7 @@ async function requestCompletionsFromAnthropicAI(message, prompt, history, conte
   options.errorExtractor = function(data) {
     return data?.error?.message;
   };
-  return requestChatCompletions(url, header, body, context, onStream, null, options);
+  return requestChatCompletions(url, header2, body, context, onStream, null, options);
 }
 
 // src/agent/azure.js
@@ -1977,28 +2113,24 @@ function isAzureEnable(context) {
 function isAzureImageEnable(context) {
   return !!(context.USER_CONFIG.AZURE_API_KEY && context.USER_CONFIG.AZURE_DALLE_API);
 }
-async function requestCompletionsFromAzureOpenAI(message, prompt, history, context, onStream) {
+async function requestCompletionsFromAzureOpenAI(params, context, onStream) {
+  const { message, images, prompt, history } = params;
   const url = context.USER_CONFIG.AZURE_PROXY_URL;
-  const messages = [...history || []];
+  const messages = [...history || [], { role: "user", content: message, images }];
   if (prompt) {
-    messages.push({ role: context.USER_CONFIG.SYSTEM_INIT_MESSAGE_ROLE, content: prompt });
+    messages.unshift({ role: context.USER_CONFIG.SYSTEM_INIT_MESSAGE_ROLE, content: prompt });
   }
-  messages.push({ role: "user", content: message });
   const extra_params = context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS;
   const body = {
     ...extra_params,
-    messages,
+    messages: await Promise.all(messages.map(renderOpenAIMessage)),
     stream: onStream != null
-  };
-  const header = {
-    "Content-Type": "application/json",
-    "api-key": azureKeyFromContext(context)
   };
   return requestChatCompletions(url, header, body, context, onStream);
 }
 async function requestImageFromAzureOpenAI(prompt, context) {
   const url = context.USER_CONFIG.AZURE_DALLE_API;
-  const header = {
+  const header2 = {
     "Content-Type": "application/json",
     "api-key": azureKeyFromContext(context)
   };
@@ -2015,7 +2147,7 @@ async function requestImageFromAzureOpenAI(prompt, context) {
   }
   const resp = await fetch(url, {
     method: "POST",
-    headers: header,
+    headers: header2,
     body: JSON.stringify(body)
   }).then((res) => res.json());
   if (resp.error?.message) {
@@ -2277,7 +2409,14 @@ async function extractMessageType(message, botToken) {
   }
   let file_id = null;
   if (fileType == "photo") {
-    file_id = msg[fileType]?.at(-2)?.file_id;
+    let sizeIndex = 0;
+    if (ENV.TELEGRAM_PHOTO_SIZE_OFFSET >= 0) {
+      sizeIndex = ENV.TELEGRAM_PHOTO_SIZE_OFFSET;
+    } else if (ENV.TELEGRAM_PHOTO_SIZE_OFFSET < 0) {
+      sizeIndex = msg.photo.length + ENV.TELEGRAM_PHOTO_SIZE_OFFSET;
+    }
+    sizeIndex = Math.max(0, Math.min(sizeIndex, msg.photo.length - 1));
+    file_id = msg.photo[sizeIndex].file_id;
   } else {
     file_id = msg[fileType]?.file_id || null;
   }
@@ -2289,12 +2428,14 @@ async function extractMessageType(message, botToken) {
     msgText: message.text || message.caption
   };
   if (file_id) {
-    const file_url = await getFileUrl(file_id, botToken);
+    let file_url = await getFileUrl(file_id, botToken);
     if (!file_url) {
-      console.log("[FILE FAILED]: " + msgType);
       throw new Error("file url get failed.");
     }
-    info.file_url = `${ENV.TELEGRAM_API_DOMAIN}/file/bot${botToken}/${file_url}`;
+    if (ENV.TELEGRAPH_ENABLE) {
+      file_url = await uploadImageToTelegraph(file_url);
+    }
+    info.file_url = file_url;
     console.log("file url: " + info.file_url);
   }
   return info;
@@ -2404,7 +2545,7 @@ Token: ${Object.values(this.token_info[this.step_index - 1]).join(" | ")}`;
       this.call_info += "\n" + message;
     }
   }
-  // x修改mode
+  // 修改mode
   config(name, value = null) {
     if (name === "mode") {
       this.processes = this._bp_config.MODES[value][this.msg_type];
@@ -2503,11 +2644,11 @@ function markdownToTelegraphNodes(markdown) {
     if (line.startsWith("#")) {
       let level = line.match(/^#+/)[0].length;
       level = level <= 2 ? 3 : 4;
-      const text = line.replace(/^#+\s*/, "");
-      nodes.push({ tag: `h${level}`, children: processInlineElements(text) });
+      const text2 = line.replace(/^#+\s*/, "");
+      nodes.push({ tag: `h${level}`, children: processInlineElements(text2) });
     } else if (line.startsWith("> ")) {
-      const text = line.slice(2);
-      nodes.push({ tag: "blockquote", children: processInlineElements(text) });
+      const text2 = line.slice(2);
+      nodes.push({ tag: "blockquote", children: processInlineElements(text2) });
     } else if (line === "---" || line === "***") {
       nodes.push({ tag: "hr" });
     } else {
@@ -2532,7 +2673,7 @@ function markdownToTelegraphNodes(markdown) {
   }
   return nodes;
 }
-function processInlineElementsHelper(text) {
+function processInlineElementsHelper(text2) {
   let children = [];
   const boldRegex = /\*\*(.+?)\*\*/g;
   const underlineRegex = /__(.+?)__/g;
@@ -2540,9 +2681,9 @@ function processInlineElementsHelper(text) {
   const strikethroughRegex = /~~(.+?)~~/g;
   let tagMatch = null;
   let lastIndex = 0;
-  while ((tagMatch = boldRegex.exec(text) || underlineRegex.exec(text) || italicRegex.exec(text) || strikethroughRegex.exec(text)) !== null) {
+  while ((tagMatch = boldRegex.exec(text2) || underlineRegex.exec(text2) || italicRegex.exec(text2) || strikethroughRegex.exec(text2)) !== null) {
     if (tagMatch.index > lastIndex) {
-      children.push(text.slice(lastIndex, tagMatch.index));
+      children.push(text2.slice(lastIndex, tagMatch.index));
     }
     let tag = "";
     if (tagMatch[0].startsWith("**")) {
@@ -2561,8 +2702,8 @@ function processInlineElementsHelper(text) {
     lastIndex = tagMatch.index + tagMatch[0].length;
     boldRegex.lastIndex = underlineRegex.lastIndex = italicRegex.lastIndex = strikethroughRegex.lastIndex = lastIndex;
   }
-  if (lastIndex < text.length) {
-    children.push(text.slice(lastIndex));
+  if (lastIndex < text2.length) {
+    children.push(text2.slice(lastIndex));
   }
   children = children.map((child) => {
     if (typeof child === "string") {
@@ -2590,14 +2731,14 @@ function processInlineElementsHelper(text) {
   });
   return children.flat();
 }
-function processInlineElements(text) {
+function processInlineElements(text2) {
   let children = [];
   const codeRegex = /`([^`]+)`/g;
   let codeMatch;
   let lastIndex = 0;
-  while ((codeMatch = codeRegex.exec(text)) !== null) {
+  while ((codeMatch = codeRegex.exec(text2)) !== null) {
     if (codeMatch.index > lastIndex) {
-      children.push(...processInlineElementsHelper(text.slice(lastIndex, codeMatch.index)));
+      children.push(...processInlineElementsHelper(text2.slice(lastIndex, codeMatch.index)));
     }
     children.push({
       tag: "code",
@@ -2605,8 +2746,8 @@ function processInlineElements(text) {
     });
     lastIndex = codeMatch.index + codeMatch[0].length;
   }
-  if (lastIndex < text.length) {
-    children.push(...processInlineElementsHelper(text.slice(lastIndex)));
+  if (lastIndex < text2.length) {
+    children.push(...processInlineElementsHelper(text2.slice(lastIndex)));
   }
   return children.flat();
 }
@@ -2672,57 +2813,86 @@ function sendTelegraphWithContext(context) {
 }
 
 // src/agent/llm.js
+function tokensCounter() {
+  return (text2) => {
+    return text2.length;
+  };
+}
 async function loadHistory(key) {
   let history = [];
   try {
     history = JSON.parse(await DATABASE.get(key) || "[]");
-    history = history.map((item) => {
-      return {
-        role: item.role,
-        content: item.content
-      };
-    });
   } catch (e) {
     console.error(e);
   }
   if (!history || !Array.isArray(history)) {
     history = [];
   }
+  const counter = tokensCounter();
+  const trimHistory = (list, initLength, maxLength, maxToken) => {
+    if (maxLength >= 0 && list.length > maxLength) {
+      list = list.splice(list.length - maxLength);
+    }
+    if (maxToken > 0) {
+      let tokenLength = initLength;
+      for (let i = list.length - 1; i >= 0; i--) {
+        const historyItem = list[i];
+        let length = 0;
+        if (historyItem.content) {
+          length = counter(historyItem.content);
+        } else {
+          historyItem.content = "";
+        }
+        tokenLength += length;
+        if (tokenLength > maxToken) {
+          list = list.splice(i + 1);
+          break;
+        }
+      }
+    }
+    return list;
+  };
+  if (ENV.AUTO_TRIM_HISTORY && ENV.MAX_HISTORY_LENGTH > 0) {
+    history = trimHistory(history, 0, ENV.MAX_HISTORY_LENGTH, ENV.MAX_TOKEN_LENGTH);
+  }
   return history;
 }
-async function requestCompletionsFromLLM(text, prompt, context, llm, modifier, onStream) {
-  const historyDisable = ENV.MAX_HISTORY_LENGTH <= 0;
+async function requestCompletionsFromLLM(params, context, llm, modifier, onStream) {
+  const historyDisable = ENV.AUTO_TRIM_HISTORY && ENV.MAX_HISTORY_LENGTH <= 0;
   const historyKey = context.SHARE_CONTEXT.chatHistoryKey;
+  let { message, images } = params;
   const readStartTime = performance.now();
-  let history = [];
-  if (!historyDisable) {
-    history = await loadHistory(historyKey);
-  }
+  let history = await loadHistory(historyKey);
   const readTime = ((performance.now() - readStartTime) / 1e3).toFixed(2);
   console.log(`readHistoryTime: ${readTime}s`);
   if (modifier) {
-    const modifierData = modifier(history, text);
+    const modifierData = modifier(history, message);
     history = modifierData.history;
-    text = modifierData.text;
+    params.message = modifierData.message;
   }
-  let answer = await llm(text, prompt, history, context, onStream);
-  if (context._info.lastStepHasFile) {
-    text = "[A FILE] " + text;
+  const llmParams = {
+    ...params,
+    history,
+    prompt: context.USER_CONFIG.SYSTEM_INIT_MESSAGE
+  };
+  let answer = await llm(llmParams, context, onStream);
+  if (images) {
+    message = "[A FILE] " + message;
   }
   if (typeof answer === "object") {
-    text = answer.q;
+    message = answer.q;
     answer = answer.a;
   }
   if (!historyDisable && answer) {
-    history.push({ role: "user", content: text || "" });
+    history.push({ role: "user", content: message || "" });
     history.push({ role: "assistant", content: answer });
     await DATABASE.put(historyKey, JSON.stringify(history)).catch(console.error);
   }
   return answer;
 }
-async function chatWithLLM(text, context, modifier, pointerLLM = loadChatLLM) {
+async function chatWithLLM(params, context, modifier, pointerLLM = loadChatLLM) {
   try {
-    text = context._info.isFirstStep ? text : context._info.lastStep.text;
+    params.message = context._info.isFirstStep ? params.message : context._info.lastStep.text;
     const parseMode = context.CURRENT_CHAT_CONTEXT.parse_mode;
     try {
       if (context._info.lastStepHasFile) {
@@ -2744,7 +2914,7 @@ async function chatWithLLM(text, context, modifier, pointerLLM = loadChatLLM) {
     let onStream = null;
     let nextEnableTime = null;
     const sendHandler = (() => {
-      const question = text;
+      const question = params.message;
       const telegraph_prefix = `#Question
 \`\`\`
 ${question?.length > 400 ? question.slice(0, 200) + "..." + question.slice(-200) : question}
@@ -2818,7 +2988,7 @@ ${context._info.message_title}
     }
     const prompt = context.USER_CONFIG.SYSTEM_INIT_MESSAGE;
     console.log(`[START] Chat via ${llm.name}`);
-    const answer = await requestCompletionsFromLLM(text, prompt, context, llm, modifier, onStream);
+    const answer = await requestCompletionsFromLLM(params, context, llm, modifier, onStream);
     if (!answer) {
       return sendMessageToTelegramWithContext(context)("None response");
     }
@@ -3322,8 +3492,8 @@ others: ${customInfo(context.USER_CONFIG)}
   return sendMessageToTelegramWithContext(context)(msg);
 }
 async function commandRegenerate(message, command, subcommand, context) {
-  const mf = (history, text) => {
-    let nextText = text;
+  const mf = (history, text2) => {
+    let nextText = text2;
     if (!(history && Array.isArray(history) && history.length > 0)) {
       throw new Error("History not found");
     }
@@ -3333,7 +3503,7 @@ async function commandRegenerate(message, command, subcommand, context) {
       if (data === void 0 || data === null) {
         break;
       } else if (data.role === "user") {
-        if (text === "" || text === void 0 || text === null) {
+        if (text2 === "" || text2 === void 0 || text2 === null) {
           nextText = data.content;
         }
         break;
@@ -3659,10 +3829,11 @@ async function msgHandleCommand(message, context) {
   return await handleCommandMessage(message, context);
 }
 async function msgChatWithLLM(message, context) {
-  let text = (message.text || message.caption || "").trim();
+  let content = (message.text || message.caption || "").trim();
   if (ENV.EXTRA_MESSAGE_CONTEXT && (context.SHARE_CONTEXT.extraMessageContext?.text || context.SHARE_CONTEXT.extraMessageContext?.caption)) {
-    text = "> " + (context.SHARE_CONTEXT.extraMessageContext?.text || "") + (context.SHARE_CONTEXT.extraMessageContext?.caption || "") + "\n" + text;
+    content = "> " + (context.SHARE_CONTEXT.extraMessageContext?.text || "") + (context.SHARE_CONTEXT.extraMessageContext?.caption || "") + "\n" + text;
   }
+  const params = { message: content };
   try {
     let result = null;
     for (let i = 0; i < context._info.process_count; i++) {
@@ -3670,9 +3841,12 @@ async function msgChatWithLLM(message, context) {
         return result;
       }
       context._info.initProcess(context.USER_CONFIG);
+      if (["image", "photo"].indexOf(context._info.file[i].type) > -1) {
+        params.images = [context._info.file[i].url];
+      }
       switch (context._info.process_type) {
         case "text:text":
-          result = await chatWithLLM(text, context, null);
+          result = await chatWithLLM(params, context, null);
           break;
         case "text:image":
           {
@@ -3695,7 +3869,7 @@ async function msgChatWithLLM(message, context) {
           result = await chatViaFileWithLLM(context);
           break;
         case "image:text":
-          result = await chatWithLLM(text, context, null, loadVisionLLM);
+          result = await chatWithLLM(params, context, null, loadVisionLLM);
           break;
         case "audio:audio":
         case "text:audio":
@@ -3705,6 +3879,7 @@ async function msgChatWithLLM(message, context) {
       if (context.CURRENT_CHAT_CONTEXT.message_id && !ENV.HIDE_MIDDLE_MESSAGE) {
         context.CURRENT_CHAT_CONTEXT.message_id = null;
       }
+      delete params.images;
     }
   } catch (e) {
     console.error(e);
@@ -3712,21 +3887,20 @@ async function msgChatWithLLM(message, context) {
   }
   return new Response("success", { status: 200 });
 }
-async function loadMessage(request, context) {
-  const raw = await request.json();
-  if (raw.edited_message) {
+function loadMessage(body) {
+  if (body?.edited_message) {
     throw new Error("Ignore edited message");
   }
-  if (raw.message) {
-    return raw.message;
+  if (body?.message) {
+    return body?.message;
   } else {
     throw new Error("Invalid message");
   }
 }
-async function handleMessage(request) {
+async function handleMessage(token, body) {
   const context = new Context();
-  context.initTelegramContext(request);
-  const message = await loadMessage(request, context);
+  context.initTelegramContext(token);
+  const message = loadMessage(body);
   const handlers = [
     // 初始化聊天上下文: 生成chat_id, reply_to_message_id(群组消息), SHARE_CONTEXT
     msgInitChatContext,
@@ -3769,35 +3943,142 @@ async function handleMessage(request) {
   return null;
 }
 
-// src/tools/scheduleTask.js
-async function schedule_detele_message(env) {
-  try {
-    initEnv(env);
-    const scheduleDeteleKey = "schedule_detele_message";
-    const scheduledData = JSON.parse(await DATABASE.get(scheduleDeteleKey) || "{}");
-    for (const [bot_name, chats] of Object.entries(scheduledData)) {
-      const bot_index = ENV.TELEGRAM_BOT_NAME.indexOf(bot_name);
-      if (bot_index < 0)
-        throw new Error("bot name is invalid");
-      const bot_token = ENV.TELEGRAM_AVAILABLE_TOKENS[bot_index];
-      if (!bot_token)
-        throw new Error("bot token is null");
-      for (const [chat_id, messages] of Object.entries(chats)) {
-        const expired_msgs = messages.filter((msg) => msg.ttl <= /* @__PURE__ */ new Date()).map((msg) => msg.id);
-        scheduledData[bot_name][chat_id] = messages.filter((msg) => msg.ttl > /* @__PURE__ */ new Date());
-        await deleteMessagesFromTelegram(chat_id, bot_token, expired_msgs);
+// src/utils/router.js
+var Router = class {
+  constructor({ base = "", routes = [], ...other } = {}) {
+    this.routes = routes;
+    this.base = base;
+    Object.assign(this, other);
+  }
+  /**
+   * @private
+   * @param {URLSearchParams} searchParams 
+   * @returns {object}
+   */
+  parseQueryParams(searchParams) {
+    const query = /* @__PURE__ */ Object.create(null);
+    for (const [k, v] of searchParams) {
+      query[k] = k in query ? [].concat(query[k], v) : v;
+    }
+    return query;
+  }
+  /**
+   * @private
+   * @param {string} path 
+   * @returns {string}
+   */
+  normalizePath(path) {
+    return path.replace(/\/+(\/|$)/g, "$1");
+  }
+  /**
+   * @private
+   * @param {string} path 
+   * @returns {RegExp}
+   */
+  createRouteRegex(path) {
+    return RegExp(`^${path.replace(/(\/?\.?):(\w+)\+/g, "($1(?<$2>*))").replace(/(\/?\.?):(\w+)/g, "($1(?<$2>[^$1/]+?))").replace(/\./g, "\\.").replace(/(\/?)\*/g, "($1.*)?")}/*$`);
+  }
+  /**
+   * @param {Request} request 
+   * @param  {...any} args 
+   * @returns {Promise<Response|null>}
+   */
+  async fetch(request, ...args) {
+    const url = new URL(request.url);
+    const reqMethod = request.method.toUpperCase();
+    request.query = this.parseQueryParams(url.searchParams);
+    for (const [method, regex, handlers, path] of this.routes) {
+      let match = null;
+      if ((method === reqMethod || method === "ALL") && (match = url.pathname.match(regex))) {
+        request.params = match?.groups || {};
+        request.route = path;
+        for (const handler of handlers) {
+          const response = await handler(request.proxy ?? request, ...args);
+          if (response != null)
+            return response;
+        }
       }
     }
-    await DATABASE.put(scheduleDeteleKey, JSON.stringify(scheduledData));
-    return new Response('{ok:"true", message:"\u5B9A\u65F6\u4EFB\u52A1\u6267\u884C\u6210\u529F"}', { headers: { "Content-Type": "application/json" } });
-  } catch (e) {
-    console.error(e.message);
-    return new Response(`{ok:"false", message:"\u5B9A\u65F6\u4EFB\u52A1\u6267\u884C\u5931\u8D25"}`, { headers: { "Content-Type": "application/json" } });
   }
-}
-var scheduleTask_default = { schedule_detele_message };
+  /**
+   * @param {string} method 
+   * @param {string} path 
+   * @param  {...any} handlers 
+   * @returns {Router}
+   */
+  route(method, path, ...handlers) {
+    const route = this.normalizePath(this.base + path);
+    const regex = this.createRouteRegex(route);
+    this.routes.push([method.toUpperCase(), regex, handlers, route]);
+    return this;
+  }
+  /**
+   * @param {string} path 
+   * @param  {...any} handlers 
+   * @returns {Router}
+   */
+  get(path, ...handlers) {
+    return this.route("GET", path, ...handlers);
+  }
+  /**
+   * @param {string} path 
+   * @param  {...any} handlers 
+   * @returns {Router}
+   */
+  post(path, ...handlers) {
+    return this.route("POST", path, ...handlers);
+  }
+  /**
+   * @param {string} path 
+   * @param  {...any} handlers 
+   * @returns {Router}
+   */
+  put(path, ...handlers) {
+    return this.route("PUT", path, ...handlers);
+  }
+  /**
+   * @param {string} path 
+   * @param  {...any} handlers 
+   * @returns {Router}
+   */
+  delete(path, ...handlers) {
+    return this.route("DELETE", path, ...handlers);
+  }
+  /**
+   * @param {string} path 
+   * @param  {...any} handlers 
+   * @returns {Router}
+   */
+  patch(path, ...handlers) {
+    return this.route("PATCH", path, ...handlers);
+  }
+  /**
+   * @param {string} path 
+   * @param  {...any} handlers 
+   * @returns {Router}
+   */
+  head(path, ...handlers) {
+    return this.route("HEAD", path, ...handlers);
+  }
+  /**
+   * @param {string} path 
+   * @param  {...any} handlers 
+   * @returns {Router}
+   */
+  options(path, ...handlers) {
+    return this.route("OPTIONS", path, ...handlers);
+  }
+  /**
+   * @param {string} path 
+   * @param  {...any} handlers 
+   * @returns {Router}
+   */
+  all(path, ...handlers) {
+    return this.route("ALL", path, ...handlers);
+  }
+};
 
-// src/router.js
+// src/route.js
 var helpLink = "https://github.com/TBXark/ChatGPT-Telegram-Workers/blob/master/doc/en/DEPLOY.md";
 var issueLink = "https://github.com/TBXark/ChatGPT-Telegram-Workers/issues";
 var initLink = "./init";
@@ -3815,7 +4096,6 @@ async function bindWebHookAction(request) {
   const hookMode = API_GUARD ? "safehook" : "webhook";
   for (const token of ENV.TELEGRAM_AVAILABLE_TOKENS) {
     const url = `https://${domain}/telegram/${token.trim()}/${hookMode}`;
-    console.log(`webhook url: ${url}`);
     const id = token.split(":")[0];
     result[id] = {
       webhook: await bindTelegramWebHook(token, url).catch((e) => errorToString(e)),
@@ -3838,7 +4118,9 @@ async function bindWebHookAction(request) {
 }
 async function telegramWebhook(request) {
   try {
-    return await makeResponse200(await handleMessage(request));
+    const { token } = request.params;
+    const body = await request.json();
+    return makeResponse200(await handleMessage(token, body));
   } catch (e) {
     console.error(e);
     return new Response(errorToString(e), { status: 200 });
@@ -3853,7 +4135,7 @@ async function telegramSafeHook(request) {
     const url = new URL(request.url);
     url.pathname = url.pathname.replace("/safehook", "/webhook");
     request = new Request(url, request);
-    return await makeResponse200(await API_GUARD.fetch(request));
+    return makeResponse200(await API_GUARD.fetch(request));
   } catch (e) {
     console.error(e);
     return new Response(errorToString(e), { status: 200 });
@@ -3899,39 +4181,17 @@ async function loadBotInfo() {
   `);
   return new Response(HTML, { status: 200, headers: { "Content-Type": "text/html" } });
 }
-async function executeScheduleTask(request) {
-  const taskname = request.body.taskname;
-  if (!taskname || Object.keys(scheduleTask_default).includes(taskname) < 0) {
-    return new Response(`taskname ${taskname} is not exist.`, { status: 400 });
-  }
-  const token = request.body.token;
-  if (!ENV.TELEGRAM_AVAILABLE_TOKENS.includes(token))
-    return new Response("Token is invalid.", { status: 403 });
-  return await scheduleTask_default[taskname]();
-}
 async function handleRequest(request) {
-  const { pathname } = new URL(request.url);
-  if (pathname === `/`) {
-    return defaultIndexAction();
-  }
-  if (pathname.startsWith(`/init`)) {
-    return bindWebHookAction(request);
-  }
-  if (pathname.startsWith(`/telegram`) && pathname.endsWith(`/webhook`)) {
-    return telegramWebhook(request);
-  }
-  if (pathname.startsWith(`/telegram`) && pathname.endsWith(`/safehook`)) {
-    return telegramSafeHook(request);
-  }
-  if (pathname.startsWith(`executeScheduleTask`)) {
-    return executeScheduleTask(request);
-  }
+  const router = new Router();
+  router.get("/", defaultIndexAction);
+  router.get("/init", bindWebHookAction);
+  router.post("/telegram/:token/webhook", telegramWebhook);
+  router.post("/telegram/:token/safehook", telegramSafeHook);
   if (ENV.DEV_MODE || ENV.DEBUG_MODE) {
-    if (pathname.startsWith(`/telegram`) && pathname.endsWith(`/bot`)) {
-      return loadBotInfo();
-    }
+    router.get("/telegram/:token/bot", loadBotInfo);
   }
-  return null;
+  router.all("*", () => new Response("Not Found", { status: 404 }));
+  return router.fetch(request);
 }
 
 // src/i18n/zh-hans.js
@@ -4085,8 +4345,7 @@ var main_default = {
     try {
       env.tools = { ...env.tools || {}, jina_reader };
       initEnv(env, i18n);
-      const resp = await handleRequest(request);
-      return resp || new Response("NOTFOUND", { status: 404 });
+      return await handleRequest(request);
     } catch (e) {
       console.error(e);
       return new Response(errorToString(e), { status: 500 });

@@ -198,6 +198,14 @@ class Environment {
     TELEGRAM_AVAILABLE_TOKENS = [];
     // 默认消息模式
     DEFAULT_PARSE_MODE = 'MarkdownV2';
+    // 最小stream模式消息间隔，小于等于0则不限制
+    TELEGRAM_MIN_STREAM_INTERVAL = -1;
+    // 图片尺寸偏移 0为第一位，-1为最后一位, 越靠后的图片越大。PS: 图片过大可能导致token消耗过多，或者workers超时或内存不足
+    // 默认选择次低质量的图片
+    TELEGRAM_PHOTO_SIZE_OFFSET = -2;
+    // 向LLM优先传递图片方式：url, base64
+    TELEGRAM_IMAGE_TRANSFER_MODE = 'url';
+
 
     // --  权限相关 --
     //
@@ -228,6 +236,16 @@ class Environment {
     // 群组机器人共享模式,关闭后，一个群组只有一个会话和配置。开启的话群组的每个人都有自己的会话上下文
     GROUP_CHAT_BOT_SHARE_MODE = false;
 
+    // -- 历史记录相关 --
+    //
+    // 为了避免4096字符限制，将消息删减
+    AUTO_TRIM_HISTORY = true;
+    // 最大历史记录长度
+    MAX_HISTORY_LENGTH = 20;
+    // 最大消息长度
+    MAX_TOKEN_LENGTH = -1;
+
+
     // -- 特性开关 --
     //
     // 隐藏部分命令按钮
@@ -236,6 +254,8 @@ class Environment {
     SHOW_REPLY_BUTTON = false;
     // 额外引用消息开关
     EXTRA_MESSAGE_CONTEXT = false;
+    // 开启Telegraph图床
+    TELEGRAPH_ENABLE = false;
 
     // -- 模式开关 --
     //
@@ -288,12 +308,6 @@ class Environment {
     TELEGRAPH_AUTHOR_URL = '';
 }
 
-export const ENV_KEY_MAPPER = {
-    CHAT_MODEL: 'OPENAI_CHAT_MODEL',
-    API_KEY: 'OPENAI_API_KEY',
-    WORKERS_AI_MODEL: 'WORKERS_CHAT_MODEL',
-};
-
 
 // Environment Variables: Separate configuration values from a Worker script with Environment Variables.
 export const ENV = new Environment();
@@ -323,6 +337,17 @@ const ENV_TYPES = {
     ANTHROPIC_API_KEY: 'string',
 };
 
+export const ENV_KEY_MAPPER = {
+    CHAT_MODEL: 'OPENAI_CHAT_MODEL',
+    API_KEY: 'OPENAI_API_KEY',
+    WORKERS_AI_MODEL: 'WORKERS_CHAT_MODEL',
+};
+
+/**
+ *
+ * @param {string} raw
+ * @returns {string[]}
+ */
 function parseArray(raw) {
     if (raw.startsWith('[') && raw.endsWith(']')) {
         try {
@@ -334,6 +359,11 @@ function parseArray(raw) {
     return raw.split(',');
 }
 
+/**
+ *
+ * @param {object} target
+ * @param {object} source
+ */
 export function mergeEnvironment(target, source) {
     const sourceKeys = new Set(Object.keys(source));
     for (const key of Object.keys(target)) {

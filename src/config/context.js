@@ -3,7 +3,7 @@ import '../types/telegram.js';
 
 /**
  * @param {UserConfigType} userConfig
- * @return {object}
+ * @returns {object}
  */
 export function trimUserConfig(userConfig) {
     const config = {
@@ -86,9 +86,9 @@ export class Context {
     }
 
     //
+
     /**
      * 初始化用户配置
-     *
      * @inner
      * @param {string | null} storeKey
      */
@@ -111,18 +111,13 @@ export class Context {
 
 
     /**
-     * @param {Request} request
+     * @param {string} token
      */
-    initTelegramContext(request) {
-        const {pathname} = new URL(request.url);
-        const token = pathname.match(
-            /^\/telegram\/(\d+:[A-Za-z0-9_-]{35})\/webhook/,
-        )[1];
+    initTelegramContext(token) {
         const telegramIndex = ENV.TELEGRAM_AVAILABLE_TOKENS.indexOf(token);
         if (telegramIndex === -1) {
             throw new Error('Token not allowed');
         }
-
         this.SHARE_CONTEXT.currentBotToken = token;
         this.SHARE_CONTEXT.currentBotId = token.split(':')[0];
         if (ENV.TELEGRAM_BOT_NAME.length > telegramIndex) {
@@ -174,7 +169,7 @@ export class Context {
 
         // 标记群组消息
         if (CONST.GROUP_TYPES.includes(message.chat?.type)) {
-            if (!ENV.GROUP_CHAT_BOT_SHARE_MODE && message.from.id) {
+            if (ENV.GROUP_CHAT_BOT_SHARE_MODE && message.from.id) {
                 historyKey += `:${message.from.id}`;
                 configStoreKey += `:${message.from.id}`;
             }
@@ -194,7 +189,7 @@ export class Context {
 
     /**
      * @param {TelegramMessage} message
-     * @return {Promise<void>}
+     * @returns {Promise<void>}
      */
     async initContext(message) {
         // 按顺序初始化上下文

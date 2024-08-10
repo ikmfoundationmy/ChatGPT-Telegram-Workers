@@ -337,18 +337,20 @@ async function msgHandleCommand(message, context) {
  * @return {Promise<Response>}
  */
 async function msgChatWithLLM(message, context) {
-  let text = (message.text || message.caption || '').trim();
+  let content = (message.text || message.caption || '').trim();
   if (
     ENV.EXTRA_MESSAGE_CONTEXT &&
     (context.SHARE_CONTEXT.extraMessageContext?.text || context.SHARE_CONTEXT.extraMessageContext?.caption)
   ) {
-    text =
+    content =
       '> ' +
       (context.SHARE_CONTEXT.extraMessageContext?.text || '') +
       (context.SHARE_CONTEXT.extraMessageContext?.caption || '') +
       '\n' +
       text;
   }
+
+  const params = { message: content };
 
   // 与LLM交互
   try {
@@ -359,9 +361,12 @@ async function msgChatWithLLM(message, context) {
         return result;
       }
       context._info.initProcess(context.USER_CONFIG);
+      if (['image', 'photo'].indexOf(context._info.file[i].type) > - 1) {
+        params.images = [context._info.file[i].url];
+      }
       switch (context._info.process_type) {
         case 'text:text':
-          result = await chatWithLLM(text, context, null);
+          result = await chatWithLLM(params, context, null);
           break;
         case 'text:image':
           {
@@ -384,7 +389,7 @@ async function msgChatWithLLM(message, context) {
           result = await chatViaFileWithLLM(context);
           break;
         case 'image:text':
-          result = await chatWithLLM(text, context, null, loadVisionLLM);
+          result = await chatWithLLM(params, context, null, loadVisionLLM);
           break;
         case 'audio:audio':
         case 'text:audio':
@@ -396,6 +401,8 @@ async function msgChatWithLLM(message, context) {
       if (context.CURRENT_CHAT_CONTEXT.message_id && !ENV.HIDE_MIDDLE_MESSAGE) {
         context.CURRENT_CHAT_CONTEXT.message_id = null;
       }
+      delete params.images;
+
     }
   } catch (e) {
     console.error(e);
@@ -408,25 +415,18 @@ async function msgChatWithLLM(message, context) {
 
 /**
  * 加载真实TG消息
- *
- * @param {Request} request
- * @param {ContextType} context
- * @return {Promise<TelegramMessage>}
+ * @param {TelegramWebhookRequest} body
+ * @returns {TelegramMessage}
  */
-// eslint-disable-next-line no-unused-vars
-async function loadMessage(request, context) {
-    /**
-     * @type {TelegramWebhookRequest}
-     */
-    const raw = await request.json();
-    if (raw.edited_message) {
-        throw new Error('Ignore edited message');
-    }
-    if (raw.message) {
-        return raw.message;
-    } else {
-        throw new Error('Invalid message');
-    }
+function loadMessage(body) {
+  if (body?.edited_message) {
+      throw new Error('Ignore edited message');
+  }
+  if (body?.message) {
+      return body?.message;
+  } else {
+      throw new Error('Invalid message');
+  }
 }
 
 // async function scheduledDeleteMessage(request, context) {
@@ -456,14 +456,14 @@ async function loadMessage(request, context) {
 
 /**
  * 处理消息
- *
- * @param {Request} request
- * @return {Promise<Response|null>}
+ * @param {string} token
+ * @param {TelegramWebhookRequest} body
+ * @returns {Promise<Response|null>}
  */
-export async function handleMessage(request) {
-    const context = new Context();
-    context.initTelegramContext(request);
-    const message = await loadMessage(request, context);
+export async function handleMessage(token, body) {
+  const context = new Context();
+  context.initTelegramContext(token);
+  const message = loadMessage(body);
 
     // 中间件定义 function (message: TelegramMessage, context: Context): Promise<Response|null>
     // 1. 当函数抛出异常时，结束消息处理，返回异常信息

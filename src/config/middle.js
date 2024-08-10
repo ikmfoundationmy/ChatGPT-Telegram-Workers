@@ -1,5 +1,6 @@
 import { ENV } from "./env.js";
 import { getFileUrl } from '../telegram/telegram.js';
+import {uploadImageToTelegraph} from "../utils/image.js";
 
 /**
  * 提取消息类型与文件url
@@ -50,8 +51,15 @@ async function extractMessageType(message, botToken) {
   }
   let file_id = null;
   if (fileType == 'photo') {
+    let sizeIndex = 0;
+    if (ENV.TELEGRAM_PHOTO_SIZE_OFFSET >= 0) {
+      sizeIndex = ENV.TELEGRAM_PHOTO_SIZE_OFFSET;
+    } else if (ENV.TELEGRAM_PHOTO_SIZE_OFFSET < 0) {
+      sizeIndex = msg.photo.length + ENV.TELEGRAM_PHOTO_SIZE_OFFSET;
+    }
+    sizeIndex = Math.max(0, Math.min(sizeIndex, msg.photo.length - 1));
     // 取第二个
-    file_id = msg[fileType]?.at(-2)?.file_id /*|| msg[fileType]?.file_id*/;
+    file_id = msg.photo[sizeIndex].file_id;
   } else {
     file_id = msg[fileType]?.file_id || null;
   }
@@ -63,12 +71,16 @@ async function extractMessageType(message, botToken) {
     msgText: message.text || message.caption,
   };
   if (file_id) {
-    const file_url = await getFileUrl(file_id, botToken);
+    let file_url = await getFileUrl(file_id, botToken);
     if (!file_url) {
-      console.log('[FILE FAILED]: ' + msgType);
       throw new Error('file url get failed.');
     }
-    info.file_url = `${ENV.TELEGRAM_API_DOMAIN}/file/bot${botToken}/${file_url}`;
+    
+    if (ENV.TELEGRAPH_ENABLE) {
+      file_url = await uploadImageToTelegraph(file_url);
+    }
+
+    info.file_url = file_url;
     console.log("file url: " + info.file_url);
   }
 
@@ -197,7 +209,7 @@ export class MiddleInfo {
     } 
     
   }
-  // x修改mode
+  // 修改mode
   config(name, value = null) {
     if (name === 'mode') {
       this.processes = this._bp_config.MODES[value][this.msg_type];

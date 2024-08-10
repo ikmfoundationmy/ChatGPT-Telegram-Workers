@@ -13,7 +13,5 @@
     "chatgpt-telegram-workers": "github:adolphnov/ChatGPT-Telegram-Workers#test",
     "cloudflare-worker-adapter": "github:adolphnov/cloudflare-worker-adapter"
   },
-  "devDependencies": {
-    "esbuild": "^0.17.12"
-  }
+  "devDependencies": {}
 }
