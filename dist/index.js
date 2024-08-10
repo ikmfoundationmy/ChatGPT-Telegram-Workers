@@ -152,9 +152,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1723313350;
+  BUILD_TIMESTAMP = 1723313922;
   // 当前版本 commit id
-  BUILD_VERSION = "15a9828";
+  BUILD_VERSION = "0e0ae66";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -2432,7 +2432,7 @@ async function extractMessageType(message, botToken) {
     if (!file_url) {
       throw new Error("file url get failed.");
     }
-    if (ENV.TELEGRAPH_ENABLE) {
+    if (ENV.TELEGRAPH_ENABLE && fileType === "photo") {
       file_url = await uploadImageToTelegraph(file_url);
     }
     info.file_url = file_url;

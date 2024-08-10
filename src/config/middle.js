@@ -76,7 +76,7 @@ async function extractMessageType(message, botToken) {
       throw new Error('file url get failed.');
     }
     
-    if (ENV.TELEGRAPH_ENABLE) {
+    if (ENV.TELEGRAPH_ENABLE && fileType === 'photo') {
       file_url = await uploadImageToTelegraph(file_url);
     }
 
