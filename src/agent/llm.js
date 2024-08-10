@@ -134,7 +134,8 @@ export async function chatWithLLM(text, context, modifier, pointerLLM = loadChat
               text.length > ENV.TELEGRAPH_NUM_LIMIT &&
               ENV.ENABLE_TELEGRAPH && CONST.GROUP_TYPES.includes(context.SHARE_CONTEXT.chatType)
             ) {
-                let telegraph_suffix = `\n---\n\`\`\`\ndebug info:\n\n${ENV.CALL_INFO ? '' : context._info.call_info.replace('$$f_t$$', '') + '\n'}${context._info.message_title}\n\`\`\``;
+                const debug_info = `debug info:\n${ENV.CALL_INFO ? '' : context._info.call_info.replace('$$f_t$$', '') + '\n'}${context._info.token_info.length > 0 ? 'Token:' + context._info.token_info : ''}`;
+                const telegraph_suffix = `\n---\n\`\`\`\n${debug_info}\n${context._info.message_title}\n\`\`\``;
               if (first_time_than) {
                 const resp = await sendTelegraphWithContext(context)(
                   null,
@@ -144,9 +145,9 @@ export async function chatWithLLM(text, context, modifier, pointerLLM = loadChat
                 const url = `https://telegra.ph/${context.SHARE_CONTEXT.telegraphPath}`;
                 const msg = `回答已经转换成完整文章~\n[🔗点击进行查看](${url})`;
                   const show_info_tag = context.USER_CONFIG.ENABLE_SHOWINFO;
-                  context.USER_CONFIG.ENABLE_SHOWINFO = false;
+                  context._info.config('show_info', false);
                 await sendMessageToTelegramWithContext(context)(msg);
-                context.USER_CONFIG.ENABLE_SHOWINFO = show_info_tag;
+                context._info.config("show_info", show_info_tag);
                 first_time_than = false;
                 return resp;
               }
@@ -253,6 +254,7 @@ export async function chatViaFileWithLLM(context) {
             return sendMessageToTelegramWithContext(context)(`LLM is not enable`);
         }
         const startTime = performance.now();
+        context._info.updateStartTime();
         const answer = await llm(raw, file_name, context);
         if (!answer.ok) {
             console.error(answer.message);

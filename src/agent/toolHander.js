@@ -11,6 +11,7 @@ import tools_settings from '../prompt/tools.js';
  * @return {Promise<Response>}
  */
 export async function handleOpenaiFunctionCall(url, header, body, prompt, context, onStream) {
+  let final_tool_type = null;
   try {
     const filter_tools = context.USER_CONFIG.USE_TOOLS.filter((i) => Object.keys(ENV.TOOLS).includes(i)).map((t) => ENV.TOOLS[t]);
     if (filter_tools.length > 0) {
@@ -63,7 +64,6 @@ export async function handleOpenaiFunctionCall(url, header, body, prompt, contex
       const original_question = body.messages.at(-1).content;
       const stopLoopType = 'web_crawler';
       const INFO_LENGTH_LIMIT = 80;
-      let final_tool_type = null;
       let chatPromise = Promise.resolve();
 
       while (call_times > 0 && call_body.tools.length > 0) {
@@ -169,7 +169,7 @@ export async function handleOpenaiFunctionCall(url, header, body, prompt, contex
     return { type: 'continue' };
   } catch (e) {
     console.error(e.message);
-    body.messages[0].content = context.USER_CONFIG.SYSTEM_INIT_MESSAGE;
+    if (final_tool_type) body.messages[0].content = tools_settings[final_tool_type].prompt;
     return { type: 'continue', message: e.message };
   }
 }

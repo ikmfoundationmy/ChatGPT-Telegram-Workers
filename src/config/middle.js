@@ -129,7 +129,7 @@ export class MiddleInfo {
   }
 
   setToken(prompt, complete) {
-    this.token_info[this.step_index] = { prompt, complete };
+    this.token_info[this.step_index - 1] = { prompt, complete };
   }
 
   get process_count() {
@@ -150,17 +150,15 @@ export class MiddleInfo {
     }
     const step_count = this.process_count;
     const stepInfo = step_count > 1 ? `[STEP ${this.step_index}/${step_count}]\n` : '';
-    if (!this._bp_config.ENABLE_SHOWINFO) {
-      return stepInfo.trim();
-    }
     const time = ((new Date() - this.process_start_time[this.step_index]) / 1000).toFixed(1);
 
     let call_info = '';
     if (ENV.CALL_INFO) call_info = (this.call_info && (this.call_info + '\n')).replace('$$f_t$$', '');
 
     let info = stepInfo + call_info + `${this.model} ${time}s`;
-    if (this._bp_config.ENABLE_SHOWTOKEN && this.token_info[this.step_index]) {
-      info += `\nToken: ${Object.values(this.token_info[this.step_index]).join(' | ')}`;
+    const show_info = this.processes?.[this.step_index - 1]?.show_info || this._bp_config.ENABLE_SHOWINFO;
+    if (show_info && this.token_info[this.step_index - 1]) {
+      info += `\nToken: ${Object.values(this.token_info[this.step_index - 1]).join(' | ')}`;
     }
     return info;
   }
@@ -180,7 +178,7 @@ export class MiddleInfo {
   }
   get provider() {
     if (this.step_index > 0 && this.processes?.[this.step_index - 1]?.['provider'] ) {
-      return this._bp_config.PROVIDERS?.[this.processes[this.step_index]['provider']];
+      return this._bp_config.PROVIDERS?.[this.processes[this.step_index - 1]['provider']];
     }
     return null;
   }
@@ -204,6 +202,9 @@ export class MiddleInfo {
     if (name === 'mode') {
       this.processes = this._bp_config.MODES[value][this.msg_type];
     } // else this.processes[this.step_index][name] = value;
+    else if (name === 'show_info') {
+      this.processes[this.step_index - 1][name] = value;
+    }
   }
   updateStartTime() {
     this.process_start_time[this.step_index] = Date.now();
@@ -212,7 +213,6 @@ export class MiddleInfo {
   initProcess(USER_CONFIG) {
     console.log(`Init step ${this.step_index + 1}.`);
 
-    // this.process_start_time.push(new Date());
     this.step_index++;
     if (this.step_index > 1) {
       USER_CONFIG = this._bp_config;
@@ -243,13 +243,7 @@ export class MiddleInfo {
       this.model = USER_CONFIG[`${USER_CONFIG.AI_PROVIDER.toUpperCase()}_${chatType}_MODEL`] || USER_CONFIG[`OPENAI_${chatType}_MODEL`];
     }
 
-    // const user_keys = Object.keys(USER_CONFIG);
-
     for (const [key, value] of Object.entries(this.processes[this.step_index - 1])) {
-      // if (user_keys.includes(key)) {
-      //   USER_CONFIG[key] = value;
-      //   continue;
-      // }
       switch (key) {
         case 'prompt':
           USER_CONFIG.SYSTEM_INIT_MESSAGE = ENV.PROMPT[value] || value;

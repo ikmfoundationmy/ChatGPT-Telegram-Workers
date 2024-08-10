@@ -153,9 +153,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1723224190;
+  BUILD_TIMESTAMP = 1723266518;
   // 当前版本 commit id
-  BUILD_VERSION = "8faab72";
+  BUILD_VERSION = "5beae95";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -1465,6 +1465,7 @@ ${result}`
 
 // src/agent/toolHander.js
 async function handleOpenaiFunctionCall(url, header, body, prompt, context, onStream) {
+  let final_tool_type = null;
   try {
     const filter_tools = context.USER_CONFIG.USE_TOOLS.filter((i) => Object.keys(ENV.TOOLS).includes(i)).map((t) => ENV.TOOLS[t]);
     if (filter_tools.length > 0) {
@@ -1511,7 +1512,6 @@ async function handleOpenaiFunctionCall(url, header, body, prompt, context, onSt
       const original_question = body.messages.at(-1).content;
       const stopLoopType = "web_crawler";
       const INFO_LENGTH_LIMIT = 80;
-      let final_tool_type = null;
       let chatPromise = Promise.resolve();
       while (call_times > 0 && call_body.tools.length > 0) {
         const start_time = /* @__PURE__ */ new Date();
@@ -1615,7 +1615,8 @@ async function handleOpenaiFunctionCall(url, header, body, prompt, context, onSt
     return { type: "continue" };
   } catch (e) {
     console.error(e.message);
-    body.messages[0].content = context.USER_CONFIG.SYSTEM_INIT_MESSAGE;
+    if (final_tool_type)
+      body.messages[0].content = tools_default[final_tool_type].prompt;
     return { type: "continue", message: e.message };
   }
 }
@@ -2341,7 +2342,7 @@ var MiddleInfo = class {
     return new MiddleInfo(USER_CONFIG, msg_info);
   }
   setToken(prompt, complete) {
-    this.token_info[this.step_index] = { prompt, complete };
+    this.token_info[this.step_index - 1] = { prompt, complete };
   }
   get process_count() {
     return this.processes.length;
@@ -2359,17 +2360,15 @@ var MiddleInfo = class {
     const step_count = this.process_count;
     const stepInfo = step_count > 1 ? `[STEP ${this.step_index}/${step_count}]
 ` : "";
-    if (!this._bp_config.ENABLE_SHOWINFO) {
-      return stepInfo.trim();
-    }
     const time = ((/* @__PURE__ */ new Date() - this.process_start_time[this.step_index]) / 1e3).toFixed(1);
     let call_info = "";
     if (ENV.CALL_INFO)
       call_info = (this.call_info && this.call_info + "\n").replace("$$f_t$$", "");
     let info = stepInfo + call_info + `${this.model} ${time}s`;
-    if (this._bp_config.ENABLE_SHOWTOKEN && this.token_info[this.step_index]) {
+    const show_info = this.processes?.[this.step_index - 1]?.show_info || this._bp_config.ENABLE_SHOWINFO;
+    if (show_info && this.token_info[this.step_index - 1]) {
       info += `
-Token: ${Object.values(this.token_info[this.step_index]).join(" | ")}`;
+Token: ${Object.values(this.token_info[this.step_index - 1]).join(" | ")}`;
     }
     return info;
   }
@@ -2390,7 +2389,7 @@ Token: ${Object.values(this.token_info[this.step_index]).join(" | ")}`;
   }
   get provider() {
     if (this.step_index > 0 && this.processes?.[this.step_index - 1]?.["provider"]) {
-      return this._bp_config.PROVIDERS?.[this.processes[this.step_index]["provider"]];
+      return this._bp_config.PROVIDERS?.[this.processes[this.step_index - 1]["provider"]];
     }
     return null;
   }
@@ -2412,6 +2411,8 @@ Token: ${Object.values(this.token_info[this.step_index]).join(" | ")}`;
   config(name, value = null) {
     if (name === "mode") {
       this.processes = this._bp_config.MODES[value][this.msg_type];
+    } else if (name === "show_info") {
+      this.processes[this.step_index - 1][name] = value;
     }
   }
   updateStartTime() {
@@ -2763,12 +2764,13 @@ ${question?.length > 400 ? question.slice(0, 200) + "..." + question.slice(-200)
       };
       return async (text2) => {
         if (text2.length > ENV.TELEGRAPH_NUM_LIMIT && ENV.ENABLE_TELEGRAPH && CONST.GROUP_TYPES.includes(context.SHARE_CONTEXT.chatType)) {
-          let telegraph_suffix = `
+          const debug_info = `debug info:
+${ENV.CALL_INFO ? "" : context._info.call_info.replace("$$f_t$$", "") + "\n"}${context._info.token_info.length > 0 ? "Token:" + context._info.token_info : ""}`;
+          const telegraph_suffix = `
 ---
 \`\`\`
-debug info:
-
-${ENV.CALL_INFO ? "" : context._info.call_info.replace("$$f_t$$", "") + "\n"}${context._info.message_title}
+${debug_info}
+${context._info.message_title}
 \`\`\``;
           if (first_time_than) {
             const resp = await sendTelegraphWithContext(context)(
@@ -2780,9 +2782,9 @@ ${ENV.CALL_INFO ? "" : context._info.call_info.replace("$$f_t$$", "") + "\n"}${c
             const msg = `\u56DE\u7B54\u5DF2\u7ECF\u8F6C\u6362\u6210\u5B8C\u6574\u6587\u7AE0~
 [\u{1F517}\u70B9\u51FB\u8FDB\u884C\u67E5\u770B](${url})`;
             const show_info_tag = context.USER_CONFIG.ENABLE_SHOWINFO;
-            context.USER_CONFIG.ENABLE_SHOWINFO = false;
+            context._info.config("show_info", false);
             await sendMessageToTelegramWithContext(context)(msg);
-            context.USER_CONFIG.ENABLE_SHOWINFO = show_info_tag;
+            context._info.config("show_info", show_info_tag);
             first_time_than = false;
             return resp;
           }
@@ -2878,6 +2880,7 @@ async function chatViaFileWithLLM(context) {
       return sendMessageToTelegramWithContext(context)(`LLM is not enable`);
     }
     const startTime = performance.now();
+    context._info.updateStartTime();
     const answer = await llm(raw, file_name, context);
     if (!answer.ok) {
       console.error(answer.message);
