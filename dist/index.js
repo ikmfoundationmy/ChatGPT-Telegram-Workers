@@ -153,9 +153,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1723266518;
+  BUILD_TIMESTAMP = 1723299614;
   // 当前版本 commit id
-  BUILD_VERSION = "5beae95";
+  BUILD_VERSION = "4035f15";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -1007,20 +1007,17 @@ async function getBot(token) {
     return resp;
   }
 }
-async function getFileInfo(file_id, token) {
-  const resp = await fetchWithRetry(`${ENV.TELEGRAM_API_DOMAIN}/bot${token}/getFile?file_id=${file_id}`, {
+async function getFileUrl(file_id, token) {
+  const resp = await fetch(`${ENV.TELEGRAM_API_DOMAIN}/bot${token}/getFile?file_id=${file_id}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
     }
   }).then((r) => r.json());
-  if (resp.ok) {
-    return {
-      ok: true,
-      file_path: resp.result.file_path
-    };
+  if (resp.ok && resp.result.file_path) {
+    return resp.result.file_path;
   }
-  return resp;
+  return "";
 }
 
 // src/agent/stream.js
@@ -2292,12 +2289,12 @@ async function extractMessageType(message, botToken) {
     msgText: message.text || message.caption
   };
   if (file_id) {
-    const file_info = await getFileInfo(file_id, botToken);
-    if (!file_info.file_path) {
+    const file_url = await getFileUrl(file_id, botToken);
+    if (!file_url) {
       console.log("[FILE FAILED]: " + msgType);
       throw new Error("file url get failed.");
     }
-    info.file_url = `${ENV.TELEGRAM_API_DOMAIN}/file/bot${botToken}/${file_info.file_path}`;
+    info.file_url = `${ENV.TELEGRAM_API_DOMAIN}/file/bot${botToken}/${file_url}`;
     console.log("file url: " + info.file_url);
   }
   return info;
@@ -2365,7 +2362,7 @@ var MiddleInfo = class {
     if (ENV.CALL_INFO)
       call_info = (this.call_info && this.call_info + "\n").replace("$$f_t$$", "");
     let info = stepInfo + call_info + `${this.model} ${time}s`;
-    const show_info = this.processes?.[this.step_index - 1]?.show_info || this._bp_config.ENABLE_SHOWINFO;
+    const show_info = this.processes[this.step_index - 1]?.show_info ?? this._bp_config.ENABLE_SHOWINFO;
     if (show_info && this.token_info[this.step_index - 1]) {
       info += `
 Token: ${Object.values(this.token_info[this.step_index - 1]).join(" | ")}`;

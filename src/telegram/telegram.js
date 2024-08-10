@@ -425,21 +425,18 @@ export async function getBot(token) {
  *  获取TG文件信息
  * @param {string} file_id
  * @param {string} token
- * @return {Promise<Response}
+ * @return {string}
  */
-export async function getFileInfo(file_id, token) {
-    const resp = await fetchWithRetry(`${ENV.TELEGRAM_API_DOMAIN}/bot${token}/getFile?file_id=${file_id}`, {
+export async function getFileUrl(file_id, token) {
+    const resp = await fetch(`${ENV.TELEGRAM_API_DOMAIN}/bot${token}/getFile?file_id=${file_id}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
     }).then(r => r.json());
-    if (resp.ok) {
-      return {
-        ok: true,
-        file_path: resp.result.file_path
-      };
+    if (resp.ok && resp.result.file_path) {
+      return resp.result.file_path;
     }
-    return resp;
+    return '';
   }
   

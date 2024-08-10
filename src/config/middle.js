@@ -1,5 +1,5 @@
 import { ENV } from "./env.js";
-import { getFileInfo } from '../telegram/telegram.js';
+import { getFileUrl } from '../telegram/telegram.js';
 
 /**
  * 提取消息类型与文件url
@@ -63,12 +63,12 @@ async function extractMessageType(message, botToken) {
     msgText: message.text || message.caption,
   };
   if (file_id) {
-    const file_info = await getFileInfo(file_id, botToken);
-    if (!file_info.file_path) {
+    const file_url = await getFileUrl(file_id, botToken);
+    if (!file_url) {
       console.log('[FILE FAILED]: ' + msgType);
       throw new Error('file url get failed.');
     }
-    info.file_url = `${ENV.TELEGRAM_API_DOMAIN}/file/bot${botToken}/${file_info.file_path}`;
+    info.file_url = `${ENV.TELEGRAM_API_DOMAIN}/file/bot${botToken}/${file_url}`;
     console.log("file url: " + info.file_url);
   }
 
@@ -156,7 +156,7 @@ export class MiddleInfo {
     if (ENV.CALL_INFO) call_info = (this.call_info && (this.call_info + '\n')).replace('$$f_t$$', '');
 
     let info = stepInfo + call_info + `${this.model} ${time}s`;
-    const show_info = this.processes?.[this.step_index - 1]?.show_info || this._bp_config.ENABLE_SHOWINFO;
+    const show_info = this.processes[this.step_index - 1]?.show_info ?? this._bp_config.ENABLE_SHOWINFO;
     if (show_info && this.token_info[this.step_index - 1]) {
       info += `\nToken: ${Object.values(this.token_info[this.step_index - 1]).join(' | ')}`;
     }
