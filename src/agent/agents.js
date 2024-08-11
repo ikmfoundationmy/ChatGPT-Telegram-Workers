@@ -119,7 +119,7 @@ export function chatModelKey(agentName) {
 export function customInfo(config) {
   const other_info = {
     mode: config.CURRENT_MODE,
-    prompt: config.SYSTEM_INIT_MESSAGE.slice(-10) + '...',
+    prompt: config.SYSTEM_INIT_MESSAGE.slice(0,20) + '...',
     'MAPPING_KEY': config.MAPPING_KEY,
     'MAPPING_VALUE': config.MAPPING_VALUE,
     'USE_TOOLS': config.USE_TOOLS,

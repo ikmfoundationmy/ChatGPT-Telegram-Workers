@@ -152,9 +152,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1723341853;
+  BUILD_TIMESTAMP = 1723354312;
   // 当前版本 commit id
-  BUILD_VERSION = "f6cee73";
+  BUILD_VERSION = "546c645";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -177,8 +177,8 @@ var Environment = class {
   TELEGRAM_AVAILABLE_TOKENS = [];
   // 默认消息模式
   DEFAULT_PARSE_MODE = "MarkdownV2";
-  // 最小stream模式消息间隔，小于等于0则不限制
-  TELEGRAM_MIN_STREAM_INTERVAL = -1;
+  // 最小stream模式消息间隔，小于等于0则不限制 不处理
+  // TELEGRAM_MIN_STREAM_INTERVAL = -1;
   // 图片尺寸偏移 0为第一位，-1为最后一位, 越靠后的图片越大。PS: 图片过大可能导致token消耗过多，或者workers超时或内存不足
   // 默认选择次低质量的图片
   TELEGRAM_PHOTO_SIZE_OFFSET = -2;
@@ -720,6 +720,114 @@ function delay(ms = 1e3) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// src/utils/cache.js
+var Cache = class {
+  constructor() {
+    this.maxItems = 10;
+    this.maxAge = 1e3 * 60 * 60;
+    this.cache = {};
+  }
+  /**
+   * @param {string} key 
+   * @param {any} value 
+   */
+  set(key, value) {
+    this.trim();
+    this.cache[key] = {
+      value,
+      time: Date.now()
+    };
+  }
+  /**
+   * @param {string} key 
+   * @returns {any}
+   */
+  get(key) {
+    this.trim();
+    return this.cache[key]?.value;
+  }
+  /**
+   * @private
+   */
+  trim() {
+    let keys = Object.keys(this.cache);
+    for (const key of keys) {
+      if (Date.now() - this.cache[key].time > this.maxAge) {
+        delete this.cache[key];
+      }
+    }
+    keys = Object.keys(this.cache);
+    if (keys.length > this.maxItems) {
+      keys.sort((a, b) => this.cache[a].time - this.cache[b].time);
+      for (let i = 0; i < keys.length - this.maxItems; i++) {
+        delete this.cache[keys[i]];
+      }
+    }
+  }
+};
+
+// src/utils/image.js
+var IMAGE_CACHE = new Cache();
+async function fetchImage(url) {
+  if (IMAGE_CACHE[url]) {
+    return IMAGE_CACHE.get(url);
+  }
+  return fetch(url).then((resp) => resp.arrayBuffer()).then((blob) => {
+    IMAGE_CACHE.set(url, blob);
+    return blob;
+  });
+}
+async function uploadImageToTelegraph(url) {
+  if (url.startsWith("https://telegra.ph")) {
+    return url;
+  }
+  const raw = await fetch(url).then((resp2) => resp2.arrayBuffer());
+  const formData = new FormData();
+  formData.append("file", new Blob([raw]), "blob");
+  const resp = await fetch("https://telegra.ph/upload", {
+    method: "POST",
+    body: formData
+  });
+  let [{ src }] = await resp.json();
+  src = `https://telegra.ph${src}`;
+  IMAGE_CACHE.set(url, raw);
+  return src;
+}
+async function urlToBase64String(url) {
+  try {
+    const { Buffer: Buffer2 } = await import("node:buffer");
+    return fetchImage(url).then((buffer) => Buffer2.from(buffer).toString("base64"));
+  } catch {
+    return fetchImage(url).then((buffer) => btoa(String.fromCharCode.apply(null, new Uint8Array(buffer))));
+  }
+}
+function getImageFormatFromBase64(base64String) {
+  const firstChar = base64String.charAt(0);
+  switch (firstChar) {
+    case "/":
+      return "jpeg";
+    case "i":
+      return "png";
+    case "R":
+      return "gif";
+    case "U":
+      return "webp";
+    default:
+      throw new Error("Unsupported image format");
+  }
+}
+async function imageToBase64String(url) {
+  const base64String = await urlToBase64String(url);
+  const format = getImageFormatFromBase64(base64String);
+  return {
+    data: base64String,
+    format: `image/${format}`
+  };
+}
+function renderBase64DataURI(params) {
+  return `data:${params.format};base64,${params.data}`;
+}
+
 // src/telegram/telegram.js
 async function sendMessage(message, token, context) {
   const body = {
@@ -855,6 +963,14 @@ async function sendPhotoToTelegram(photo, token, context, _info = null) {
   let body;
   const headers = {};
   if (typeof photo.url === "string") {
+    if (ENV.TELEGRAPH_IMAGE_ENABLE) {
+      try {
+        const new_url = await uploadImageToTelegraph(photo.url);
+        photo.url = new_url;
+      } catch (e) {
+        console.error(e.message);
+      }
+    }
     body = {
       photo: photo.url
     };
@@ -1612,114 +1728,6 @@ async function handleOpenaiFunctionCall(url, header2, body, prompt, context, onS
   }
 }
 
-// src/utils/cache.js
-var Cache = class {
-  constructor() {
-    this.maxItems = 10;
-    this.maxAge = 1e3 * 60 * 60;
-    this.cache = {};
-  }
-  /**
-   * @param {string} key 
-   * @param {any} value 
-   */
-  set(key, value) {
-    this.trim();
-    this.cache[key] = {
-      value,
-      time: Date.now()
-    };
-  }
-  /**
-   * @param {string} key 
-   * @returns {any}
-   */
-  get(key) {
-    this.trim();
-    return this.cache[key]?.value;
-  }
-  /**
-   * @private
-   */
-  trim() {
-    let keys = Object.keys(this.cache);
-    for (const key of keys) {
-      if (Date.now() - this.cache[key].time > this.maxAge) {
-        delete this.cache[key];
-      }
-    }
-    keys = Object.keys(this.cache);
-    if (keys.length > this.maxItems) {
-      keys.sort((a, b) => this.cache[a].time - this.cache[b].time);
-      for (let i = 0; i < keys.length - this.maxItems; i++) {
-        delete this.cache[keys[i]];
-      }
-    }
-  }
-};
-
-// src/utils/image.js
-var IMAGE_CACHE = new Cache();
-async function fetchImage(url) {
-  if (IMAGE_CACHE[url]) {
-    return IMAGE_CACHE.get(url);
-  }
-  return fetch(url).then((resp) => resp.arrayBuffer()).then((blob) => {
-    IMAGE_CACHE.set(url, blob);
-    return blob;
-  });
-}
-async function uploadImageToTelegraph(url) {
-  if (url.startsWith("https://telegra.ph")) {
-    return url;
-  }
-  const raw = await fetch(url).then((resp2) => resp2.arrayBuffer());
-  const formData = new FormData();
-  formData.append("file", new Blob([raw]), "blob");
-  const resp = await fetch("https://telegra.ph/upload", {
-    method: "POST",
-    body: formData
-  });
-  let [{ src }] = await resp.json();
-  src = `https://telegra.ph${src}`;
-  IMAGE_CACHE.set(url, raw);
-  return src;
-}
-async function urlToBase64String(url) {
-  try {
-    const { Buffer: Buffer2 } = await import("node:buffer");
-    return fetchImage(url).then((buffer) => Buffer2.from(buffer).toString("base64"));
-  } catch {
-    return fetchImage(url).then((buffer) => btoa(String.fromCharCode.apply(null, new Uint8Array(buffer))));
-  }
-}
-function getImageFormatFromBase64(base64String) {
-  const firstChar = base64String.charAt(0);
-  switch (firstChar) {
-    case "/":
-      return "jpeg";
-    case "i":
-      return "png";
-    case "R":
-      return "gif";
-    case "U":
-      return "webp";
-    default:
-      throw new Error("Unsupported image format");
-  }
-}
-async function imageToBase64String(url) {
-  const base64String = await urlToBase64String(url);
-  const format = getImageFormatFromBase64(base64String);
-  return {
-    data: base64String,
-    format: `image/${format}`
-  };
-}
-function renderBase64DataURI(params) {
-  return `data:${params.format};base64,${params.data}`;
-}
-
 // src/agent/openai.js
 function openAIKeyFromContext(context) {
   const length = context.USER_CONFIG.OPENAI_API_KEY.length;
@@ -1735,13 +1743,14 @@ async function renderOpenAIMessage(item) {
   };
   if (item.images && item.images.length > 0) {
     res.content = [];
-    if (item.content) {
-      res.content.push({ type: "text", text: item.content || "\u8BF7\u89E3\u8BFB\u8FD9\u5F20\u56FE" });
-    }
+    res.content.push({ type: "text", text: item.content || "\u8BF7\u89E3\u8BFB\u8FD9\u5F20\u56FE" });
     for (const image of item.images) {
       switch (ENV.TELEGRAM_IMAGE_TRANSFER_MODE) {
         case "base64":
-          res.content.push({ type: "image_url", url: renderBase64DataURI(await imageToBase64String(image)) });
+          res.content.push({
+            type: "image_url",
+            image_url: { url: renderBase64DataURI(await imageToBase64String(image)) }
+          });
           break;
         case "url":
         default:
@@ -1911,7 +1920,7 @@ async function requestImageFromWorkersAI(prompt, context) {
   const id = context.USER_CONFIG.CLOUDFLARE_ACCOUNT_ID;
   const token = context.USER_CONFIG.CLOUDFLARE_TOKEN;
   const raw = await run(context.USER_CONFIG.WORKERS_IMAGE_MODEL, { prompt }, id, token);
-  return await raw.blob();
+  return { url: await raw.blob() };
 }
 
 // src/agent/gemini.js
@@ -2160,7 +2169,7 @@ async function requestImageFromAzureOpenAI(prompt, context) {
   if (resp.error?.message) {
     throw new Error(resp.error.message);
   }
-  return resp?.data?.[0]?.url;
+  return { url: resp?.data?.[0]?.url };
 }
 
 // src/agent/agents.js
@@ -2249,7 +2258,7 @@ function chatModelKey(agentName) {
 function customInfo(config) {
   const other_info = {
     mode: config.CURRENT_MODE,
-    prompt: config.SYSTEM_INIT_MESSAGE.slice(-10) + "...",
+    prompt: config.SYSTEM_INIT_MESSAGE.slice(0, 20) + "...",
     "MAPPING_KEY": config.MAPPING_KEY,
     "MAPPING_VALUE": config.MAPPING_VALUE,
     "USE_TOOLS": config.USE_TOOLS,
@@ -2392,8 +2401,9 @@ async function extractMessageType(message, botToken) {
   }
   if (msgType === "text") {
     return {
-      msgType,
-      msgText: message.text || message.caption
+      msgType: "text",
+      fileType: "text",
+      text: message.text || message.caption
     };
   }
   let fileType = msgType;
@@ -2403,6 +2413,7 @@ async function extractMessageType(message, botToken) {
     fileType = "image";
   }
   if (msg?.document) {
+    msgType = "document";
     if (msg.document.mime_type.match(/image/)) {
       fileType = "image";
     } else if (msg.document.mime_type.match(/audio/)) {
@@ -2423,14 +2434,14 @@ async function extractMessageType(message, botToken) {
     sizeIndex = Math.max(0, Math.min(sizeIndex, msg.photo.length - 1));
     file_id = msg.photo[sizeIndex].file_id;
   } else {
-    file_id = msg[fileType]?.file_id || null;
+    file_id = msg[msgType]?.file_id || null;
   }
   const info = {
     msgType,
     fileType,
     /*hasText: !!(message.text || msg.text || message.caption || msg.caption),*/
     file_url: null,
-    msgText: message.text || message.caption
+    text: message.text || message.caption
   };
   if (file_id) {
     let file_url = await getFileUrl(file_id, botToken);
@@ -2446,9 +2457,9 @@ async function extractMessageType(message, botToken) {
   return info;
 }
 async function handleFile(_info) {
-  let { raw, url } = _info.lastStep;
+  let { raw, url, type } = _info.lastStep;
   const file_name = url?.split("/").pop();
-  if (!raw && _info.msg_type !== "image") {
+  if (!raw && type !== "image") {
     const file_resp = await fetch(url);
     if (file_resp.status !== 200) {
       throw new Error(`Get file failed: ${await file_resp.text()}`);
@@ -2461,7 +2472,7 @@ var MiddleInfo = class {
   constructor(USER_CONFIG, msg_info) {
     this.process_start_time = [/* @__PURE__ */ new Date()];
     this.token_info = [];
-    this.processes = USER_CONFIG.MODES[USER_CONFIG.CURRENT_MODE]?.[msg_info.msgType] || [{}];
+    this.processes = USER_CONFIG.MODES[USER_CONFIG.CURRENT_MODE]?.[msg_info.fileType] || [{}];
     this.step_index = 0;
     this.file = [
       {
@@ -2472,10 +2483,10 @@ var MiddleInfo = class {
       }
     ];
     this._bp_config = JSON.parse(JSON.stringify(USER_CONFIG));
-    this.msg_type = msg_info.msgType;
     this.process_type = null;
     this.call_info = "";
     this.model = null;
+    this.msg_type = msg_info.fileType;
   }
   static async initInfo(message, { USER_CONFIG, SHARE_CONTEXT: { currentBotToken } }) {
     const msg_info = await extractMessageType(message, currentBotToken);
@@ -2497,6 +2508,9 @@ var MiddleInfo = class {
     if (!this.model || this.step_index === 0 || !this.process_start_time[this.step_index]) {
       return "";
     }
+    const show_info = this.processes[this.step_index - 1]?.show_info ?? this._bp_config.ENABLE_SHOWINFO;
+    if (!show_info)
+      return "";
     const step_count = this.process_count;
     const stepInfo = step_count > 1 ? `[STEP ${this.step_index}/${step_count}]
 ` : "";
@@ -2505,8 +2519,7 @@ var MiddleInfo = class {
     if (ENV.CALL_INFO)
       call_info = (this.call_info && this.call_info + "\n").replace("$$f_t$$", "");
     let info = stepInfo + call_info + `${this.model} ${time}s`;
-    const show_info = this.processes[this.step_index - 1]?.show_info ?? this._bp_config.ENABLE_SHOWINFO;
-    if (show_info && this.token_info[this.step_index - 1]) {
+    if (this.token_info[this.step_index - 1]) {
       info += `
 Token: ${Object.values(this.token_info[this.step_index - 1]).join(" | ")}`;
     }
@@ -2519,9 +2532,10 @@ Token: ${Object.values(this.token_info[this.step_index - 1]).join(" | ")}`;
   }
   get lastStep() {
     if (this.step_index === 0) {
-      return { url: null, raw: null, text: null };
+      return {};
     }
     return {
+      type: this.file[this.step_index - 1].type,
       url: this.file[this.step_index - 1].url,
       raw: this.file[this.step_index - 1].raw,
       text: this.file[this.step_index - 1].text
@@ -2564,9 +2578,9 @@ Token: ${Object.values(this.token_info[this.step_index - 1]).join(" | ")}`;
     if (this.step_index > 1) {
       USER_CONFIG = this._bp_config;
     }
-    this.file[this.current_step_index] = null;
+    this.file[this.step_index] = null;
     this.model = this.processes[this.step_index - 1].model;
-    this.process_type = this.processes[this.step_index - 1].process_type || `${this.msg_type}:text`;
+    this.process_type = this.processes[this.step_index - 1].process_type || `${this.file[this.step_index - 1].type}:text`;
     let chatType = null;
     switch (this.process_type) {
       case "text:text":
@@ -3522,9 +3536,6 @@ async function commandEcho(message, command, subcommand, context) {
 }
 async function handleCommandMessage(message, context) {
   if (!message.text) {
-    if (!context._info.msg_type) {
-      return sendMessageToTelegramWithContext(context)("Not support the message ");
-    }
     return null;
   }
   if (ENV.DEV_MODE) {
@@ -3698,7 +3709,7 @@ async function msgFilterWhiteList(message, context) {
   );
 }
 async function msgFilterUnsupportedMessage(message, context) {
-  if (message.text || ENV.EXTRA_MESSAGE_CONTEXT && message.reply_to_message.text) {
+  if (message.text || ENV.EXTRA_MESSAGE_CONTEXT && message.reply_to_message?.text) {
     return null;
   }
   if (ENV.ENABLE_FILE && (message.voice || message.audio || message.photo || message.image || message.document)) {
@@ -3817,8 +3828,8 @@ async function msgIgnoreSpecificMessage(message) {
 async function msgInitMiddleInfo(message, context) {
   try {
     context._info = await MiddleInfo.initInfo(message, context);
-    if (context._info.msg_type && context._info.msg_type !== "text") {
-      const msg = await sendMessageToTelegramWithContext(context)("file url get success.").then((r) => r.json());
+    if (!message.text && !message.reply_to_message?.text) {
+      const msg = await sendMessageToTelegramWithContext(context)("file info get successful.").then((r) => r.json());
       context.CURRENT_CHAT_CONTEXT.message_id = msg.result.message_id;
     }
     return null;
@@ -3833,7 +3844,7 @@ async function msgHandleCommand(message, context) {
 async function msgChatWithLLM(message, context) {
   let content = (message.text || message.caption || "").trim();
   if (ENV.EXTRA_MESSAGE_CONTEXT && (context.SHARE_CONTEXT.extraMessageContext?.text || context.SHARE_CONTEXT.extraMessageContext?.caption)) {
-    content = "> " + (context.SHARE_CONTEXT.extraMessageContext?.text || "") + (context.SHARE_CONTEXT.extraMessageContext?.caption || "") + "\n" + text;
+    content = "> " + (context.SHARE_CONTEXT.extraMessageContext?.text || "") + (context.SHARE_CONTEXT.extraMessageContext?.caption || "") + "\n" + content;
   }
   const params = { message: content };
   try {

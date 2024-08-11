@@ -85,5 +85,5 @@ export async function requestImageFromAzureOpenAI(prompt, context) {
     if (resp.error?.message) {
         throw new Error(resp.error.message);
     }
-    return resp?.data?.[0]?.url;
+    return { url: resp?.data?.[0]?.url };
 }

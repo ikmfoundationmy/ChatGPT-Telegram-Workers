@@ -614,9 +614,6 @@ async function commandEcho(message, command, subcommand, context) {
  */
 export async function handleCommandMessage(message, context) {
   if (!message.text) {
-    if (!context._info.msg_type) {
-      return sendMessageToTelegramWithContext(context)('Not support the message ');
-    }
     return null;
   }
   if (ENV.DEV_MODE) {

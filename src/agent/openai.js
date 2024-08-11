@@ -34,19 +34,23 @@ export async function renderOpenAIMessage(item) {
     };
     if (item.images && item.images.length > 0) {
         res.content = [];
-        if (item.content) {
-            res.content.push({type: 'text', text: item.content || '请解读这张图'});
-        }
+        // if (item.content) {
+        //     res.content.push({type: 'text', text: item.content});
+      // }
+        res.content.push({type: 'text', text: item.content || '请解读这张图'});
         for (const image of item.images) {
-            switch (ENV.TELEGRAM_IMAGE_TRANSFER_MODE) {
-                case 'base64':
-                    res.content.push({type: 'image_url', url: renderBase64DataURI(await imageToBase64String(image))});
-                    break;
-                case 'url':
-                default:
-                    res.content.push({type: 'image_url', image_url: {url: image}});
-                    break;
-            }
+          switch (ENV.TELEGRAM_IMAGE_TRANSFER_MODE) {
+            case 'base64':
+              res.content.push({
+                type: 'image_url',
+                image_url: { url: renderBase64DataURI(await imageToBase64String(image)) },
+              });
+              break;
+            case 'url':
+            default:
+              res.content.push({ type: 'image_url', image_url: { url: image } });
+              break;
+          }
         }
     }
     return res;

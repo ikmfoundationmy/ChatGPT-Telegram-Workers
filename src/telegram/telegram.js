@@ -1,6 +1,7 @@
 import {DATABASE, ENV} from '../config/env.js';
 import { escape } from "../utils/md2tgmd.js";
 import { fetchWithRetry } from "../utils/utils.js";
+import { uploadImageToTelegraph } from "../utils/image.js";
 import "../types/context.js";
 
 /**
@@ -200,6 +201,14 @@ export async function sendPhotoToTelegram(photo, token, context, _info = null) {
   let body;
   const headers = {};
   if (typeof photo.url === 'string') {
+    if (ENV.TELEGRAPH_IMAGE_ENABLE) {
+      try {
+        const new_url = await uploadImageToTelegraph(photo.url);
+        photo.url = new_url;
+      } catch (e) {
+        console.error(e.message);
+      }
+    }
     body = {
       photo: photo.url,
     };
@@ -210,7 +219,6 @@ export async function sendPhotoToTelegram(photo, token, context, _info = null) {
     }
     body.parse_mode = 'MarkdownV2';
     let info = _info?.message_title || '';
-    // body.caption = '>`' + escape(info) + '`' + `\n[原始图片](${photo})`;
     photo.revised_prompt &&= 'revised prompt: ' + photo.revised_prompt;
     body.caption = '>`' + escape((info && info + '\n\n') + photo.revised_prompt) + '`' + `\n[原始图片](${photo.url})`;
 

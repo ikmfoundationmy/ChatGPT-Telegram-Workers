@@ -93,5 +93,5 @@ export async function requestImageFromWorkersAI(prompt, context) {
     const id = context.USER_CONFIG.CLOUDFLARE_ACCOUNT_ID;
     const token = context.USER_CONFIG.CLOUDFLARE_TOKEN;
     const raw = await run(context.USER_CONFIG.WORKERS_IMAGE_MODEL, {prompt}, id, token);
-    return await raw.blob();
+    return { url: await raw.blob() };
 }

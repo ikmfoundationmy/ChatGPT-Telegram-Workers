@@ -6,6 +6,7 @@ import {errorToString} from '../utils/utils.js';
 import { chatViaFileWithLLM, chatWithLLM } from '../agent/llm.js';
 import { loadImageGen, loadVisionLLM } from "../agent/agents.js";
 import { MiddleInfo } from "../config/middle.js";
+import { uploadImageToTelegraph } from "../utils/image.js";
 
 import '../types/telegram.js';
 
@@ -133,7 +134,7 @@ async function msgFilterWhiteList(message, context) {
  */
 // eslint-disable-next-line no-unused-vars
 async function msgFilterUnsupportedMessage(message, context) {
-  if (message.text || (ENV.EXTRA_MESSAGE_CONTEXT && message.reply_to_message.text)) {
+  if (message.text || (ENV.EXTRA_MESSAGE_CONTEXT && message.reply_to_message?.text)) {
     return null;
   }
   if (ENV.ENABLE_FILE && (message.voice || message.audio || message.photo || message.image || message.document)) {
@@ -310,8 +311,8 @@ async function msgIgnoreSpecificMessage(message) {
 async function msgInitMiddleInfo(message, context) {
   try {
     context._info = await MiddleInfo.initInfo(message, context);
-    if (!message.text) {
-      const msg = await sendMessageToTelegramWithContext(context)('file url get success.').then((r) => r.json());
+    if (!message.text && !message.reply_to_message?.text) {
+      const msg = await sendMessageToTelegramWithContext(context)('file info get successful.').then((r) => r.json());
       context.CURRENT_CHAT_CONTEXT.message_id = msg.result.message_id;
     }
     return null;

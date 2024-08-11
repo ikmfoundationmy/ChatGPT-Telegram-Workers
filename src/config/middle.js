@@ -38,6 +38,7 @@ async function extractMessageType(message, botToken) {
     fileType = 'image';
   }
   if (msg?.document) {
+    msgType = 'document';
     if (msg.document.mime_type.match(/image/)) {
       fileType = 'image';
     } else if (msg.document.mime_type.match(/audio/)) {
@@ -60,7 +61,7 @@ async function extractMessageType(message, botToken) {
     sizeIndex = Math.max(0, Math.min(sizeIndex, msg.photo.length - 1));
     file_id = msg.photo[sizeIndex].file_id;
   } else {
-    file_id = msg[fileType]?.file_id || null;
+    file_id = msg[msgType]?.file_id || null;
   }
   const info = {
     msgType,
@@ -91,9 +92,9 @@ async function extractMessageType(message, botToken) {
  * @return {Promise<Response>}
  */
 export async function handleFile(_info) {
-  let {raw, url} = _info.lastStep;
+  let {raw, url, type} = _info.lastStep;
   const file_name = url?.split('/').pop();
-  if (!raw && _info.msg_type !== 'image'){
+  if (!raw && type !== 'image'){
     const file_resp = await fetch(url);
     if (file_resp.status !== 200) {
       throw new Error(`Get file failed: ${await file_resp.text()}`);
@@ -111,7 +112,7 @@ export class MiddleInfo {
   constructor(USER_CONFIG, msg_info) {
     this.process_start_time = [new Date()];
     this.token_info = [];
-    this.processes = USER_CONFIG.MODES[USER_CONFIG.CURRENT_MODE]?.[msg_info.msgType] || [{}];
+    this.processes = USER_CONFIG.MODES[USER_CONFIG.CURRENT_MODE]?.[msg_info.fileType] || [{}];
     this.step_index = 0;
     this.file = [
       {
@@ -125,6 +126,7 @@ export class MiddleInfo {
     this.process_type = null;
     this.call_info = '';
     this.model = null;
+    this.msg_type = msg_info.fileType;
   }
 
   static async initInfo(message, { USER_CONFIG, SHARE_CONTEXT: { currentBotToken } }) {
@@ -152,6 +154,8 @@ export class MiddleInfo {
     if (!this.model || this.step_index === 0 || !this.process_start_time[this.step_index]) {
       return '';
     }
+    const show_info = this.processes[this.step_index - 1]?.show_info ?? this._bp_config.ENABLE_SHOWINFO;
+    if (!show_info) return '';
     const step_count = this.process_count;
     const stepInfo = step_count > 1 ? `[STEP ${this.step_index}/${step_count}]\n` : '';
     const time = ((new Date() - this.process_start_time[this.step_index]) / 1000).toFixed(1);
@@ -160,8 +164,8 @@ export class MiddleInfo {
     if (ENV.CALL_INFO) call_info = (this.call_info && (this.call_info + '\n')).replace('$$f_t$$', '');
 
     let info = stepInfo + call_info + `${this.model} ${time}s`;
-    const show_info = this.processes[this.step_index - 1]?.show_info ?? this._bp_config.ENABLE_SHOWINFO;
-    if (show_info && this.token_info[this.step_index - 1]) {
+    
+    if (this.token_info[this.step_index - 1]) {
       info += `\nToken: ${Object.values(this.token_info[this.step_index - 1]).join(' | ')}`;
     }
     return info;
@@ -172,9 +176,10 @@ export class MiddleInfo {
   }
   get lastStep() {
     if (this.step_index === 0) {
-      return { url: null, raw: null, text: null };
+      return {};
     }
     return {
+      type: this.file[this.step_index - 1].type,
       url: this.file[this.step_index - 1].url,
       raw: this.file[this.step_index - 1].raw,
       text: this.file[this.step_index - 1].text,
