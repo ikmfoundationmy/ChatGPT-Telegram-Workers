@@ -255,7 +255,7 @@ class Environment {
     // 额外引用消息开关
     EXTRA_MESSAGE_CONTEXT = false;
     // 开启Telegraph图床
-    TELEGRAPH_ENABLE = false;
+    TELEGRAPH_IMAGE_ENABLE = false;
 
     // -- 模式开关 --
     //
@@ -277,8 +277,6 @@ class Environment {
     // 
     // 是否读取文件类型消息(当前支持图片与音频)
     ENABLE_FILE = false;
-    // 是否下载图片，不开始时将以链接形式发送图片（链接包含bot token信息）
-    LOAD_IMAGE_FILE = true;
     // 群聊中回复对象默认为触发对象，开启时优先为被回复的对象
     ENABLE_REPLY_TO_MENTION = false;
     // 忽略指定文本开头的消息

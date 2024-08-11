@@ -2,6 +2,7 @@ import "../types/context.js";
 import {requestChatCompletions} from "./request.js";
 import {ENV} from "../config/env.js";
 import { handleOpenaiFunctionCall } from "../agent/toolHander.js";
+import { renderBase64DataURI, imageToBase64String} from "../utils/image.js";
 
 /**
  * @param {ContextType} context

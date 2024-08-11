@@ -43,18 +43,23 @@ export async function requestCompletionsFromCohereAI(params, context, onStream) 
         'Content-Type': 'application/json',
         'Accept': onStream !== null ? 'text/event-stream' : 'application/json',
     };
-
-    const roleMap = {
-        'assistant': 'CHATBOT',
-        'user': 'USER',
-    };
+  
+    let connectors = [];
+    Object.entries(ENV.COHERE_CONNECT_TRIGGER).forEach(([id, triggers]) => {
+      const result = triggers.some((trigger) => {
+        const triggerRegex = new RegExp(trigger, 'i');
+        return triggerRegex.test(message);
+      });
+      if (result) connectors.push({ id });
+    });
 
     const body = {
-        message,
-        model: context.USER_CONFIG.COHERE_CHAT_MODEL,
-        stream: onStream != null,
-        preamble: prompt,
-        chat_history: history.map(renderCohereMessage),
+      message,
+      model: context.USER_CONFIG.COHERE_CHAT_MODEL,
+      stream: onStream != null,
+      preamble: prompt,
+      chat_history: history.map(renderCohereMessage),
+      ...(connectors.length && { connectors }),
     };
     if (!body.preamble) {
         delete body.preamble;

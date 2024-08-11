@@ -24,18 +24,33 @@
 
 ### Telegram配置
 
-| KEY                       | 名称             | 默认值                         | 描述                                      |
-|---------------------------|----------------|-----------------------------|-----------------------------------------|
-| TELEGRAM_API_DOMAIN       | Telegram API域名 | `https://api.telegram.org/` | Telegram API的域名                         |
-| TELEGRAM_AVAILABLE_TOKENS | 可用的Telegram令牌  | `''//(array string)`                    | 允许访问的Telegram Token，设置时以逗号分隔            |
-| DEFAULT_PARSE_MODE        | 默认解析模式         | `Markdown`                  | 默认消息解析模式                                |
-| I_AM_A_GENEROUS_PERSON    | 允许所有人使用        | `false`                     | 是否允许所有人使用                               |
-| CHAT_WHITE_LIST           | 聊天白名单          | `''//(array string)`        | 允许使用的聊天ID白名单                            |
-| LOCK_USER_CONFIG_KEYS     | 锁定的用户配置键       | 默认值为所有API的URL               | 防止被替换导致token泄露的配置键                      |
-| TELEGRAM_BOT_NAME         | Telegram机器人名称  | `''//(array string)`        | 允许访问的Telegram Token对应的Bot Name，设置时以逗号分隔 |
-| CHAT_GROUP_WHITE_LIST     | 群组白名单          | `''//(array string)`        | 允许使用的群组ID白名单                            |
-| GROUP_CHAT_BOT_ENABLE     | 群组机器人开关        | `true`                      | 是否启用群组机器人                               |
-| GROUP_CHAT_BOT_SHARE_MODE | 群组机器人共享模式      | `false`                     | 开启后同个群组的人使用同一个聊天上下文                     |
+| KEY                       | 名称                 | 默认值                            | 描述                                                      |
+| ------------------------- | -------------------- | --------------------------------- | --------------------------------------------------------- |
+| TELEGRAM_API_DOMAIN       | Telegram API域名     | `https://api.telegram.org/`       | Telegram API的域名                                        |
+| TELEGRAM_AVAILABLE_TOKENS | 可用的Telegram令牌   | `''//(array string)`              | 允许访问的Telegram Token，设置时以逗号分隔                |
+| DEFAULT_PARSE_MODE        | 默认解析模式         | `Markdown`                        | 默认消息解析模式                                          |
+| I_AM_A_GENEROUS_PERSON    | 允许所有人使用       | `false`                           | 是否允许所有人使用                                        |
+| CHAT_WHITE_LIST           | 聊天白名单           | `''//(array string)`              | 允许使用的聊天ID白名单                                    |
+| LOCK_USER_CONFIG_KEYS     | 锁定的用户配置键     | 默认值为所有API的URL              | 防止被替换导致token泄露的配置键                           |
+| TELEGRAM_BOT_NAME         | Telegram机器人名称   | `''//(array string)`              | 允许访问的Telegram Token对应的Bot Name，设置时以逗号分隔  |
+| CHAT_GROUP_WHITE_LIST     | 群组白名单           | `''//(array string)`              | 允许使用的群组ID白名单                                    |
+| GROUP_CHAT_BOT_ENABLE     | 群组机器人开关       | `true`                            | 是否启用群组机器人                                        |
+| GROUP_CHAT_BOT_SHARE_MODE | 群组机器人共享模式   | `false`                           | 开启后同个群组的人使用同一个聊天上下文                    |
+| ---                       | ---                  | ---                               | ---                                                       |
+| 以下为新增变量            |                      |                                   |                                                           |
+| COHERE_CONNECT_TRIGGER    | cohere增加connector  | `{}(object)`                      | cohere模型增加web-search选项进行网页查询，速度较慢        |
+| ENABLE_FILE               | 开启文件读取功能     | `false`                           | 开启时可读取音频文件与图片文件                            |
+| ENABLE_REPLY_TO_MENTION   | 回复对象为被提及的人 | `false`                           | 当回复他人并触发机器人则回复对象为提及的人                |
+| IGNORE_TEXT               | 忽略文本             | `''`                              | 以关键字开头不会触发机器人对话                            |
+| ENABLE_SHOWINFO           | 开启附加信息         | `false`                           | 开启时，会在消息中插入模型数据与对话时间                  |
+| ENABLE_SHOWTOKEN          | 开启TOKEN信息显示    | `false`                           | 开启时，尝试读取结果中的token信息并显示在消息中           |
+| HIDE_MIDDLE_MESSAGE       | 隐藏中间信息         | `false`                           | 在多流程中，开启只会发送最后一步的结果                    |
+| CHAT_MESSAGE_TRIGGER      | 对话触发关键词       | `{}(object)`                      | 将关键词替换成对应的文本，可以简化某些操作                |
+| PROMPT                    | 提示词               | `{}(object)`                      | 使用set命令时会自动替换SYSTEM_INIT_MESSAGE                |
+| MAPPING_KEY               | /set命令 变量键      | `'-p:SYSTEM_INIT_MESSAGE...'`     | 简化修改变量的操作                                        |
+| MAPPING_VALUE             | /set命令 变量值      | `'g4:gpt-4o\|rp+:command-r-plus'` | 简化修改变量的操作                                        |
+|                           |                      |                                   |                                                           |
+
 
 > IMPORTANT: 必须把群ID加到白名单`CHAT_GROUP_WHITE_LIST`才能使用, 否则任何人都可以把你的机器人加到群组中，然后消耗你的配额。
 
@@ -92,11 +107,11 @@ OPENAI_API_BASE,GOOGLE_COMPLETIONS_API,MISTRAL_API_BASE,COHERE_API_BASE,ANTHROPI
 | KEY                     | 名称                    | 默认值                      |
 | ----------------------- | ----------------------- | --------------------------- |
 | OPENAI_API_KEY          | OpenAI API Key          | `''//(array string)`        |
-| OPENAI_CHAT_MODEL       | OpenAI的模型名称        | `gpt-4o-mini`             |
+| OPENAI_CHAT_MODEL       | OpenAI的模型名称        | `gpt-4o-mini`               |
 | OPENAI_API_BASE         | OpenAI API BASE         | `https://api.openai.com/v1` |
 | OPENAI_API_EXTRA_PARAMS | OpenAI API Extra Params | `{}`                        |
-| OPENAI_IMAGE_MODEL            | DALL-E的模型名称        | `dall-e-3`                  |
-| DALL_E_IMAGE_SIZE       | DALL-E图片尺寸          | `1024x1024`                   |
+| OPENAI_IMAGE_MODEL      | DALL-E的模型名称        | `dall-e-3`                  |
+| DALL_E_IMAGE_SIZE       | DALL-E图片尺寸          | `1024x1024`                 |
 | DALL_E_IMAGE_QUALITY    | DALL-E图片质量          | `standard`                  |
 | DALL_E_IMAGE_STYLE      | DALL-E图片风格          | `vivid`                     |
 

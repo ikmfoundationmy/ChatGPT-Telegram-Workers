@@ -133,10 +133,13 @@ async function msgFilterWhiteList(message, context) {
  */
 // eslint-disable-next-line no-unused-vars
 async function msgFilterUnsupportedMessage(message, context) {
-    if (!message.text && !ENV.ENABLE_FILE && (ENV.EXTRA_MESSAGE_CONTEXT && !message.reply_to_message.text)) {
-        throw new Error('Not supported message type');
-    }
+  if (message.text || (ENV.EXTRA_MESSAGE_CONTEXT && message.reply_to_message.text)) {
     return null;
+  }
+  if (ENV.ENABLE_FILE && (message.voice || message.audio || message.photo || message.image || message.document)) {
+    return null;
+  }
+  throw new Error("Unsupported message");
 }
 
 /** 
@@ -150,16 +153,21 @@ async function msgHandlePrivateMessage(message, context) {
   if ('private' !== context.SHARE_CONTEXT.chatType) {
     return null;
   }
-  if (message.voice || message.audio || message.photo || message.document) {
+  // 非文本 和 非标题图片
+  if (!message.text && !message.caption) {
     return null;
   }
   if (!message.text && !ENV.ENABLE_FILE) {
     return new Response('Non text message', { 'status': 200 });
   }
   // 聊天中简化命令
-  const chatMsgKey = Object.keys(ENV.CHAT_MESSAGE_TRIGGER).find((key) => message.text.startsWith(key));
+  const chatMsgKey = Object.keys(ENV.CHAT_MESSAGE_TRIGGER).find((key) =>
+    (message?.text || message?.caption || '').startsWith(key),
+  );
   if (chatMsgKey) {
-    message.text = message.text.replace(chatMsgKey, ENV.CHAT_MESSAGE_TRIGGER[chatMsgKey]);
+    if (message.text) {
+      message.text = message.text.replace(chatMsgKey, ENV.CHAT_MESSAGE_TRIGGER[chatMsgKey]);
+    } else message.caption = message.caption.replace(chatMsgKey, ENV.CHAT_MESSAGE_TRIGGER[chatMsgKey]);
   }
   return null;
 }
@@ -172,9 +180,6 @@ async function msgHandlePrivateMessage(message, context) {
  * @return {Promise<Response>}
  */
 async function msgHandleGroupMessage(message, context) {
-  if (!message.text && !ENV.ENABLE_FILE) {
-    return new Response('Non text message');
-  }
 
   // 非群组消息不作处理
   if (!CONST.GROUP_TYPES.includes(context.SHARE_CONTEXT.chatType)) {
@@ -305,7 +310,7 @@ async function msgIgnoreSpecificMessage(message) {
 async function msgInitMiddleInfo(message, context) {
   try {
     context._info = await MiddleInfo.initInfo(message, context);
-    if (context._info.msg_type && context._info.msg_type !== 'text') {
+    if (!message.text) {
       const msg = await sendMessageToTelegramWithContext(context)('file url get success.').then((r) => r.json());
       context.CURRENT_CHAT_CONTEXT.message_id = msg.result.message_id;
     }
@@ -347,7 +352,7 @@ async function msgChatWithLLM(message, context) {
       (context.SHARE_CONTEXT.extraMessageContext?.text || '') +
       (context.SHARE_CONTEXT.extraMessageContext?.caption || '') +
       '\n' +
-      text;
+      content;
   }
 
   const params = { message: content };
@@ -361,7 +366,7 @@ async function msgChatWithLLM(message, context) {
         return result;
       }
       context._info.initProcess(context.USER_CONFIG);
-      if (['image', 'photo'].indexOf(context._info.file[i].type) > - 1) {
+      if (context._info.file[i].type === 'image') {
         params.images = [context._info.file[i].url];
       }
       switch (context._info.process_type) {
@@ -472,32 +477,32 @@ export async function handleMessage(token, body) {
 
     // 消息处理中间件
     const handlers = [
-        // 初始化聊天上下文: 生成chat_id, reply_to_message_id(群组消息), SHARE_CONTEXT
-        msgInitChatContext,
-        // 忽略特定文本
-        msgIgnoreSpecificMessage,
-        // 检查环境是否准备好: DATABASE
-        msgCheckEnvIsReady,
-        // DEBUG: 保存最后一条消息
-        msgSaveLastMessage,
-        // 过滤不支持的消息(抛出异常结束消息处理：支持文本、音频、图片消息)
-        msgFilterUnsupportedMessage,
-        // 处理私人消息
-        msgHandlePrivateMessage,
-        // 处理群消息，判断是否需要响应此条消息
-        msgHandleGroupMessage,
-        // 过滤非白名单用户
-        msgFilterWhiteList,
-        // 忽略旧消息
-        msgIgnoreOldMessage,
-        // 初始化用户配置
-        msgInitUserConfig,
-        // 初始化基础中间信息
-        msgInitMiddleInfo,
-        // 处理命令消息
-        msgHandleCommand,
-        // 与llm聊天
-        msgChatWithLLM,
+      // 初始化聊天上下文: 生成chat_id, reply_to_message_id(群组消息), SHARE_CONTEXT
+      msgInitChatContext,
+      // 忽略特定文本
+      msgIgnoreSpecificMessage,
+      // 检查环境是否准备好: DATABASE
+      msgCheckEnvIsReady,
+      // 过滤非白名单用户
+      msgFilterWhiteList,
+      // DEBUG: 保存最后一条消息
+      msgSaveLastMessage,
+      // 过滤不支持的消息(抛出异常结束消息处理)
+      msgFilterUnsupportedMessage,
+      // 处理私人消息
+      msgHandlePrivateMessage,
+      // 处理群消息，判断是否需要响应此条消息
+      msgHandleGroupMessage,
+      // 忽略旧消息
+      msgIgnoreOldMessage,
+      // 初始化用户配置
+      msgInitUserConfig,
+      // 初始化基础中间信息
+      msgInitMiddleInfo,
+      // 处理命令消息
+      msgHandleCommand,
+      // 与llm聊天
+      msgChatWithLLM,
     ];
   
     // const exitHanders = [msgTagNeedDelete];

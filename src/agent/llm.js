@@ -145,10 +145,6 @@ export async function chatWithLLM(params, context, modifier, pointerLLM = loadCh
         params.message = context._info.isFirstStep ? params.message : context._info.lastStep.text;
         const parseMode = context.CURRENT_CHAT_CONTEXT.parse_mode;
         try {
-            if (context._info.lastStepHasFile) {
-                const { raw } = await handleFile(context._info);
-                if (context._info.step_index === 1) context._info.setFile({ raw }, 0);
-            }
             if (!context.CURRENT_CHAT_CONTEXT.message_id) {
                 context.CURRENT_CHAT_CONTEXT.parse_mode = null;
                 const msg = await sendMessageToTelegramWithContext(context)('...').then((r) => r.json());

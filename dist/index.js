@@ -152,9 +152,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1723313922;
+  BUILD_TIMESTAMP = 1723341853;
   // 当前版本 commit id
-  BUILD_VERSION = "0e0ae66";
+  BUILD_VERSION = "f6cee73";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -228,7 +228,7 @@ var Environment = class {
   // 额外引用消息开关
   EXTRA_MESSAGE_CONTEXT = false;
   // 开启Telegraph图床
-  TELEGRAPH_ENABLE = false;
+  TELEGRAPH_IMAGE_ENABLE = false;
   // -- 模式开关 --
   //
   // 使用流模式
@@ -247,8 +247,6 @@ var Environment = class {
   // 
   // 是否读取文件类型消息(当前支持图片与音频)
   ENABLE_FILE = false;
-  // 是否下载图片，不开始时将以链接形式发送图片（链接包含bot token信息）
-  LOAD_IMAGE_FILE = true;
   // 群聊中回复对象默认为触发对象，开启时优先为被回复的对象
   ENABLE_REPLY_TO_MENTION = false;
   // 忽略指定文本开头的消息
@@ -515,7 +513,7 @@ var Context = class {
       }
     }
     if (CONST.GROUP_TYPES.includes(message.chat?.type)) {
-      if (ENV.GROUP_CHAT_BOT_SHARE_MODE && message.from.id) {
+      if (!ENV.GROUP_CHAT_BOT_SHARE_MODE && message.from.id) {
         historyKey += `:${message.from.id}`;
         configStoreKey += `:${message.from.id}`;
       }
@@ -1614,6 +1612,114 @@ async function handleOpenaiFunctionCall(url, header2, body, prompt, context, onS
   }
 }
 
+// src/utils/cache.js
+var Cache = class {
+  constructor() {
+    this.maxItems = 10;
+    this.maxAge = 1e3 * 60 * 60;
+    this.cache = {};
+  }
+  /**
+   * @param {string} key 
+   * @param {any} value 
+   */
+  set(key, value) {
+    this.trim();
+    this.cache[key] = {
+      value,
+      time: Date.now()
+    };
+  }
+  /**
+   * @param {string} key 
+   * @returns {any}
+   */
+  get(key) {
+    this.trim();
+    return this.cache[key]?.value;
+  }
+  /**
+   * @private
+   */
+  trim() {
+    let keys = Object.keys(this.cache);
+    for (const key of keys) {
+      if (Date.now() - this.cache[key].time > this.maxAge) {
+        delete this.cache[key];
+      }
+    }
+    keys = Object.keys(this.cache);
+    if (keys.length > this.maxItems) {
+      keys.sort((a, b) => this.cache[a].time - this.cache[b].time);
+      for (let i = 0; i < keys.length - this.maxItems; i++) {
+        delete this.cache[keys[i]];
+      }
+    }
+  }
+};
+
+// src/utils/image.js
+var IMAGE_CACHE = new Cache();
+async function fetchImage(url) {
+  if (IMAGE_CACHE[url]) {
+    return IMAGE_CACHE.get(url);
+  }
+  return fetch(url).then((resp) => resp.arrayBuffer()).then((blob) => {
+    IMAGE_CACHE.set(url, blob);
+    return blob;
+  });
+}
+async function uploadImageToTelegraph(url) {
+  if (url.startsWith("https://telegra.ph")) {
+    return url;
+  }
+  const raw = await fetch(url).then((resp2) => resp2.arrayBuffer());
+  const formData = new FormData();
+  formData.append("file", new Blob([raw]), "blob");
+  const resp = await fetch("https://telegra.ph/upload", {
+    method: "POST",
+    body: formData
+  });
+  let [{ src }] = await resp.json();
+  src = `https://telegra.ph${src}`;
+  IMAGE_CACHE.set(url, raw);
+  return src;
+}
+async function urlToBase64String(url) {
+  try {
+    const { Buffer: Buffer2 } = await import("node:buffer");
+    return fetchImage(url).then((buffer) => Buffer2.from(buffer).toString("base64"));
+  } catch {
+    return fetchImage(url).then((buffer) => btoa(String.fromCharCode.apply(null, new Uint8Array(buffer))));
+  }
+}
+function getImageFormatFromBase64(base64String) {
+  const firstChar = base64String.charAt(0);
+  switch (firstChar) {
+    case "/":
+      return "jpeg";
+    case "i":
+      return "png";
+    case "R":
+      return "gif";
+    case "U":
+      return "webp";
+    default:
+      throw new Error("Unsupported image format");
+  }
+}
+async function imageToBase64String(url) {
+  const base64String = await urlToBase64String(url);
+  const format = getImageFormatFromBase64(base64String);
+  return {
+    data: base64String,
+    format: `image/${format}`
+  };
+}
+function renderBase64DataURI(params) {
+  return `data:${params.format};base64,${params.data}`;
+}
+
 // src/agent/openai.js
 function openAIKeyFromContext(context) {
   const length = context.USER_CONFIG.OPENAI_API_KEY.length;
@@ -1911,16 +2017,22 @@ async function requestCompletionsFromCohereAI(params, context, onStream) {
     "Content-Type": "application/json",
     "Accept": onStream !== null ? "text/event-stream" : "application/json"
   };
-  const roleMap = {
-    "assistant": "CHATBOT",
-    "user": "USER"
-  };
+  let connectors = [];
+  Object.entries(ENV.COHERE_CONNECT_TRIGGER).forEach(([id, triggers]) => {
+    const result = triggers.some((trigger) => {
+      const triggerRegex = new RegExp(trigger, "i");
+      return triggerRegex.test(message);
+    });
+    if (result)
+      connectors.push({ id });
+  });
   const body = {
     message,
     model: context.USER_CONFIG.COHERE_CHAT_MODEL,
     stream: onStream != null,
     preamble: prompt,
-    chat_history: history.map(renderCohereMessage)
+    chat_history: history.map(renderCohereMessage),
+    ...connectors.length && { connectors }
   };
   if (!body.preamble) {
     delete body.preamble;
@@ -1941,111 +2053,6 @@ async function requestCompletionsFromCohereAI(params, context, onStream) {
   return requestChatCompletions(url, header2, body, context, onStream, null, options);
 }
 
-// src/utils/cache.js
-var Cache = class {
-  constructor() {
-    this.maxItems = 10;
-    this.maxAge = 1e3 * 60 * 60;
-    this.cache = {};
-  }
-  /**
-   * @param {string} key 
-   * @param {any} value 
-   */
-  set(key, value) {
-    this.trim();
-    this.cache[key] = {
-      value,
-      time: Date.now()
-    };
-  }
-  /**
-   * @param {string} key 
-   * @returns {any}
-   */
-  get(key) {
-    this.trim();
-    return this.cache[key]?.value;
-  }
-  /**
-   * @private
-   */
-  trim() {
-    let keys = Object.keys(this.cache);
-    for (const key of keys) {
-      if (Date.now() - this.cache[key].time > this.maxAge) {
-        delete this.cache[key];
-      }
-    }
-    keys = Object.keys(this.cache);
-    if (keys.length > this.maxItems) {
-      keys.sort((a, b) => this.cache[a].time - this.cache[b].time);
-      for (let i = 0; i < keys.length - this.maxItems; i++) {
-        delete this.cache[keys[i]];
-      }
-    }
-  }
-};
-
-// src/utils/image.js
-var IMAGE_CACHE = new Cache();
-async function fetchImage(url) {
-  if (IMAGE_CACHE[url]) {
-    return IMAGE_CACHE.get(url);
-  }
-  return fetch(url).then((resp) => resp.arrayBuffer()).then((blob) => {
-    IMAGE_CACHE.set(url, blob);
-    return blob;
-  });
-}
-async function uploadImageToTelegraph(url) {
-  if (url.startsWith("https://telegra.ph")) {
-    return url;
-  }
-  const raw = await fetch(url).then((resp2) => resp2.arrayBuffer());
-  const formData = new FormData();
-  formData.append("file", new Blob([raw]), "blob");
-  const resp = await fetch("https://telegra.ph/upload", {
-    method: "POST",
-    body: formData
-  });
-  let [{ src }] = await resp.json();
-  src = `https://telegra.ph${src}`;
-  IMAGE_CACHE.set(url, raw);
-  return src;
-}
-async function urlToBase64String(url) {
-  try {
-    const { Buffer: Buffer2 } = await import("node:buffer");
-    return fetchImage(url).then((buffer) => Buffer2.from(buffer).toString("base64"));
-  } catch {
-    return fetchImage(url).then((buffer) => btoa(String.fromCharCode.apply(null, new Uint8Array(buffer))));
-  }
-}
-function getImageFormatFromBase64(base64String) {
-  const firstChar = base64String.charAt(0);
-  switch (firstChar) {
-    case "/":
-      return "jpeg";
-    case "i":
-      return "png";
-    case "R":
-      return "gif";
-    case "U":
-      return "webp";
-    default:
-      throw new Error("Unsupported image format");
-  }
-}
-async function imageToBase64String2(url) {
-  const base64String = await urlToBase64String(url);
-  const format = getImageFormatFromBase64(base64String);
-  return {
-    data: base64String,
-    format: `image/${format}`
-  };
-}
-
 // src/agent/anthropic.js
 function isAnthropicAIEnable(context) {
   return !!context.USER_CONFIG.ANTHROPIC_API_KEY;
@@ -2061,7 +2068,7 @@ async function renderAnthropicMessage(item) {
       res.content.push({ type: "text", text: item.content });
     }
     for (const image of item.images) {
-      res.content.push(await imageToBase64String2(image).then(({ format, data }) => {
+      res.content.push(await imageToBase64String(image).then(({ format, data }) => {
         return { type: "image", source: { type: "base64", media_type: format, data } };
       }));
     }
@@ -2389,26 +2396,24 @@ async function extractMessageType(message, botToken) {
       msgText: message.text || message.caption
     };
   }
-  const fileType = msg?.document && "document" || msgType;
-  if (!fileType) {
-    throw new Error("Can't extract Message Type");
+  let fileType = msgType;
+  if (msgType == "voice") {
+    fileType = "audio";
+  } else if (msgType == "photo") {
+    fileType = "image";
   }
   if (msg?.document) {
     if (msg.document.mime_type.match(/image/)) {
-      msgType = "image";
+      fileType = "image";
     } else if (msg.document.mime_type.match(/audio/)) {
-      msgType = "audio";
-    } else {
-      throw new Error("Unsupported File type");
+      fileType = "audio";
     }
   }
-  if (msgType == "voice") {
-    msgType = "audio";
-  } else if (msgType == "photo") {
-    msgType = "image";
+  if (!fileType) {
+    throw new Error("Unsupported message type.");
   }
   let file_id = null;
-  if (fileType == "photo") {
+  if (msgType == "photo") {
     let sizeIndex = 0;
     if (ENV.TELEGRAM_PHOTO_SIZE_OFFSET >= 0) {
       sizeIndex = ENV.TELEGRAM_PHOTO_SIZE_OFFSET;
@@ -2432,7 +2437,7 @@ async function extractMessageType(message, botToken) {
     if (!file_url) {
       throw new Error("file url get failed.");
     }
-    if (ENV.TELEGRAPH_ENABLE && fileType === "photo") {
+    if (ENV.TELEGRAPH_IMAGE_ENABLE && fileType === "image") {
       file_url = await uploadImageToTelegraph(file_url);
     }
     info.file_url = file_url;
@@ -2443,15 +2448,12 @@ async function extractMessageType(message, botToken) {
 async function handleFile(_info) {
   let { raw, url } = _info.lastStep;
   const file_name = url?.split("/").pop();
-  if (!raw && _info.msg_type !== "image" || _info.msg_type === "image" && (ENV.LOAD_IMAGE_FILE || _info.model.startsWith("claude"))) {
+  if (!raw && _info.msg_type !== "image") {
     const file_resp = await fetch(url);
     if (file_resp.status !== 200) {
       throw new Error(`Get file failed: ${await file_resp.text()}`);
     }
     raw = await file_resp.blob();
-    if (_info.msg_type === "image") {
-      raw = `data:image/jpeg;base64,${Buffer.from(await raw.arrayBuffer()).toString("base64")}`;
-    }
   }
   return { raw, file_name };
 }
@@ -2895,11 +2897,6 @@ async function chatWithLLM(params, context, modifier, pointerLLM = loadChatLLM) 
     params.message = context._info.isFirstStep ? params.message : context._info.lastStep.text;
     const parseMode = context.CURRENT_CHAT_CONTEXT.parse_mode;
     try {
-      if (context._info.lastStepHasFile) {
-        const { raw } = await handleFile(context._info);
-        if (context._info.step_index === 1)
-          context._info.setFile({ raw }, 0);
-      }
       if (!context.CURRENT_CHAT_CONTEXT.message_id) {
         context.CURRENT_CHAT_CONTEXT.parse_mode = null;
         const msg = await sendMessageToTelegramWithContext(context)("...").then((r) => r.json());
@@ -3701,31 +3698,36 @@ async function msgFilterWhiteList(message, context) {
   );
 }
 async function msgFilterUnsupportedMessage(message, context) {
-  if (!message.text && !ENV.ENABLE_FILE && (ENV.EXTRA_MESSAGE_CONTEXT && !message.reply_to_message.text)) {
-    throw new Error("Not supported message type");
+  if (message.text || ENV.EXTRA_MESSAGE_CONTEXT && message.reply_to_message.text) {
+    return null;
   }
-  return null;
+  if (ENV.ENABLE_FILE && (message.voice || message.audio || message.photo || message.image || message.document)) {
+    return null;
+  }
+  throw new Error("Unsupported message");
 }
 async function msgHandlePrivateMessage(message, context) {
   if ("private" !== context.SHARE_CONTEXT.chatType) {
     return null;
   }
-  if (message.voice || message.audio || message.photo || message.document) {
+  if (!message.text && !message.caption) {
     return null;
   }
   if (!message.text && !ENV.ENABLE_FILE) {
     return new Response("Non text message", { "status": 200 });
   }
-  const chatMsgKey = Object.keys(ENV.CHAT_MESSAGE_TRIGGER).find((key) => message.text.startsWith(key));
+  const chatMsgKey = Object.keys(ENV.CHAT_MESSAGE_TRIGGER).find(
+    (key) => (message?.text || message?.caption || "").startsWith(key)
+  );
   if (chatMsgKey) {
-    message.text = message.text.replace(chatMsgKey, ENV.CHAT_MESSAGE_TRIGGER[chatMsgKey]);
+    if (message.text) {
+      message.text = message.text.replace(chatMsgKey, ENV.CHAT_MESSAGE_TRIGGER[chatMsgKey]);
+    } else
+      message.caption = message.caption.replace(chatMsgKey, ENV.CHAT_MESSAGE_TRIGGER[chatMsgKey]);
   }
   return null;
 }
 async function msgHandleGroupMessage(message, context) {
-  if (!message.text && !ENV.ENABLE_FILE) {
-    return new Response("Non text message");
-  }
   if (!CONST.GROUP_TYPES.includes(context.SHARE_CONTEXT.chatType)) {
     return null;
   }
@@ -3841,7 +3843,7 @@ async function msgChatWithLLM(message, context) {
         return result;
       }
       context._info.initProcess(context.USER_CONFIG);
-      if (["image", "photo"].indexOf(context._info.file[i].type) > -1) {
+      if (context._info.file[i].type === "image") {
         params.images = [context._info.file[i].url];
       }
       switch (context._info.process_type) {
@@ -3908,16 +3910,16 @@ async function handleMessage(token, body) {
     msgIgnoreSpecificMessage,
     // 检查环境是否准备好: DATABASE
     msgCheckEnvIsReady,
+    // 过滤非白名单用户
+    msgFilterWhiteList,
     // DEBUG: 保存最后一条消息
     msgSaveLastMessage,
-    // 过滤不支持的消息(抛出异常结束消息处理：支持文本、音频、图片消息)
+    // 过滤不支持的消息(抛出异常结束消息处理)
     msgFilterUnsupportedMessage,
     // 处理私人消息
     msgHandlePrivateMessage,
     // 处理群消息，判断是否需要响应此条消息
     msgHandleGroupMessage,
-    // 过滤非白名单用户
-    msgFilterWhiteList,
     // 忽略旧消息
     msgIgnoreOldMessage,
     // 初始化用户配置

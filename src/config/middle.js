@@ -6,7 +6,7 @@ import {uploadImageToTelegraph} from "../utils/image.js";
  * 提取消息类型与文件url
  *
  * @param {TelegramMessage} message
- * @returns {MsgInfo}
+ * @returns {Promise<MsgInfo>}
  */
 async function extractMessageType(message, botToken) {
   let msg = message;
@@ -25,32 +25,32 @@ async function extractMessageType(message, botToken) {
 
   if (msgType === 'text') {
     return {
-      msgType,
-      msgText: message.text || message.caption,
+      msgType: 'text',
+      fileType: 'text',
+      text: message.text || message.caption,
     };
   }
 
-  const fileType = msg?.document && 'document' || msgType;
-  if (!fileType) {
-    throw new Error("Can't extract Message Type");
+  let fileType = msgType;
+  if (msgType == 'voice') {
+    fileType = 'audio';
+  } else if (msgType == 'photo') {
+    fileType = 'image';
   }
-
   if (msg?.document) {
     if (msg.document.mime_type.match(/image/)) {
-      msgType = 'image';
+      fileType = 'image';
     } else if (msg.document.mime_type.match(/audio/)) {
-      msgType = 'audio';
-    } else {
-      throw new Error('Unsupported File type');
-    }
+      fileType = 'audio';
+    } 
   }
-  if (msgType == 'voice') {
-    msgType = 'audio';
-  } else if (msgType == 'photo') {
-    msgType = 'image';
+
+  if (!fileType) {
+    throw new Error("Unsupported message type.");
   }
+
   let file_id = null;
-  if (fileType == 'photo') {
+  if (msgType == 'photo') {
     let sizeIndex = 0;
     if (ENV.TELEGRAM_PHOTO_SIZE_OFFSET >= 0) {
       sizeIndex = ENV.TELEGRAM_PHOTO_SIZE_OFFSET;
@@ -58,7 +58,6 @@ async function extractMessageType(message, botToken) {
       sizeIndex = msg.photo.length + ENV.TELEGRAM_PHOTO_SIZE_OFFSET;
     }
     sizeIndex = Math.max(0, Math.min(sizeIndex, msg.photo.length - 1));
-    // 取第二个
     file_id = msg.photo[sizeIndex].file_id;
   } else {
     file_id = msg[fileType]?.file_id || null;
@@ -68,7 +67,7 @@ async function extractMessageType(message, botToken) {
     fileType,
     /*hasText: !!(message.text || msg.text || message.caption || msg.caption),*/
     file_url: null,
-    msgText: message.text || message.caption,
+    text: message.text || message.caption,
   };
   if (file_id) {
     let file_url = await getFileUrl(file_id, botToken);
@@ -76,7 +75,7 @@ async function extractMessageType(message, botToken) {
       throw new Error('file url get failed.');
     }
     
-    if (ENV.TELEGRAPH_ENABLE && fileType === 'photo') {
+    if (ENV.TELEGRAPH_IMAGE_ENABLE && fileType === 'image') {
       file_url = await uploadImageToTelegraph(file_url);
     }
 
@@ -94,18 +93,12 @@ async function extractMessageType(message, botToken) {
 export async function handleFile(_info) {
   let {raw, url} = _info.lastStep;
   const file_name = url?.split('/').pop();
-  if (
-    (!raw && _info.msg_type !== 'image') ||
-    (_info.msg_type === 'image' && (ENV.LOAD_IMAGE_FILE || _info.model.startsWith('claude')))
-  ) {
+  if (!raw && _info.msg_type !== 'image'){
     const file_resp = await fetch(url);
     if (file_resp.status !== 200) {
       throw new Error(`Get file failed: ${await file_resp.text()}`);
     }
     raw = await file_resp.blob();
-    if (_info.msg_type === 'image') {
-      raw = `data:image/jpeg;base64,${Buffer.from(await raw.arrayBuffer()).toString('base64')}`;
-    }
   }
   return { raw, file_name };
 }
@@ -129,7 +122,6 @@ export class MiddleInfo {
       },
     ];
     this._bp_config = JSON.parse(JSON.stringify(USER_CONFIG)); // 备份用户配置
-    this.msg_type = msg_info.msgType; // tg消息类型 text audio image
     this.process_type = null;
     this.call_info = '';
     this.model = null;
@@ -230,9 +222,9 @@ export class MiddleInfo {
       USER_CONFIG = this._bp_config;
     }
    
-    this.file[this.current_step_index] = null;
+    this.file[this.step_index] = null;
     this.model = this.processes[this.step_index - 1].model;
-    this.process_type = this.processes[this.step_index - 1].process_type || `${this.msg_type}:text`;
+    this.process_type = this.processes[this.step_index - 1].process_type || `${this.file[this.step_index - 1].type}:text`;
     let chatType = null;
     switch (this.process_type) {
       case 'text:text':
