@@ -26,9 +26,10 @@ export async function uploadImageToTelegraph(url) {
     if (url.startsWith('https://telegra.ph')) {
         return url;
     }
-    const raw = await fetch(url).then(resp => resp.arrayBuffer());
+    
+    const raw = await fetch(url).then(resp => resp.blob());
     const formData = new FormData();
-    formData.append('file', new Blob([raw]), 'blob');
+    formData.append('file', raw, 'blob');
 
     const resp = await fetch('https://telegra.ph/upload', {
         method: 'POST',

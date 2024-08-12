@@ -152,9 +152,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1723354312;
+  BUILD_TIMESTAMP = 1723433482;
   // 当前版本 commit id
-  BUILD_VERSION = "546c645";
+  BUILD_VERSION = "300987e";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -781,9 +781,9 @@ async function uploadImageToTelegraph(url) {
   if (url.startsWith("https://telegra.ph")) {
     return url;
   }
-  const raw = await fetch(url).then((resp2) => resp2.arrayBuffer());
+  const raw = await fetch(url).then((resp2) => resp2.blob());
   const formData = new FormData();
-  formData.append("file", new Blob([raw]), "blob");
+  formData.append("file", raw, "blob");
   const resp = await fetch("https://telegra.ph/upload", {
     method: "POST",
     body: formData

@@ -1,6 +1,6 @@
 version: '3.8'
 services:
-  app:
+  gptworker:
     build: .
       # context: ../../
       # dockerfile: ./adapter/docker/Dockerfile
@@ -8,11 +8,11 @@ services:
     ports:
       - "8787:8787"
     volumes:
-      - ./config/config.toml:/app/config.toml
+      - ./config:/app/config
     environment:
       - REDIS_URL=redis://redis:6379
       # 设置为空时读取请求的host作为DOMAIN
-      - DOMAIN=""
+      - DOMAIN=
     depends_on:
       - redis
     restart: unless-stopped
