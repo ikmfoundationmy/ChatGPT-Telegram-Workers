@@ -152,9 +152,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1723433482;
+  BUILD_TIMESTAMP = 1723457665;
   // 当前版本 commit id
-  BUILD_VERSION = "300987e";
+  BUILD_VERSION = "e8bb16a";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -1722,6 +1722,7 @@ async function handleOpenaiFunctionCall(url, header2, body, prompt, context, onS
     return { type: "continue" };
   } catch (e) {
     console.error(e.message);
+    context._info.setCallInfo(e.message);
     if (final_tool_type)
       body.messages[0].content = tools_default[final_tool_type].prompt;
     return { type: "continue", message: e.message };
@@ -4337,9 +4338,9 @@ var jina_reader = {
     const startTime = Date.now();
     const result = await fetch("https://r.jina.ai/" + url, {
       headers: {
-        "X-Return-Format": "text",
-        "Authorization": `Bearer ${JINA_API_KEY}`,
-        "X-Timeout": 10
+        // 'X-Return-Format': 'text',
+        "Authorization": `Bearer ${JINA_API_KEY}`
+        // 'X-Timeout': 15
       },
       ...signal && { signal } || {}
     });

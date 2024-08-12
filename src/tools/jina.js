@@ -28,9 +28,9 @@ export const jina_reader = {
     const startTime = Date.now();
     const result = await fetch('https://r.jina.ai/' + url, {
       headers: {
-        'X-Return-Format': 'text',
+        // 'X-Return-Format': 'text',
         'Authorization': `Bearer ${JINA_API_KEY}`,
-        'X-Timeout': 10
+        // 'X-Timeout': 15
       },
       ...(signal && { signal } || {})
     });
