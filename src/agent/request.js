@@ -127,9 +127,9 @@ export async function requestChatCompletions(url, header, body, context, onStrea
     alltimeoutID = setTimeout(() => controller.abort(), ENV.ALL_COMPLETE_API_TIMEOUT * 1e3);
   }
 
-  if (ENV.DEBUG_MODE) {
-    console.log(`url:\n${url}\nheader:\n${JSON.stringify(header)}\nbody:\n${JSON.stringify(body, null, 2)}`);
-  }
+  // if (ENV.DEBUG_MODE) {
+  //   console.log(`url:\n${url}\nheader:\n${JSON.stringify(header)}\nbody:\n${JSON.stringify(body, null, 2)}`);
+  // }
   // 排除 function call耗时
   context._info.updateStartTime();
   console.log('chat start.');

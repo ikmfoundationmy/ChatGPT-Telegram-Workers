@@ -169,7 +169,11 @@ export async function handleOpenaiFunctionCall(url, header, body, prompt, contex
     return { type: 'continue' };
   } catch (e) {
     console.error(e.message);
-    context._info.setCallInfo(e.message);
+    let errorMsg = e.message;
+    if (e.name === 'AbortError') {
+      errorMsg = 'call timeout';
+    }
+    context._info.setCallInfo(`Function: ${errorMsg}`);
     if (final_tool_type) body.messages[0].content = tools_settings[final_tool_type].prompt;
     return { type: 'continue', message: e.message };
   }

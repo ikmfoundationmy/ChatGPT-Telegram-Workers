@@ -2,7 +2,6 @@
 import worker from 'chatgpt-telegram-workers';
 import { RedisCache } from '../utils/redis.js';
 import Middle from './_middleware.js';
-import {duckduckgo_search} from '../utils/duckduckgo.js';
 
 export const config = {
   runtime: 'edge',
@@ -18,7 +17,6 @@ export default async (req, res) => {
   const env = {
     ...(process.env || {}),
     DATABASE: redis,
-    tools: {duckduckgo_search}
   };
   const body = await req.text();
   const cfReq = new Request(req.url, {

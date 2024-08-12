@@ -35,7 +35,7 @@ export const jina_reader = {
       ...(signal && { signal } || {})
     });
     if (!result.ok) {
-      throw new Error('Error: ' + (await result.json()).message);
+      throw new Error((await result.json()).message);
     }
     const time = ((Date.now() - startTime) / 1000).toFixed(1) + 's';
     return { content: await result.text(), time };

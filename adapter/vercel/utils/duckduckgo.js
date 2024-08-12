@@ -234,6 +234,7 @@ export const duckduckgo_search = {
                 },
             },
             'required': ['keywords'],
+            "additionalProperties": false
         },
     },
     func: async ({ keywords }) => {

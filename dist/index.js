@@ -152,9 +152,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1723457665;
+  BUILD_TIMESTAMP = 1723465467;
   // 当前版本 commit id
-  BUILD_VERSION = "e8bb16a";
+  BUILD_VERSION = "3ef549f";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -1420,14 +1420,6 @@ async function requestChatCompletions(url, header2, body, context, onStream, onR
   if (ENV.ALL_COMPLETE_API_TIMEOUT > 0) {
     alltimeoutID = setTimeout(() => controller.abort(), ENV.ALL_COMPLETE_API_TIMEOUT * 1e3);
   }
-  if (ENV.DEBUG_MODE) {
-    console.log(`url:
-${url}
-header:
-${JSON.stringify(header2)}
-body:
-${JSON.stringify(body, null, 2)}`);
-  }
   context._info.updateStartTime();
   console.log("chat start.");
   const resp = await fetch(url, {
@@ -1527,7 +1519,7 @@ ERROR: ${e.message}`;
 // src/prompt/tools.js
 var tools_default = {
   search: {
-    prompt: "\u4F5C\u4E3A\u667A\u80FD\u52A9\u624B\uFF0C\u8BF7\u6309\u7167\u4EE5\u4E0B\u6B65\u9AA4\u6709\u6548\u5206\u6790\u5E76\u63D0\u53D6\u6211\u63D0\u4F9B\u7684\u641C\u7D22\u7ED3\u679C\uFF0C\u4EE5\u7B80\u6D01\u660E\u4E86\u7684\u65B9\u5F0F\u56DE\u7B54\u6211\u7684\u95EE\u9898\uFF1A\n\n1. \u9605\u8BFB\u548C\u8BC4\u4F30\uFF1A\u4ED4\u7EC6\u9605\u8BFB\u6240\u6709\u641C\u7D22\u7ED3\u679C\uFF0C\u8BC6\u522B\u5E76\u4F18\u5148\u83B7\u53D6\u6765\u81EA\u53EF\u9760\u548C\u6700\u65B0\u6765\u6E90\u7684\u4FE1\u606F\u3002\u8003\u8651\u56E0\u7D20\u5305\u62EC\u5B98\u65B9\u6765\u6E90\u3001\u77E5\u540D\u673A\u6784\u4EE5\u53CA\u4FE1\u606F\u7684\u66F4\u65B0\u65F6\u95F4\u3002\n\n2. \u63D0\u53D6\u5173\u952E\u4FE1\u606F\uFF1A\n   \u2022 *\u6C47\u7387\u67E5\u8BE2*\uFF1A\u63D0\u4F9B\u6700\u65B0\u6C47\u7387\u5E76\u8FDB\u884C\u5FC5\u8981\u7684\u6362\u7B97\u3002\n   \u2022 *\u5929\u6C14\u67E5\u8BE2*\uFF1A\u63D0\u4F9B\u5177\u4F53\u5730\u70B9\u548C\u65F6\u95F4\u7684\u5929\u6C14\u9884\u62A5\u3002\n   \u2022 *\u4E8B\u5B9E\u6027\u95EE\u9898*\uFF1A\u627E\u51FA\u6743\u5A01\u56DE\u7B54\u3002\n\n3. \u7B80\u6D01\u56DE\u7B54\uFF1A\u5BF9\u63D0\u53D6\u7684\u4FE1\u606F\u8FDB\u884C\u7EFC\u5408\u5206\u6790\uFF0C\u7ED9\u51FA\u7B80\u660E\u627C\u8981\u7684\u56DE\u7B54\u3002\n\n4. \u8BC6\u522B\u4E0D\u786E\u5B9A\u6027\uFF1A\u5982\u679C\u4FE1\u606F\u5B58\u5728\u77DB\u76FE\u6216\u4E0D\u786E\u5B9A\u6027\uFF0C\u8BF7\u89E3\u91CA\u53EF\u80FD\u539F\u56E0\u3002\n\n5. \u8BF4\u660E\u4FE1\u606F\u4E0D\u8DB3\uFF1A\u5982\u679C\u641C\u7D22\u7ED3\u679C\u65E0\u6CD5\u5B8C\u5168\u56DE\u7B54\u95EE\u9898\uFF0C\u6307\u51FA\u9700\u8981\u7684\u989D\u5916\u4FE1\u606F\u3002\n\n6. \u7528\u6237\u53CB\u597D\uFF1A\u4F7F\u7528\u7B80\u5355\u6613\u61C2\u7684\u8BED\u8A00\uFF0C\u5FC5\u8981\u65F6\u63D0\u4F9B\u7B80\u77ED\u89E3\u91CA\uFF0C\u786E\u4FDD\u56DE\u7B54\u6613\u4E8E\u7406\u89E3\u3002\n\n7. \u9644\u52A0\u4FE1\u606F\uFF1A\u6839\u636E\u9700\u8981\u63D0\u4F9B\u989D\u5916\u76F8\u5173\u4FE1\u606F\u6216\u5EFA\u8BAE\uFF0C\u4EE5\u589E\u5F3A\u56DE\u7B54\u7684\u4EF7\u503C\u3002\n\n8. \u6765\u6E90\u6807\u6CE8\uFF1A\u5728\u56DE\u7B54\u4E2D\u6E05\u6670\u6807\u6CE8\u4FE1\u606F\u6765\u6E90\uFF0C\u5305\u62EC\u6765\u6E90\u7F51\u7AD9\u6216\u673A\u6784\u540D\u79F0\u53CA\u6570\u636E\u7684\u53D1\u5E03\u6216\u66F4\u65B0\u65F6\u95F4\u3002\n\n9. \u53C2\u8003\u5217\u8868\uFF1A\u5982\u679C\u5F15\u7528\u4E86\u591A\u4E2A\u6765\u6E90\uFF0C\u5728\u56DE\u7B54\u6700\u540E\u63D0\u4F9B\u7B80\u77ED\u7684\u53C2\u8003\u5217\u8868\uFF0C\u5217\u51FA\u4E3B\u8981\u4FE1\u606F\u6765\u6E90\u3002\n\n\u8BF7\u786E\u4FDD\u76EE\u6807\u662F\u63D0\u4F9B\u6700\u65B0\u3001\u6700\u76F8\u5173\u548C\u6700\u6709\u7528\u7684\u4FE1\u606F\uFF0C\u76F4\u63A5\u56DE\u5E94\u6211\u7684\u95EE\u9898\u3002\u907F\u514D\u5197\u957F\u7684\u7EC6\u8282\uFF0C\u805A\u7126\u4E8E\u6211\u6700\u5173\u5FC3\u7684\u6838\u5FC3\u7B54\u6848\uFF0C\u5E76\u901A\u8FC7\u53EF\u9760\u7684\u6765\u6E90\u589E\u5F3A\u56DE\u7B54\u7684\u53EF\u4FE1\u5EA6\u3002",
+    prompt: "\u4F5C\u4E3A\u667A\u80FD\u52A9\u624B\uFF0C\u8BF7\u6309\u7167\u4EE5\u4E0B\u6B65\u9AA4\u6709\u6548\u5206\u6790\u5E76\u63D0\u53D6\u6211\u63D0\u4F9B\u7684\u641C\u7D22\u7ED3\u679C\uFF0C\u4EE5\u7B80\u6D01\u660E\u4E86\u7684\u65B9\u5F0F\u56DE\u7B54\u6211\u7684\u95EE\u9898\uFF1A\n\n1. \u9605\u8BFB\u548C\u8BC4\u4F30\uFF1A\u4ED4\u7EC6\u9605\u8BFB\u6240\u6709\u641C\u7D22\u7ED3\u679C\uFF0C\u8BC6\u522B\u5E76\u4F18\u5148\u83B7\u53D6\u6765\u81EA\u53EF\u9760\u548C\u6700\u65B0\u6765\u6E90\u7684\u4FE1\u606F\u3002\u8003\u8651\u56E0\u7D20\u5305\u62EC\u5B98\u65B9\u6765\u6E90\u3001\u77E5\u540D\u673A\u6784\u4EE5\u53CA\u4FE1\u606F\u7684\u66F4\u65B0\u65F6\u95F4\u3002\n\n2. \u63D0\u53D6\u5173\u952E\u4FE1\u606F\uFF1A\n   \u2022 *\u6C47\u7387\u67E5\u8BE2*\uFF1A\u63D0\u4F9B\u6700\u65B0\u6C47\u7387\u5E76\u8FDB\u884C\u5FC5\u8981\u7684\u6362\u7B97\u3002\n   \u2022 *\u5929\u6C14\u67E5\u8BE2*\uFF1A\u63D0\u4F9B\u5177\u4F53\u5730\u70B9\u548C\u65F6\u95F4\u7684\u5929\u6C14\u9884\u62A5\u3002\n   \u2022 *\u4E8B\u5B9E\u6027\u95EE\u9898*\uFF1A\u627E\u51FA\u6743\u5A01\u56DE\u7B54\u3002\n\n3. \u7B80\u6D01\u56DE\u7B54\uFF1A\u5BF9\u63D0\u53D6\u7684\u4FE1\u606F\u8FDB\u884C\u7EFC\u5408\u5206\u6790\uFF0C\u7ED9\u51FA\u7B80\u660E\u627C\u8981\u7684\u56DE\u7B54\u3002\n\n4. \u8BC6\u522B\u4E0D\u786E\u5B9A\u6027\uFF1A\u5982\u679C\u4FE1\u606F\u5B58\u5728\u77DB\u76FE\u6216\u4E0D\u786E\u5B9A\u6027\uFF0C\u8BF7\u89E3\u91CA\u53EF\u80FD\u539F\u56E0\u3002\n\n5. \u8BF4\u660E\u4FE1\u606F\u4E0D\u8DB3\uFF1A\u5982\u679C\u641C\u7D22\u7ED3\u679C\u65E0\u6CD5\u5B8C\u5168\u56DE\u7B54\u95EE\u9898\uFF0C\u6307\u51FA\u9700\u8981\u7684\u989D\u5916\u4FE1\u606F\u3002\n\n6. \u7528\u6237\u53CB\u597D\uFF1A\u4F7F\u7528\u7B80\u5355\u6613\u61C2\u7684\u8BED\u8A00\uFF0C\u5FC5\u8981\u65F6\u63D0\u4F9B\u7B80\u77ED\u89E3\u91CA\uFF0C\u786E\u4FDD\u56DE\u7B54\u6613\u4E8E\u7406\u89E3\u3002\n\n7. \u9644\u52A0\u4FE1\u606F\uFF1A\u6839\u636E\u9700\u8981\u63D0\u4F9B\u989D\u5916\u76F8\u5173\u4FE1\u606F\u6216\u5EFA\u8BAE\uFF0C\u4EE5\u589E\u5F3A\u56DE\u7B54\u7684\u4EF7\u503C\u3002\n\n8. \u6765\u6E90\u6807\u6CE8\uFF1A\u5728\u56DE\u7B54\u4E2D\u6E05\u6670\u6807\u6CE8\u4FE1\u606F\u6765\u6E90\uFF0C\u5305\u62EC\u6765\u6E90\u7F51\u7AD9\u6216\u673A\u6784\u540D\u79F0\u53CA\u6570\u636E\u7684\u53D1\u5E03\u6216\u66F4\u65B0\u65F6\u95F4\u3002\n\n9. \u53C2\u8003\u5217\u8868\uFF1A\u5982\u679C\u5F15\u7528\u4E86\u591A\u4E2A\u6765\u6E90\uFF0C\u5728\u56DE\u7B54\u6700\u540E\u63D0\u4F9B\u7B80\u77ED\u7684\u53C2\u8003\u5217\u8868\uFF0C\u5217\u51FA\u4E3B\u8981\u4FE1\u606F\u6765\u6E90\u3002\n\n\u8BF7\u786E\u4FDD\u76EE\u6807\u662F\u63D0\u4F9B\u6700\u65B0\u3001\u6700\u76F8\u5173\u548C\u6700\u6709\u7528\u7684\u4FE1\u606F\uFF0C\u76F4\u63A5\u56DE\u5E94\u6211\u7684\u95EE\u9898\u3002\u907F\u514D\u5197\u957F\u7684\u7EC6\u8282\uFF0C\u805A\u7126\u4E8E\u6211\u6700\u5173\u5FC3\u7684\u6838\u5FC3\u7B54\u6848\uFF0C\u5E76\u901A\u8FC7\u53EF\u9760\u7684\u6765\u6E90\u589E\u5F3A\u56DE\u7B54\u7684\u53EF\u4FE1\u5EA6\u3002Tip: \u4E0D\u8981\u4EE5\u4F60\u7684\u77E5\u8BC6\u5E93\u65F6\u95F4\u4F5C\u4E3A\u8BC4\u5224\u6807\u51C6",
     extra_params: { tempurature: 0.7, "top_p": 0.4 },
     render: (question, result) => `\u95EE\u9898:
 ${question}
@@ -1722,7 +1714,11 @@ async function handleOpenaiFunctionCall(url, header2, body, prompt, context, onS
     return { type: "continue" };
   } catch (e) {
     console.error(e.message);
-    context._info.setCallInfo(e.message);
+    let errorMsg = e.message;
+    if (e.name === "AbortError") {
+      errorMsg = "call timeout";
+    }
+    context._info.setCallInfo(`Function: ${errorMsg}`);
     if (final_tool_type)
       body.messages[0].content = tools_default[final_tool_type].prompt;
     return { type: "continue", message: e.message };
@@ -4310,6 +4306,248 @@ function i18n(lang) {
   }
 }
 
+// src/tools/duckduckgo.js
+var SEARCH_REGEX = /DDG\.pageLayout\.load\('d',(\[.+\])\);DDG\.duckbar\.load\('images'/;
+var IMAGES_REGEX = /;DDG\.duckbar\.load\('images', ({"ads":.+"vqd":{".+":"\d-\d+-\d+"}})\);DDG\.duckbar\.load\('news/;
+var NEWS_REGEX = /;DDG\.duckbar\.load\('news', ({"ads":.+"vqd":{".+":"\d-\d+-\d+"}})\);DDG\.duckbar\.load\('videos/;
+var VIDEOS_REGEX = /;DDG\.duckbar\.load\('videos', ({"ads":.+"vqd":{".+":"\d-\d+-\d+"}})\);DDG\.duckbar\.loadModule\('related_searches/;
+var RELATED_SEARCHES_REGEX = /DDG\.duckbar\.loadModule\('related_searches', ({"ads":.+"vqd":{".+":"\d-\d+-\d+"}})\);DDG\.duckbar\.load\('products/;
+var VQD_REGEX = /vqd=['"](\d+-\d+(?:-\d+)?)['"]/;
+var SearchTimeType;
+(function(SearchTimeType2) {
+  SearchTimeType2["ALL"] = "a";
+  SearchTimeType2["DAY"] = "d";
+  SearchTimeType2["WEEK"] = "w";
+  SearchTimeType2["MONTH"] = "m";
+  SearchTimeType2["YEAR"] = "y";
+})(SearchTimeType || (SearchTimeType = {}));
+var SafeSearchType;
+(function(SafeSearchType2) {
+  SafeSearchType2[SafeSearchType2["STRICT"] = 0] = "STRICT";
+  SafeSearchType2[SafeSearchType2["MODERATE"] = -1] = "MODERATE";
+  SafeSearchType2[SafeSearchType2["OFF"] = -2] = "OFF";
+})(SafeSearchType || (SafeSearchType = {}));
+var defaultOptions = {
+  safeSearch: SafeSearchType.OFF,
+  time: SearchTimeType.ALL,
+  locale: "en-us",
+  region: "wt-wt",
+  offset: 0,
+  marketRegion: "us"
+};
+function decode(text2) {
+  const entities = {
+    "&lt;": "<",
+    "&gt;": ">",
+    "&amp;": "&",
+    "&quot;": '"',
+    "&apos;": "'"
+  };
+  return text2.replace(/&[a-zA-Z0-9#]+;/g, (match) => entities[match] || match);
+}
+async function search(query, options) {
+  if (!query)
+    throw new Error("Query cannot be empty!");
+  if (!options)
+    options = defaultOptions;
+  else
+    options = sanityCheck(options);
+  let vqd = options.vqd;
+  if (!vqd)
+    vqd = await getVQD(query, "web");
+  const queryObject = {
+    q: query,
+    ...options.safeSearch !== SafeSearchType.STRICT ? { t: "D" } : {},
+    l: options.locale,
+    ...options.safeSearch === SafeSearchType.STRICT ? { p: "1" } : {},
+    kl: options.region || "wt-wt",
+    s: String(options.offset),
+    dl: "en",
+    ct: "US",
+    ss_mkt: options.marketRegion,
+    df: options.time,
+    vqd,
+    ...options.safeSearch !== SafeSearchType.STRICT ? { ex: String(options.safeSearch) } : {},
+    sp: "1",
+    bpa: "1",
+    biaexp: "b",
+    msvrtexp: "b",
+    ...options.safeSearch === SafeSearchType.STRICT ? {
+      videxp: "a",
+      nadse: "b",
+      eclsexp: "a",
+      stiaexp: "a",
+      tjsexp: "b",
+      related: "b",
+      msnexp: "a"
+    } : {
+      nadse: "b",
+      eclsexp: "b",
+      tjsexp: "b"
+      // cdrexp: 'b'
+    }
+  };
+  const response = await fetch(`https://links.duckduckgo.com/d.js?${queryString(queryObject)}`);
+  const data = await response.text();
+  if (data.includes("DDG.deep.is506"))
+    throw new Error("A server error occurred!");
+  const searchResults = JSON.parse(SEARCH_REGEX.exec(data)[1].replace(/\t/g, "    "));
+  if (searchResults.length === 1 && !("n" in searchResults[0])) {
+    const onlyResult = searchResults[0];
+    if (!onlyResult.da && onlyResult.t === "EOF" || !onlyResult.a || onlyResult.d === "google.com search")
+      return {
+        noResults: true,
+        vqd,
+        results: []
+      };
+  }
+  const results = {
+    noResults: false,
+    vqd,
+    results: []
+  };
+  for (const search2 of searchResults) {
+    if ("n" in search2)
+      continue;
+    let bang;
+    if (search2.b) {
+      const [prefix, title, domain] = search2.b.split("	");
+      bang = { prefix, title, domain };
+    }
+    results.results.push({
+      title: search2.t,
+      description: decode(search2.a),
+      rawDescription: search2.a,
+      hostname: search2.i,
+      icon: `https://external-content.duckduckgo.com/ip3/${search2.i}.ico`,
+      url: search2.u,
+      bang
+    });
+  }
+  const imagesMatch = IMAGES_REGEX.exec(data);
+  if (imagesMatch) {
+    const imagesResult = JSON.parse(imagesMatch[1].replace(/\t/g, "    "));
+    results.images = imagesResult.results.map((i) => {
+      i.title = decode(i.title);
+      return i;
+    });
+  }
+  const newsMatch = NEWS_REGEX.exec(data);
+  if (newsMatch) {
+    const newsResult = JSON.parse(newsMatch[1].replace(/\t/g, "    "));
+    results.news = newsResult.results.map((article) => ({
+      date: article.date,
+      excerpt: decode(article.excerpt),
+      image: article.image,
+      relativeTime: article.relative_time,
+      syndicate: article.syndicate,
+      title: decode(article.title),
+      url: article.url,
+      isOld: !!article.is_old
+    }));
+  }
+  const videosMatch = VIDEOS_REGEX.exec(data);
+  if (videosMatch) {
+    const videoResult = JSON.parse(videosMatch[1].replace(/\t/g, "    "));
+    results.videos = [];
+    for (const video of videoResult.results) {
+      results.videos.push({
+        url: video.content,
+        title: decode(video.title),
+        description: decode(video.description),
+        image: video.images.large || video.images.medium || video.images.small || video.images.motion,
+        duration: video.duration,
+        publishedOn: video.publisher,
+        published: video.published,
+        publisher: video.uploader,
+        viewCount: video.statistics.viewCount || void 0
+      });
+    }
+  }
+  const relatedMatch = RELATED_SEARCHES_REGEX.exec(data);
+  if (relatedMatch) {
+    const relatedResult = JSON.parse(relatedMatch[1].replace(/\t/g, "    "));
+    results.related = [];
+    for (const related of relatedResult.results) {
+      results.related.push({
+        text: related.text,
+        raw: related.display_text
+      });
+    }
+  }
+  return results;
+}
+function queryString(query) {
+  return new URLSearchParams(query).toString();
+}
+async function getVQD(query, ia = "web") {
+  try {
+    const response = await fetch(`https://duckduckgo.com/?${queryString({ q: query, ia })}`);
+    const data = await response.text();
+    return VQD_REGEX.exec(data)[1];
+  } catch (e) {
+    throw new Error(`Failed to get the VQD for query "${query}".`);
+  }
+}
+function sanityCheck(options) {
+  options = Object.assign({}, defaultOptions, options);
+  if (!(options.safeSearch in SafeSearchType))
+    throw new TypeError(`${options.safeSearch} is an invalid safe search type!`);
+  if (typeof options.safeSearch === "string")
+    options.safeSearch = SafeSearchType[options.safeSearch];
+  if (typeof options.offset !== "number")
+    throw new TypeError(`Search offset is not a number!`);
+  if (options.offset < 0)
+    throw new RangeError("Search offset cannot be below zero!");
+  if (options.time && !Object.values(SearchTimeType).includes(options.time) && !/\d{4}-\d{2}-\d{2}..\d{4}-\d{2}-\d{2}/.test(options.time))
+    throw new TypeError(`${options.time} is an invalid search time!`);
+  if (!options.locale || typeof options.locale !== "string")
+    throw new TypeError("Search locale must be a string!");
+  if (!options.region || typeof options.region !== "string")
+    throw new TypeError("Search region must be a string!");
+  if (!options.marketRegion || typeof options.marketRegion !== "string")
+    throw new TypeError("Search market region must be a string!");
+  if (options.vqd && !/\d-\d+-\d+/.test(options.vqd))
+    throw new Error(`${options.vqd} is an invalid VQD!`);
+  return options;
+}
+var duckduckgo_search = {
+  schema: {
+    "name": "duckduckgo_search",
+    "description": "Use DuckDuckGo search engine to find information. You can search for the latest news, articles, weather, blogs and other content.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "keywords": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "\u641C\u7D22\u7684\u5173\u952E\u8BCD\u5217\u8868\u3002\u4F8B\u5982\uFF1A['Python', '\u673A\u5668\u5B66\u4E60', '\u6700\u65B0\u8FDB\u5C55']\u3002\u5217\u8868\u957F\u5EA6\u81F3\u5C11\u4E3A3\uFF0C\u6700\u5927\u4E3A4\u3002\u8FD9\u4E9B\u5173\u952E\u8BCD\u5E94\u8BE5\uFF1A- \u7B80\u6D01\u660E\u4E86\uFF0C\u901A\u5E38\u6BCF\u4E2A\u5173\u952E\u8BCD\u4E0D\u8D85\u8FC72-3\u4E2A\u5355\u8BCD - \u6DB5\u76D6\u67E5\u8BE2\u7684\u6838\u5FC3\u5185\u5BB9 - \u907F\u514D\u4F7F\u7528\u8FC7\u4E8E\u5BBD\u6CDB\u6216\u6A21\u7CCA\u7684\u8BCD\u8BED - \u6700\u540E\u4E00\u4E2A\u5173\u952E\u8BCD\u5E94\u8BE5\u6700\u5168\u9762"
+        }
+      },
+      "required": ["keywords"],
+      "additionalProperties": false
+    }
+  },
+  func: async ({ keywords }) => {
+    if (!keywords || keywords.length === 0)
+      throw new Error("\u65E0\u53C2\u6570");
+    console.log("\u5F00\u59CB\u67E5\u8BE2: ", keywords);
+    const startTime = Date.now();
+    const searchResults = await search(keywords.join(" "), {
+      safeSearch: SafeSearchType.STRICT,
+      offset: 0,
+      region: "cn-zh"
+    });
+    const max_length = 8;
+    const content = searchResults.results.slice(0, max_length).map((d) => `title: ` + d.title + `
+description: ` + d.description + `
+url: ` + d.url).join("\n---\n");
+    const time = ((Date.now() - startTime) / 1e3).toFixed(1) + "s";
+    return { content, time };
+  },
+  type: "search"
+};
+
 // src/tools/jina.js
 var jina_reader = {
   schema: {
@@ -4345,7 +4583,7 @@ var jina_reader = {
       ...signal && { signal } || {}
     });
     if (!result.ok) {
-      throw new Error("Error: " + (await result.json()).message);
+      throw new Error((await result.json()).message);
     }
     const time = ((Date.now() - startTime) / 1e3).toFixed(1) + "s";
     return { content: await result.text(), time };
@@ -4353,11 +4591,14 @@ var jina_reader = {
   type: "web_crawler"
 };
 
+// src/tools/index.js
+var tools_default2 = { duckduckgo_search, jina_reader };
+
 // main.js
 var main_default = {
   async fetch(request, env) {
     try {
-      env.tools = { ...env.tools || {}, jina_reader };
+      env.tools = tools_default2;
       initEnv(env, i18n);
       return await handleRequest(request);
     } catch (e) {

@@ -4,11 +4,9 @@ import {MemoryCache} from 'cloudflare-worker-adapter/cache/memory.js';
 import fs from 'fs';
 import HttpsProxyAgent from 'https-proxy-agent';
 import fetch from 'node-fetch';
-import tools from "../../src/tools/index.js";
-
+import {ENV} from '../../src/config/env.js';
 
 const config = JSON.parse(fs.readFileSync('./config.json', 'utf-8'));
-
 
 // 配置数据库
 let cache = new MemoryCache();
@@ -54,8 +52,8 @@ if (proxy) {
 // 配置版本信息
 try {
   const buildInfo = JSON.parse(fs.readFileSync('../../dist/buildinfo.json', 'utf-8'));
-  process.env.BUILD_TIMESTAMP = buildInfo.timestamp;
-  process.env.BUILD_VERSION = buildInfo.sha;
+  ENV.BUILD_TIMESTAMP = buildInfo.timestamp;
+  ENV.BUILD_VERSION = buildInfo.sha;
   console.log(buildInfo);
 } catch (e) {
   console.log(e);
@@ -68,5 +66,4 @@ adapter.startServer(
     {DATABASE: cache},
     {server: config.server},
     worker.fetch,
-    {tools}
 );
