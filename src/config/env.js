@@ -304,6 +304,7 @@ class Environment {
     ENABLE_TELEGRAPH = false;
     // 发文的作者链接; 发文作者目前为机器人ID, 未设置时为anonymous
     TELEGRAPH_AUTHOR_URL = '';
+    DISABLE_WEB_PREVIEW = false;
 }
 
 

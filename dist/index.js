@@ -152,9 +152,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1723465467;
+  BUILD_TIMESTAMP = 1723466704;
   // 当前版本 commit id
-  BUILD_VERSION = "3ef549f";
+  BUILD_VERSION = "d3492aa";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -272,6 +272,7 @@ var Environment = class {
   ENABLE_TELEGRAPH = false;
   // 发文的作者链接; 发文作者目前为机器人ID, 未设置时为anonymous
   TELEGRAPH_AUTHOR_URL = "";
+  DISABLE_WEB_PREVIEW = false;
 };
 var ENV = new Environment();
 var DATABASE = null;
@@ -436,7 +437,7 @@ var CurrentChatContext = class {
   message_id = null;
   reply_markup = null;
   allow_sending_without_reply = null;
-  disable_web_page_preview = false;
+  disable_web_page_preview = ENV.DISABLE_WEB_PREVIEW;
 };
 var Context = class {
   // 用户配置
