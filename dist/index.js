@@ -148,9 +148,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1723523865;
+  BUILD_TIMESTAMP = 1723525704;
   // 当前版本 commit id
-  BUILD_VERSION = "ee94b92";
+  BUILD_VERSION = "9f33e7c";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -2902,7 +2902,10 @@ async function requestCompletionsFromLLM(params, context, llm, modifier, onStrea
   const historyKey = context.SHARE_CONTEXT.chatHistoryKey;
   let { message, images } = params;
   const readStartTime = performance.now();
-  let history = await loadHistory(historyKey);
+  let history = [];
+  if (!params.images) {
+    history = await loadHistory(historyKey);
+  }
   const readTime = ((performance.now() - readStartTime) / 1e3).toFixed(2);
   console.log(`readHistoryTime: ${readTime}s`);
   if (modifier) {

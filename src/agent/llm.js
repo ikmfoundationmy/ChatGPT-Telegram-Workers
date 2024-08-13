@@ -98,7 +98,10 @@ async function requestCompletionsFromLLM(params, context, llm, modifier, onStrea
     const historyKey = context.SHARE_CONTEXT.chatHistoryKey;
     let {message, images} = params;
     const readStartTime = performance.now();
-    let history = await loadHistory(historyKey);
+    let history = [];
+    if (!params.images) {
+        history = await loadHistory(historyKey);
+    }
     const readTime = ((performance.now() - readStartTime) / 1000).toFixed(2);
     console.log(`readHistoryTime: ${readTime}s`);
 
