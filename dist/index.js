@@ -148,9 +148,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1723522710;
+  BUILD_TIMESTAMP = 1723523865;
   // 当前版本 commit id
-  BUILD_VERSION = "81c15f2";
+  BUILD_VERSION = "ee94b92";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -2950,14 +2950,11 @@ async function chatWithLLM(params, context, modifier, pointerLLM = loadChatLLM) 
     let nextEnableTime = null;
     const sendHandler = (() => {
       const question = params.message;
-      const telegraph_prefix = `#Question
+      const prefix = `#Question
 \`\`\`
 ${question?.length > 400 ? question.slice(0, 200) + "..." + question.slice(-200) : question}
 \`\`\`
----
-#Answer
-\u{1F916} __${context._info.model}:__
-`;
+---`;
       let first_time_than = true;
       const author = {
         short_name: context.SHARE_CONTEXT.currentBotName,
@@ -2966,6 +2963,10 @@ ${question?.length > 400 ? question.slice(0, 200) + "..." + question.slice(-200)
       };
       return async (text2) => {
         if (text2.length > ENV.TELEGRAPH_NUM_LIMIT && ENV.ENABLE_TELEGRAPH && CONST.GROUP_TYPES.includes(context.SHARE_CONTEXT.chatType)) {
+          const telegraph_prefix = prefix + `
+#Answer
+\u{1F916} _${context._info.model}_
+`;
           const debug_info = `debug info:${ENV.CALL_INFO ? "" : "\n" + context._info.call_info.replace("$$f_t$$", "") + "\n"}`;
           const telegraph_suffix = `
 ---

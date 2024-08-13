@@ -160,21 +160,22 @@ export async function chatWithLLM(params, context, modifier, pointerLLM = loadCh
         let nextEnableTime = null;
         const sendHandler = (() => {
           const question = params.message;
-            const telegraph_prefix = `#Question\n\`\`\`\n${question?.length > 400 ? question.slice(0, 200) + '...' + question.slice(-200) : question}\n\`\`\`\n---\n#Answer\n🤖 __${context._info.model}:__\n`;
-            let first_time_than = true;
-            const author = {
-              short_name: context.SHARE_CONTEXT.currentBotName,
-              author_name: context.SHARE_CONTEXT.currentBotName,
-              author_url: ENV.TELEGRAPH_AUTHOR_URL,
-            };
+          const prefix = `#Question\n\`\`\`\n${question?.length > 400 ? question.slice(0, 200) + '...' + question.slice(-200) : question}\n\`\`\`\n---`;
+          let first_time_than = true;
+          const author = {
+            short_name: context.SHARE_CONTEXT.currentBotName,
+            author_name: context.SHARE_CONTEXT.currentBotName,
+            author_url: ENV.TELEGRAPH_AUTHOR_URL,
+          };
           return async (text) => {
             if (
               text.length > ENV.TELEGRAPH_NUM_LIMIT &&
-              ENV.ENABLE_TELEGRAPH && CONST.GROUP_TYPES.includes(context.SHARE_CONTEXT.chatType)
+              ENV.ENABLE_TELEGRAPH &&
+              CONST.GROUP_TYPES.includes(context.SHARE_CONTEXT.chatType)
             ) {
-                // const token_info = context._info.token?.map(Object.values)?.join('|') || '';
-                const debug_info = `debug info:${ENV.CALL_INFO ? '' : '\n' + context._info.call_info.replace('$$f_t$$', '') + '\n'}`;
-                const telegraph_suffix = `\n---\n\`\`\`\n${debug_info}\n${context._info.message_title}\n\`\`\``;
+              const telegraph_prefix = prefix + `\n#Answer\n🤖 _${context._info.model}_\n`;
+              const debug_info = `debug info:${ENV.CALL_INFO ? '' : '\n' + context._info.call_info.replace('$$f_t$$', '') + '\n'}`;
+              const telegraph_suffix = `\n---\n\`\`\`\n${debug_info}\n${context._info.message_title}\n\`\`\``;
               if (first_time_than) {
                 const resp = await sendTelegraphWithContext(context)(
                   null,
@@ -183,10 +184,10 @@ export async function chatWithLLM(params, context, modifier, pointerLLM = loadCh
                 );
                 const url = `https://telegra.ph/${context.SHARE_CONTEXT.telegraphPath}`;
                 const msg = `回答已经转换成完整文章~\n[🔗点击进行查看](${url})`;
-                  const show_info_tag = context.USER_CONFIG.ENABLE_SHOWINFO;
-                  context._info.config('show_info', false);
+                const show_info_tag = context.USER_CONFIG.ENABLE_SHOWINFO;
+                context._info.config('show_info', false);
                 await sendMessageToTelegramWithContext(context)(msg);
-                context._info.config("show_info", show_info_tag);
+                context._info.config('show_info', show_info_tag);
                 first_time_than = false;
                 return resp;
               }
