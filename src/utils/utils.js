@@ -134,21 +134,20 @@ function fetchWithRetryFunc() {
         console.error(`Error fetch: ${clone_resp}`);
         if (resp.status === 429) {
           const retryAfter = (resp.headers.get('Retry-After')) || DEFAULT_RETRY_AFTER;
-          // const retryAfter = resp?.parameters?.retry_after || resp.headers.get('Retry-After') || DEFAULT_RETRY_AFTER;
           status429RetryTime[domain] = Date.now() + 1000 * retryAfter;
           return resp;
         } else {
-          throw new Error(clone_resp);
+          throw new Error(`status: ${resp.statusText}`);
         }
       } catch (error) {
         errorMsg = error.message;
-        console.log(`Request failed, retry after ${delayMs / 1000} s: ${error}`);
+        console.error(`Request failed, retry after ${delayMs / 1000} s: ${error}`);
       }
       await delay(delayMs);
       delayMs *= RETRY_MULTIPLIER;
       retries--;
     }
-    throw new Error(`Failed after maximum retries: ${errorMsg}`);
+    throw new Error(`Failed after maximum retries, please see the log.`);
   };
 }
 

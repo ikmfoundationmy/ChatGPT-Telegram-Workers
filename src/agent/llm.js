@@ -172,7 +172,8 @@ export async function chatWithLLM(params, context, modifier, pointerLLM = loadCh
               text.length > ENV.TELEGRAPH_NUM_LIMIT &&
               ENV.ENABLE_TELEGRAPH && CONST.GROUP_TYPES.includes(context.SHARE_CONTEXT.chatType)
             ) {
-                const debug_info = `debug info:\n${ENV.CALL_INFO ? '' : context._info.call_info.replace('$$f_t$$', '') + '\n'}${context._info.token_info.length > 0 ? 'Token:' + context._info.token_info : ''}`;
+                // const token_info = context._info.token?.map(Object.values)?.join('|') || '';
+                const debug_info = `debug info:${ENV.CALL_INFO ? '' : '\n' + context._info.call_info.replace('$$f_t$$', '') + '\n'}`;
                 const telegraph_suffix = `\n---\n\`\`\`\n${debug_info}\n${context._info.message_title}\n\`\`\``;
               if (first_time_than) {
                 const resp = await sendTelegraphWithContext(context)(

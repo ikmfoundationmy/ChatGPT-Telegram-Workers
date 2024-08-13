@@ -77,7 +77,7 @@ export async function requestCompletionsFromOpenAI(params, context, onStream) {
   if (prompt) {
     messages.unshift({ role: context.USER_CONFIG.SYSTEM_INIT_MESSAGE_ROLE, content: prompt });
   }
-  const model = (context._info?.lastStepHasFile)
+  const model = (images && images.length > 0)
     ? context.USER_CONFIG.OPENAI_VISION_MODEL
     : context.USER_CONFIG.OPENAI_CHAT_MODEL;
   const extra_params = context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS;
@@ -87,7 +87,7 @@ export async function requestCompletionsFromOpenAI(params, context, onStream) {
     ...extra_params,
     messages: await Promise.all(messages.map(renderOpenAIMessage)),
     stream: onStream != null,
-    ...(!!onStream && context.USER_CONFIG.ENABLE_SHOWTOKEN && { stream_options: { include_usage: true } }),
+    ...(context.USER_CONFIG.ENABLE_SHOWTOKEN && { stream_options: { include_usage: true } }),
   };
 
   if (message && !context._info?.lastStepHasFile && ENV.TOOLS && context.USER_CONFIG.USE_TOOLS?.length > 0) {
@@ -124,6 +124,7 @@ export async function requestCompletionsFromOpenAI(params, context, onStream) {
 export async function requestImageFromOpenAI(prompt, context) {
   const { PROXY_URL = context.USER_CONFIG.OPENAI_API_BASE, API_KEY = openAIKeyFromContext(context) } = context._info.provider || {};
   const model = context.USER_CONFIG.OPENAI_IMAGE_MODEL;
+  context._info.config('model', model);
   const url = `${PROXY_URL}/images/generations`;
   const header = {
     'Content-Type': 'application/json',
@@ -167,6 +168,7 @@ export async function requestImageFromOpenAI(prompt, context) {
 export async function requestTranscriptionFromOpenAI(audio, file_name, context) {
   const { PROXY_URL = context.USER_CONFIG.OPENAI_API_BASE, API_KEY = openAIKeyFromContext(context) } = context._info.provider || {};
   const model = context.USER_CONFIG.OPENAI_STT_MODEL;
+  context._info.config('model', model);
   const url = `${PROXY_URL}/audio/transcriptions`;
   const header = {
     // 'Content-Type': 'multipart/form-data',

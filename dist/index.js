@@ -99,23 +99,19 @@ var UserConfig = class {
   OPENAI_VISION_MODEL = "gpt-4o-mini";
   // cohere extra Params
   COHERE_API_EXTRA_PARAMS = {};
-  // 提供商来源 {"foo": { PROXY_URL: "https://xxxxxx", API_KEY: "xxxxxx" }}
-  PROVIDER_SOURCES = {};
+  // 提供商来源 {"foo": { API_BASE: "https://xxxxxx", API_KEY: "xxxxxx" }}
+  PROVIDERS = {};
   MODES = {
     // process_type: 默认为'消息类型:text' ; 消息类型分为: text audio image
-    // privider: 默认为default
-    // AI_PROVIDER: 默认为openai, 与AI对话时使用openai风格接口
+    // provider: 默认为default
+    // ai_type: 默认为openai, 与AI对话时使用openai风格接口
     // prompt: default
-    // model: 不同类型下的默认值
-    // text:text, CHAT_MODEL
-    // audio:text, OPENAI_STT_MODEL
-    // image:text, OPENAI_VISION_MODEL
-    // text:image, OPENAI_IMAGE_MODEL
+    // model: 不同类型下 不同默认值
     // text:audio, TODO
     default: {
       text: [{}],
       audio: [
-        // 后若出现模型能直接audio:text对话 则可加上指定模型, 去掉流程中的text:text
+        // 后若出现模型能直接audio:text对话 可加上指定模型, 去掉text:text
         {},
         { process_type: "text:text" }
       ],
@@ -126,7 +122,7 @@ var UserConfig = class {
     }
   };
   // 历史最大长度 调整为用户配置
-  MAX_HISTORY_LENGTH = 8;
+  MAX_HISTORY_LENGTH = 12;
   // /set 指令映射变量 | 分隔多个关系，:分隔映射
   MAPPING_KEY = "-p:SYSTEM_INIT_MESSAGE|-n:MAX_HISTORY_LENGTH|-a:AI_PROVIDER|-ai:AI_IMAGE_PROVIDER|-m:CHAT_MODEL|-v:OPENAI_VISION_MODEL|-t:OPENAI_TTS_MODEL|-ex:OPENAI_API_EXTRA_PARAMS|-mk:MAPPING_KEY|-mv:MAPPING_VALUE|-asap:FUNCTION_REPLY_ASAP|-fm:FUNCTION_CALL_MODEL";
   // /set 指令映射值  | 分隔多个关系，:分隔映射
@@ -140,7 +136,7 @@ var UserConfig = class {
   // 需要使用的函数 当前有 duckduckgo_search 和jina_reader
   // '["duckduckgo_search", "jina_reader"]'
   USE_TOOLS = [];
-  JINA_API_KEY = "";
+  JINA_API_KEY = [];
   // openai格式调用FUNCTION CALL参数
   FUNCTION_CALL_MODEL = "gpt-4o-mini";
   FUNCTION_CALL_API_KEY = "";
@@ -152,9 +148,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1723466704;
+  BUILD_TIMESTAMP = 1723522710;
   // 当前版本 commit id
-  BUILD_VERSION = "d3492aa";
+  BUILD_VERSION = "81c15f2";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -703,17 +699,17 @@ function fetchWithRetryFunc() {
           status429RetryTime[domain] = Date.now() + 1e3 * retryAfter;
           return resp;
         } else {
-          throw new Error(clone_resp);
+          throw new Error(`status: ${resp.statusText}`);
         }
       } catch (error) {
         errorMsg = error.message;
-        console.log(`Request failed, retry after ${delayMs / 1e3} s: ${error}`);
+        console.error(`Request failed, retry after ${delayMs / 1e3} s: ${error}`);
       }
       await delay(delayMs);
       delayMs *= RETRY_MULTIPLIER;
       retries--;
     }
-    throw new Error(`Failed after maximum retries: ${errorMsg}`);
+    throw new Error(`Failed after maximum retries, please see the log.`);
   };
 }
 var fetchWithRetry = fetchWithRetryFunc();
@@ -1421,8 +1417,23 @@ async function requestChatCompletions(url, header2, body, context, onStream, onR
   if (ENV.ALL_COMPLETE_API_TIMEOUT > 0) {
     alltimeoutID = setTimeout(() => controller.abort(), ENV.ALL_COMPLETE_API_TIMEOUT * 1e3);
   }
+  if (ENV.DEBUG_MODE) {
+    console.log(`url:
+${url}
+header:
+${JSON.stringify(header2)}
+body:
+${JSON.stringify(body, null, 2)}`);
+  }
   context._info.updateStartTime();
   console.log("chat start.");
+  if (body.model) {
+    context._info.config("model", body.model);
+  } else {
+    const chatAgent = loadChatLLM(context)?.name;
+    const model = currentChatModel(chatAgent, context);
+    context._info.config("model", model);
+  }
   const resp = await fetch(url, {
     method: "POST",
     headers: header2,
@@ -1447,11 +1458,11 @@ async function requestChatCompletions(url, header2, body, context, onStream, onR
     try {
       for await (const data of stream) {
         const c = options.contentExtractor(data) || "";
+        usage = data?.usage;
         if (body.tools?.length > 0)
           options?.functionCallExtractor(data, tool_calls);
         if (c === "" && tool_calls.length === 0)
           continue;
-        usage = data?.usage;
         lengthDelta += c.length;
         if (lastChunk)
           contentFull = contentFull + lastChunk;
@@ -1510,7 +1521,9 @@ ERROR: ${e.message}`;
     throw new Error(options.errorExtractor(result));
   }
   try {
-    onResult?.(result);
+    if (result.usage) {
+      context._info.setToken(result.usage.prompt_tokens ?? 0, result.usage.completion_tokens ?? 0);
+    }
     return options.fullContentExtractor(result);
   } catch (e) {
     throw Error(JSON.stringify(result));
@@ -1594,7 +1607,8 @@ async function handleOpenaiFunctionCall(url, header2, body, prompt, context, onS
         tool_choice: "auto",
         ...tools_default.default.extra_params,
         messages: body.messages,
-        stream: context.USER_CONFIG.FUNCTION_REPLY_ASAP
+        stream: context.USER_CONFIG.FUNCTION_REPLY_ASAP,
+        ...context.USER_CONFIG.ENABLE_SHOWTOKEN && { stream_options: { include_usage: true } }
       };
       let isOnstream = null;
       if (context.USER_CONFIG.FUNCTION_REPLY_ASAP) {
@@ -1719,7 +1733,7 @@ async function handleOpenaiFunctionCall(url, header2, body, prompt, context, onS
     if (e.name === "AbortError") {
       errorMsg = "call timeout";
     }
-    context._info.setCallInfo(`Function: ${errorMsg}`);
+    context._info.setCallInfo(`Func error: ${errorMsg}`);
     if (final_tool_type)
       body.messages[0].content = tools_default[final_tool_type].prompt;
     return { type: "continue", message: e.message };
@@ -1771,14 +1785,14 @@ async function requestCompletionsFromOpenAI(params, context, onStream) {
   if (prompt) {
     messages.unshift({ role: context.USER_CONFIG.SYSTEM_INIT_MESSAGE_ROLE, content: prompt });
   }
-  const model = context._info?.lastStepHasFile ? context.USER_CONFIG.OPENAI_VISION_MODEL : context.USER_CONFIG.OPENAI_CHAT_MODEL;
+  const model = images && images.length > 0 ? context.USER_CONFIG.OPENAI_VISION_MODEL : context.USER_CONFIG.OPENAI_CHAT_MODEL;
   const extra_params = context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS;
   const body = {
     model,
     ...extra_params,
     messages: await Promise.all(messages.map(renderOpenAIMessage)),
     stream: onStream != null,
-    ...!!onStream && context.USER_CONFIG.ENABLE_SHOWTOKEN && { stream_options: { include_usage: true } }
+    ...context.USER_CONFIG.ENABLE_SHOWTOKEN && { stream_options: { include_usage: true } }
   };
   if (message && !context._info?.lastStepHasFile && ENV.TOOLS && context.USER_CONFIG.USE_TOOLS?.length > 0) {
     const result = await handleOpenaiFunctionCall(url, header2, body, prompt, context, onStream);
@@ -1801,6 +1815,7 @@ async function requestCompletionsFromOpenAI(params, context, onStream) {
 async function requestImageFromOpenAI(prompt, context) {
   const { PROXY_URL = context.USER_CONFIG.OPENAI_API_BASE, API_KEY = openAIKeyFromContext(context) } = context._info.provider || {};
   const model = context.USER_CONFIG.OPENAI_IMAGE_MODEL;
+  context._info.config("model", model);
   const url = `${PROXY_URL}/images/generations`;
   const header2 = {
     "Content-Type": "application/json",
@@ -1832,6 +1847,7 @@ async function requestImageFromOpenAI(prompt, context) {
 async function requestTranscriptionFromOpenAI(audio, file_name, context) {
   const { PROXY_URL = context.USER_CONFIG.OPENAI_API_BASE, API_KEY = openAIKeyFromContext(context) } = context._info.provider || {};
   const model = context.USER_CONFIG.OPENAI_STT_MODEL;
+  context._info.config("model", model);
   const url = `${PROXY_URL}/audio/transcriptions`;
   const header2 = {
     // 'Content-Type': 'multipart/form-data',
@@ -2491,7 +2507,13 @@ var MiddleInfo = class {
     return new MiddleInfo(USER_CONFIG, msg_info);
   }
   setToken(prompt, complete) {
-    this.token_info[this.step_index - 1] = { prompt, complete };
+    if (!this.token_info[this.step_index - 1]) {
+      this.token_info[this.step_index - 1] = [];
+    }
+    this.token_info[this.step_index - 1].push({ prompt, complete });
+  }
+  get token() {
+    return this.token_info[this.step_index - 1];
   }
   get process_count() {
     return this.processes.length;
@@ -2517,9 +2539,9 @@ var MiddleInfo = class {
     if (ENV.CALL_INFO)
       call_info = (this.call_info && this.call_info + "\n").replace("$$f_t$$", "");
     let info = stepInfo + call_info + `${this.model} ${time}s`;
-    if (this.token_info[this.step_index - 1]) {
+    if (this.token && this.token.length > 0) {
       info += `
-Token: ${Object.values(this.token_info[this.step_index - 1]).join(" | ")}`;
+Token: ${this.token.map(Object.values).join("|")}`;
     }
     return info;
   }
@@ -2565,6 +2587,8 @@ Token: ${Object.values(this.token_info[this.step_index - 1]).join(" | ")}`;
       this.processes = this._bp_config.MODES[value][this.msg_type];
     } else if (name === "show_info") {
       this.processes[this.step_index - 1][name] = value;
+    } else if (name === "model") {
+      this.model = value;
     }
   }
   updateStartTime() {
@@ -2596,16 +2620,18 @@ Token: ${Object.values(this.token_info[this.step_index - 1]).join(" | ")}`;
       default:
         throw new Error("unsupport type");
     }
-    if (!this.model) {
-      this.model = USER_CONFIG[`${USER_CONFIG.AI_PROVIDER.toUpperCase()}_${chatType}_MODEL`] || USER_CONFIG[`OPENAI_${chatType}_MODEL`];
-    }
     for (const [key, value] of Object.entries(this.processes[this.step_index - 1])) {
       switch (key) {
+        case "ai_type":
+          USER_CONFIG.AI_PROVIDER = this.ai_type;
+          break;
         case "prompt":
           USER_CONFIG.SYSTEM_INIT_MESSAGE = ENV.PROMPT[value] || value;
           break;
         case "model":
-          USER_CONFIG[`${USER_CONFIG.AI_PROVIDER.toUpperCase()}_${chatType}_MODEL`] = this.model;
+          if (this.model) {
+            USER_CONFIG[`${USER_CONFIG.AI_PROVIDER.toUpperCase()}_${chatType}_MODEL`] = this.model;
+          }
           break;
         case "provider":
           if (USER_CONFIG.PROVIDERS[value]) {
@@ -2940,8 +2966,7 @@ ${question?.length > 400 ? question.slice(0, 200) + "..." + question.slice(-200)
       };
       return async (text2) => {
         if (text2.length > ENV.TELEGRAPH_NUM_LIMIT && ENV.ENABLE_TELEGRAPH && CONST.GROUP_TYPES.includes(context.SHARE_CONTEXT.chatType)) {
-          const debug_info = `debug info:
-${ENV.CALL_INFO ? "" : context._info.call_info.replace("$$f_t$$", "") + "\n"}${context._info.token_info.length > 0 ? "Token:" + context._info.token_info : ""}`;
+          const debug_info = `debug info:${ENV.CALL_INFO ? "" : "\n" + context._info.call_info.replace("$$f_t$$", "") + "\n"}`;
           const telegraph_suffix = `
 ---
 \`\`\`
@@ -4568,23 +4593,29 @@ var jina_reader = {
   },
   func: async ({ url }, { JINA_API_KEY }, signal) => {
     if (!url) {
-      throw new Error("\u53C2\u6570\u9519\u8BEF");
+      throw new Error("url is null");
     }
-    if (!JINA_API_KEY) {
-      throw new Error("JINA\\_API\\_KEY \u4E0D\u5B58\u5728");
+    if (!Array.isArray(JINA_API_KEY) || JINA_API_KEY?.length === 0) {
+      throw new Error("JINA\\_API\\_KEY is null");
     }
+    const key_length = JINA_API_KEY.length;
+    const key = JINA_API_KEY[Math.floor(Math.random() * key_length)];
     console.log("jina-reader:", url);
     const startTime = Date.now();
-    const result = await fetch("https://r.jina.ai/" + url, {
+    let result = await fetch("https://r.jina.ai/" + url, {
       headers: {
         // 'X-Return-Format': 'text',
-        "Authorization": `Bearer ${JINA_API_KEY}`
+        "Authorization": `Bearer ${key}`
         // 'X-Timeout': 15
       },
       ...signal && { signal } || {}
     });
     if (!result.ok) {
-      throw new Error((await result.json()).message);
+      if (result.status.toString().startsWith("4") && key_length > 1) {
+        console.error(`jina key: ${key.slice(0, 10) + " ... " + key.slice(-5)} is expired`);
+        return jina_reader.func({ url }, { JINA_API_KEY: JINA_API_KEY.filter((i) => i !== key) }, signal);
+      }
+      throw new Error("All key has occured: " + (await result.json()).message);
     }
     const time = ((Date.now() - startTime) / 1e3).toFixed(1) + "s";
     return { content: await result.text(), time };

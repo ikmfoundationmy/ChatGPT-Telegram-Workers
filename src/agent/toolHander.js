@@ -45,6 +45,7 @@ export async function handleOpenaiFunctionCall(url, header, body, prompt, contex
         ...tools_settings.default.extra_params,
         messages: body.messages,
         stream: context.USER_CONFIG.FUNCTION_REPLY_ASAP,
+        ...(context.USER_CONFIG.ENABLE_SHOWTOKEN && { stream_options: { include_usage: true } }),
       };
       let isOnstream = null;
       if (context.USER_CONFIG.FUNCTION_REPLY_ASAP) {
@@ -173,7 +174,7 @@ export async function handleOpenaiFunctionCall(url, header, body, prompt, contex
     if (e.name === 'AbortError') {
       errorMsg = 'call timeout';
     }
-    context._info.setCallInfo(`Function: ${errorMsg}`);
+    context._info.setCallInfo(`Func error: ${errorMsg}`);
     if (final_tool_type) body.messages[0].content = tools_settings[final_tool_type].prompt;
     return { type: 'continue', message: e.message };
   }

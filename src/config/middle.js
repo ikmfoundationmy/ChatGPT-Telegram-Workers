@@ -135,7 +135,13 @@ export class MiddleInfo {
   }
 
   setToken(prompt, complete) {
-    this.token_info[this.step_index - 1] = { prompt, complete };
+    if (!this.token_info[this.step_index - 1]) {
+      this.token_info[this.step_index - 1] = [];
+    }
+    this.token_info[this.step_index - 1].push({ prompt, complete });
+  }
+  get token() {
+    return this.token_info[this.step_index - 1];
   }
 
   get process_count() {
@@ -165,8 +171,8 @@ export class MiddleInfo {
 
     let info = stepInfo + call_info + `${this.model} ${time}s`;
     
-    if (this.token_info[this.step_index - 1]) {
-      info += `\nToken: ${Object.values(this.token_info[this.step_index - 1]).join(' | ')}`;
+    if (this.token && this.token.length > 0){
+      info += `\nToken: ${this.token.map(Object.values).join('|')}`;
     }
     return info;
   }
@@ -214,6 +220,9 @@ export class MiddleInfo {
     else if (name === 'show_info') {
       this.processes[this.step_index - 1][name] = value;
     }
+    else if (name === 'model') {
+      this.model = value;
+    }
   }
   updateStartTime() {
     this.process_start_time[this.step_index] = Date.now();
@@ -247,18 +256,19 @@ export class MiddleInfo {
       default:
         throw new Error('unsupport type');
     }
-    if (!this.model) {
-      // auto状态 / provider与模型不匹配时 无法直接读取模型 默认显示openai的模型
-      this.model = USER_CONFIG[`${USER_CONFIG.AI_PROVIDER.toUpperCase()}_${chatType}_MODEL`] || USER_CONFIG[`OPENAI_${chatType}_MODEL`];
-    }
 
     for (const [key, value] of Object.entries(this.processes[this.step_index - 1])) {
       switch (key) {
+        case 'ai_type':
+          USER_CONFIG.AI_PROVIDER = this.ai_type;
+          break;
         case 'prompt':
           USER_CONFIG.SYSTEM_INIT_MESSAGE = ENV.PROMPT[value] || value;
           break;
         case 'model':
-          USER_CONFIG[`${USER_CONFIG.AI_PROVIDER.toUpperCase()}_${chatType}_MODEL`] = this.model;
+          if (this.model) {
+            USER_CONFIG[`${USER_CONFIG.AI_PROVIDER.toUpperCase()}_${chatType}_MODEL`] = this.model;
+          }
           break;
         case 'provider':
           if (USER_CONFIG.PROVIDERS[value]) {

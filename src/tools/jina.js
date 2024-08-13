@@ -19,23 +19,29 @@ export const jina_reader = {
 
   func: async ({ url }, { JINA_API_KEY }, signal) => {
     if (!url) {
-      throw new Error('参数错误');
+      throw new Error('url is null');
     }
-    if (!JINA_API_KEY) {
-      throw new Error('JINA\\_API\\_KEY 不存在');
+    if (!Array.isArray(JINA_API_KEY) || JINA_API_KEY?.length === 0) {
+      throw new Error('JINA\\_API\\_KEY is null');
     }
+    const key_length = JINA_API_KEY.length;
+    const key = JINA_API_KEY[Math.floor(Math.random() * key_length)];
     console.log('jina-reader:', url);
     const startTime = Date.now();
-    const result = await fetch('https://r.jina.ai/' + url, {
+    let result = await fetch('https://r.jina.ai/' + url, {
       headers: {
         // 'X-Return-Format': 'text',
-        'Authorization': `Bearer ${JINA_API_KEY}`,
+        'Authorization': `Bearer ${key}`,
         // 'X-Timeout': 15
       },
       ...(signal && { signal } || {})
     });
     if (!result.ok) {
-      throw new Error((await result.json()).message);
+      if (result.status.toString().startsWith('4') && key_length > 1) {
+        console.error(`jina key: ${key.slice(0, 10) + ' ... ' + key.slice(-5)} is expired`); 
+        return jina_reader.func({ url }, { JINA_API_KEY: JINA_API_KEY.filter(i => i !== key) }, signal);
+      }
+      throw new Error('All key has occured: ' + (await result.json()).message);
     }
     const time = ((Date.now() - startTime) / 1000).toFixed(1) + 's';
     return { content: await result.text(), time };

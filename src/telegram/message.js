@@ -6,7 +6,6 @@ import {errorToString} from '../utils/utils.js';
 import { chatViaFileWithLLM, chatWithLLM } from '../agent/llm.js';
 import { loadImageGen, loadVisionLLM } from "../agent/agents.js";
 import { MiddleInfo } from "../config/middle.js";
-import { uploadImageToTelegraph } from "../utils/image.js";
 
 import '../types/telegram.js';
 

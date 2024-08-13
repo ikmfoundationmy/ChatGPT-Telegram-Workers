@@ -2,7 +2,7 @@
 import '../types/context.js';
 import { ENV } from '../config/env.js';
 import { Stream } from './stream.js';
-import { sendMessageToTelegramWithContext } from "../telegram/telegram.js";
+import { loadChatLLM, currentChatModel } from "../agent/agents.js";
 
 /**
  *
@@ -134,6 +134,15 @@ export async function requestChatCompletions(url, header, body, context, onStrea
   context._info.updateStartTime();
   console.log('chat start.');
 
+  if (body.model) {
+    context._info.config('model', body.model);
+  } else {
+    const chatAgent = loadChatLLM(context)?.name;
+    const model = currentChatModel(chatAgent, context);
+    context._info.config("model", model);
+  }
+
+
   const resp = await fetch(url, {
     method: 'POST',
     headers: header,
@@ -161,9 +170,9 @@ export async function requestChatCompletions(url, header, body, context, onStrea
     try {
       for await (const data of stream) {
         const c = options.contentExtractor(data) || '';
+        usage = data?.usage;
         if (body.tools?.length > 0) options?.functionCallExtractor(data, tool_calls);
         if (c === '' && tool_calls.length === 0) continue;
-        usage = data?.usage;
         lengthDelta += c.length;
         if (lastChunk) contentFull = contentFull + lastChunk;
         if (tool_calls.length > 0) {
@@ -230,7 +239,9 @@ export async function requestChatCompletions(url, header, body, context, onStrea
   }
 
   try {
-    onResult?.(result);
+    if (result.usage) {
+      context._info.setToken(result.usage.prompt_tokens ?? 0, result.usage.completion_tokens ?? 0);
+    }
     // return result;
     return options.fullContentExtractor(result);
   } catch (e) {

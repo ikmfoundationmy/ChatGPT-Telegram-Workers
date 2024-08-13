@@ -113,23 +113,19 @@ export class UserConfig {
   OPENAI_VISION_MODEL = 'gpt-4o-mini';
   // cohere extra Params
   COHERE_API_EXTRA_PARAMS = {};
-  // 提供商来源 {"foo": { PROXY_URL: "https://xxxxxx", API_KEY: "xxxxxx" }}
-  PROVIDER_SOURCES = {};
+  // 提供商来源 {"foo": { API_BASE: "https://xxxxxx", API_KEY: "xxxxxx" }}
+  PROVIDERS = {};
   MODES = {
     // process_type: 默认为'消息类型:text' ; 消息类型分为: text audio image
-    // privider: 默认为default
-    // AI_PROVIDER: 默认为openai, 与AI对话时使用openai风格接口
+    // provider: 默认为default
+    // ai_type: 默认为openai, 与AI对话时使用openai风格接口
     // prompt: default
-    // model: 不同类型下的默认值
-    // text:text, CHAT_MODEL
-    // audio:text, OPENAI_STT_MODEL
-    // image:text, OPENAI_VISION_MODEL
-    // text:image, OPENAI_IMAGE_MODEL
+    // model: 不同类型下 不同默认值
     // text:audio, TODO
     default: {
       text: [{}],
       audio: [
-        // 后若出现模型能直接audio:text对话 则可加上指定模型, 去掉流程中的text:text
+        // 后若出现模型能直接audio:text对话 可加上指定模型, 去掉text:text
         {},
         { process_type: 'text:text' },
       ],
@@ -140,7 +136,7 @@ export class UserConfig {
     },
   };
   // 历史最大长度 调整为用户配置
-  MAX_HISTORY_LENGTH = 8;
+  MAX_HISTORY_LENGTH = 12;
   // /set 指令映射变量 | 分隔多个关系，:分隔映射
   MAPPING_KEY =
     '-p:SYSTEM_INIT_MESSAGE|-n:MAX_HISTORY_LENGTH|-a:AI_PROVIDER|-ai:AI_IMAGE_PROVIDER|-m:CHAT_MODEL|-v:OPENAI_VISION_MODEL|-t:OPENAI_TTS_MODEL|-ex:OPENAI_API_EXTRA_PARAMS|-mk:MAPPING_KEY|-mv:MAPPING_VALUE|-asap:FUNCTION_REPLY_ASAP|-fm:FUNCTION_CALL_MODEL';
@@ -155,7 +151,7 @@ export class UserConfig {
   // 需要使用的函数 当前有 duckduckgo_search 和jina_reader
   // '["duckduckgo_search", "jina_reader"]'
   USE_TOOLS = [];
-  JINA_API_KEY = '';
+  JINA_API_KEY = [];
   // openai格式调用FUNCTION CALL参数
   FUNCTION_CALL_MODEL = 'gpt-4o-mini';
   FUNCTION_CALL_API_KEY = '';
