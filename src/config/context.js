@@ -43,6 +43,8 @@ class ShareContext {
     telegraphAccessToken = null;
     telegraphPath = null;
     scheduleDeteleKey = 'schedule_detele_message';
+    sentMessageIds = null;
+    messageId = null;
 
 }
 
@@ -185,6 +187,9 @@ export class Context {
         this.SHARE_CONTEXT.chatType = message.chat?.type;
         this.SHARE_CONTEXT.chatId = message.chat.id;
         this.SHARE_CONTEXT.speakerId = message.from.id || message.chat.id;
+        this.SHARE_CONTEXT.messageId = message.message_id;
+        if (ENV.SCHEDULE_TIME > 5) this.SHARE_CONTEXT.sentMessageIds = new Set();
+
     }
 
     /**

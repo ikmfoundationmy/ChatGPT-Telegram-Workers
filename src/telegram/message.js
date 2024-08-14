@@ -6,6 +6,7 @@ import {errorToString} from '../utils/utils.js';
 import { chatViaFileWithLLM, chatWithLLM } from '../agent/llm.js';
 import { loadImageGen, loadVisionLLM } from "../agent/agents.js";
 import { MiddleInfo } from "../config/middle.js";
+// import tasks from "../tools/scheduleTask.js";
 
 import '../types/telegram.js';
 
@@ -311,7 +312,7 @@ async function msgInitMiddleInfo(message, context) {
   try {
     context._info = await MiddleInfo.initInfo(message, context);
     if (!message.text && !message.reply_to_message?.text) {
-      const msg = await sendMessageToTelegramWithContext(context)('file info get successful.').then((r) => r.json());
+      const msg = await sendMessageToTelegramWithContext(context)('file info get successful.');
       context.CURRENT_CHAT_CONTEXT.message_id = msg.result.message_id;
     }
     return null;
@@ -434,30 +435,37 @@ function loadMessage(body) {
   }
 }
 
-// async function scheduledDeleteMessage(request, context) {
-//   if (CONST.GROUP_TYPES.includes(context.SHARE_CONTEXT.chatType) && ENV.SCHEDULE_DELETE >= 5) {
-//     const chatId = context.SHARE_CONTEXT.chatId;
-//     const botName = context.SHARE_CONTEXT.currentBotName;;
-//     const scheduledData = JSON.parse((await DATABASE.get(context.SHARE_CONTEXT.scheduleDeteleKey)) || '{}');
-//     if (!scheduledData[botName]) {
-//       scheduledData[botName] = {};
-//     }
-//     if (!scheduledData[botName][chatId]) {
-//       scheduledData[botName][chatId] = [];
-//     }
-//     const offsetInMillisenconds = ENV.SCHEDULE_DELETE * 60 * 1000;
-//     scheduledData[botName][chatId].push({
-//       id: context.CURRENT_CHAT_CONTEXT.message_id,
-//       ttl: new Date() + offsetInMillisenconds,
-//     });
-//     await DATABASE.put(context.SHARE_CONTEXT.scheduleDeteleKey, JSON.stringify(scheduledData));
-//   };
-//   return new Response('success', { status: 200 });
-// }
+async function scheduledDeleteMessage(request, context) {
+  // 未发出消息
+  const { sentMessageIds } = context.SHARE_CONTEXT;
+  if (!sentMessageIds || sentMessageIds.size === 0)
+    return new Response('success', { status: 200 });
 
-// async function msgTagNeedDelete(request, context) {
-//   return await scheduledDeleteMessage(request, context);
-// }
+  const chatId = context.SHARE_CONTEXT.chatId;
+  const botName = context.SHARE_CONTEXT.currentBotName;
+  const scheduledData = JSON.parse((await DATABASE.get(context.SHARE_CONTEXT.scheduleDeteleKey)) || '{}');
+  if (!scheduledData[botName]) {
+    scheduledData[botName] = {};
+  }
+  if (!scheduledData[botName][chatId]) {
+    scheduledData[botName][chatId] = [];
+  }
+  const offsetInMillisenconds = ENV.SCHEDULE_TIME * 60 * 1000;
+  scheduledData[botName][chatId].push({
+    id: [...sentMessageIds],
+    ttl: Date.now() + offsetInMillisenconds,
+  });
+  
+  await DATABASE.put(context.SHARE_CONTEXT.scheduleDeteleKey, JSON.stringify(scheduledData));
+  console.log(`message need delete: ${chatId} - ${[...sentMessageIds]}`);
+
+  // await tasks.schedule_detele_message();
+  return new Response('success', { status: 200 });
+}
+
+async function msgTagNeedDelete(request, context) {
+  return await scheduledDeleteMessage(request, context);
+}
 
 /**
  * 处理消息
@@ -505,14 +513,14 @@ export async function handleMessage(token, body) {
       msgChatWithLLM,
     ];
   
-    // const exitHanders = [msgTagNeedDelete];
+    const exitHanders = [msgTagNeedDelete];
 
     for (const handler of handlers) {
         try {
           const result = await handler(message, context);
           if (result && result instanceof Response) {
-              return result;
-                // break;
+              // return result;
+              break;
             }
         } catch (e) {
             console.error(e);
@@ -520,16 +528,16 @@ export async function handleMessage(token, body) {
         }
     }
 
-    // for (const handler of exitHanders) {
-    //   try {
-    //     const result = await handler(message, context);
-    //       if (result && result instanceof Response) {
-    //           break;
-    //       }
-    //   } catch (e) {
-    //       console.error(e);
-    //       return new Response(errorToString(e), {status: 500});
-    //   }
-    // }
+    for (const handler of exitHanders) {
+      try {
+        const result = await handler(message, context);
+          if (result && result instanceof Response) {
+            return result;
+          }
+      } catch (e) {
+          console.error(e);
+          return new Response(errorToString(e), {status: 500});
+      }
+    }
     return null;
 }

@@ -133,15 +133,15 @@ export class MiddleInfo {
     const msg_info = await extractMessageType(message, currentBotToken);
     return new MiddleInfo(USER_CONFIG, msg_info);
   }
-
+  // token数据正常从1开始缓存 0为命令缓存
   setToken(prompt, complete) {
-    if (!this.token_info[this.step_index - 1]) {
-      this.token_info[this.step_index - 1] = [];
+    if (!this.token_info[this.step_index]) {
+      this.token_info[this.step_index] = [];
     }
-    this.token_info[this.step_index - 1].push({ prompt, complete });
+    this.token_info[this.step_index].push({ prompt, complete });
   }
   get token() {
-    return this.token_info[this.step_index - 1];
+    return this.token_info[this.step_index];
   }
 
   get process_count() {
@@ -157,10 +157,10 @@ export class MiddleInfo {
   }
 
   get message_title() {
-    if (!this.model || this.step_index === 0 || !this.process_start_time[this.step_index]) {
+    if (!this.model || !this.process_start_time[this.step_index]) {
       return '';
     }
-    const show_info = this.processes[this.step_index - 1]?.show_info ?? this._bp_config.ENABLE_SHOWINFO;
+    const show_info = this.processes?.[this.step_index]?.show_info ?? this._bp_config.ENABLE_SHOWINFO;
     if (!show_info) return '';
     const step_count = this.process_count;
     const stepInfo = step_count > 1 ? `[STEP ${this.step_index}/${step_count}]\n` : '';

@@ -49,7 +49,12 @@
  * @property {?string} chatType - 会话场景, private/group/supergroup 等, 来源 message.chat.type
  * @property {?TelegramID} chatId - 会话 id, private 场景为发言人 id, group/supergroup 场景为群组 id
  * @property {?TelegramID} speakerId - 发言人 id
+ * @property {?string} telegraphAccessTokenKey - telegraph_access_token:chat_id
+ * @property {?string} telegraphAccessToken - telegraph_access_token
+ * @property {?string} telegraphPath - telegraph 消息路径
  * @property {?object} extraMessageContext - 额外消息上下文
+ * @property {?Set<TelegramID>} sentMessageIds - 已发送的消息ID
+ * @property {?string} messageId - 原始消息ID
  */
 
 /**

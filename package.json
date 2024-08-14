@@ -20,7 +20,8 @@
     "wrangler": "^3.69.1"
   },
   "exports": {
-    ".": "./main.js"
+    ".": "./main.js",
+    "./task": "./src/tools/scheduleTasks.js"
   },
   "files": [
     "main.js",

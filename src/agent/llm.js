@@ -96,15 +96,14 @@ async function loadHistory(key) {
 async function requestCompletionsFromLLM(params, context, llm, modifier, onStream) {
     const historyDisable = ENV.AUTO_TRIM_HISTORY && ENV.MAX_HISTORY_LENGTH <= 0;
     const historyKey = context.SHARE_CONTEXT.chatHistoryKey;
-    let {message, images} = params;
     const readStartTime = performance.now();
     let history = [];
-    if (!params.images) {
+    let {message, images} = params;
+    if (!images) {
         history = await loadHistory(historyKey);
     }
     const readTime = ((performance.now() - readStartTime) / 1000).toFixed(2);
     console.log(`readHistoryTime: ${readTime}s`);
-
     if (modifier) {
         const modifierData = modifier(history, message);
         history = modifierData.history;
@@ -117,15 +116,16 @@ async function requestCompletionsFromLLM(params, context, llm, modifier, onStrea
     };
     let answer = await llm(llmParams, context, onStream);
     if (images) {
-        message = '[A FILE] ' + message;
+        params.message = '[A IMAGE] ' + params.message;
     }
+
     if (typeof answer === 'object') {
         message = answer.q;
         answer = answer.a;
     }
     
     if (!historyDisable && answer) {
-        history.push({ role: 'user', content: message || ''});
+        history.push({ role: 'user', content: params.message || ''});
         history.push({ role: 'assistant', content: answer });
         await DATABASE.put(historyKey, JSON.stringify(history)).catch(console.error);
     }
@@ -144,13 +144,13 @@ async function requestCompletionsFromLLM(params, context, llm, modifier, onStrea
  */
 export async function chatWithLLM(params, context, modifier, pointerLLM = loadChatLLM) {
     try {
-
+        if (!params) params = { message: '' };
         params.message = context._info.isFirstStep ? params.message : context._info.lastStep.text;
         const parseMode = context.CURRENT_CHAT_CONTEXT.parse_mode;
         try {
             if (!context.CURRENT_CHAT_CONTEXT.message_id) {
                 context.CURRENT_CHAT_CONTEXT.parse_mode = null;
-                const msg = await sendMessageToTelegramWithContext(context)('...').then((r) => r.json());
+                const msg = await sendMessageToTelegramWithContext(context)('...');
                 context.CURRENT_CHAT_CONTEXT.message_id = msg.result.message_id;
             }
             context.CURRENT_CHAT_CONTEXT.parse_mode = parseMode;
@@ -162,7 +162,7 @@ export async function chatWithLLM(params, context, modifier, pointerLLM = loadCh
         let onStream = null;
         let nextEnableTime = null;
         const sendHandler = (() => {
-          const question = params.message;
+          const question = params?.message || 'Redo';
           const prefix = `#Question\n\`\`\`\n${question?.length > 400 ? question.slice(0, 200) + '...' + question.slice(-200) : question}\n\`\`\`\n---`;
           let first_time_than = true;
           const author = {
@@ -279,14 +279,14 @@ export async function chatWithLLM(params, context, modifier, pointerLLM = loadCh
             errMsg = errMsg.substring(0, 2048);
         }
         context.CURRENT_CHAT_CONTEXT.disable_web_page_preview = true;
-        return sendMessageToTelegramWithContext(context)(errMsg);
+        return sendMessageToTelegramWithContext(context)(errMsg, 'command');
     }
 }
 
 export async function chatViaFileWithLLM(context) {
     try {
         if (!context.CURRENT_CHAT_CONTEXT.message_id) {
-            const msg = await sendMessageToTelegramWithContext(context)('...').then((r) => r.json());
+            const msg = await sendMessageToTelegramWithContext(context)('...');
             context.CURRENT_CHAT_CONTEXT.message_id = msg.result.message_id;
             context.CURRENT_CHAT_CONTEXT.reply_markup = null;
           }

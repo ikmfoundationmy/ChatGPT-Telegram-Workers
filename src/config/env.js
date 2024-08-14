@@ -301,6 +301,13 @@ class Environment {
     // 发文的作者链接; 发文作者目前为机器人ID, 未设置时为anonymous
     TELEGRAPH_AUTHOR_URL = '';
     DISABLE_WEB_PREVIEW = false;
+    // 定时任务时间间隔, 单位:分钟, 最小间隔为5
+    SCHEDULE_TIME = -1;
+    // 定时删除群组消息的类型 命令对话:command 普通对话:chat
+    SCHEDULE_GROUP_DELETE_TYPE = ['command'];
+    // 定时删除私人消息的类型 命令对话:command与普通对话:chat
+    SCHEDULE_PRIVATE_DELETE_TYPE = ['command'];
+
 }
 
 
@@ -317,6 +324,7 @@ export const CUSTOM_COMMAND_DESCRIPTION = {};
 export const CONST = {
     PASSWORD_KEY: 'chat_history_password',
     GROUP_TYPES: ['group', 'supergroup'],
+    PRIVATE_TYPES: ['private'],
 };
 
 const ENV_TYPES = {
@@ -343,7 +351,7 @@ export const ENV_KEY_MAPPER = {
  * @param {string} raw
  * @returns {string[]}
  */
-function parseArray(raw) {
+export function parseArray(raw) {
     if (raw.startsWith('[') && raw.endsWith(']')) {
         try {
             return JSON.parse(raw);

@@ -1,4 +1,4 @@
-import {DATABASE, ENV} from '../config/env.js';
+import {DATABASE, ENV, CONST} from '../config/env.js';
 import { escape } from "../utils/md2tgmd.js";
 import { fetchWithRetry } from "../utils/utils.js";
 import { uploadImageToTelegraph } from "../utils/image.js";
@@ -85,13 +85,7 @@ export async function sendMessageToTelegram(message, token, context, _info = nul
         { type: 'code', offset: 0, length: message.length },
         { type: 'blockquote', offset: 0, length: message.length },
       ];
-      resp = await sendMessage(message, token, chatContext);
-      // if (resp.status !== 200) {
-      //   chatContext.entities = []
-      //   return await sendMessage(message, token, chatContext);
-      // }
-      // console.log('sec request ok')
-      return resp;
+      return await sendMessage(message, token, chatContext);
     }
   }
   chatContext.parse_mode = null;
@@ -144,9 +138,27 @@ export async function sendMessageToTelegram(message, token, context, _info = nul
  * @returns {function(string): Promise<Response>}
  */
 export function sendMessageToTelegramWithContext(context) {
-    return async (message) => {
-        return sendMessageToTelegram(message, context.SHARE_CONTEXT.currentBotToken, context.CURRENT_CHAT_CONTEXT, context._info);
-    };
+  return async (message, msgType = 'chat') => {
+    const resp = await sendMessageToTelegram(
+      message,
+      context.SHARE_CONTEXT.currentBotToken,
+      context.CURRENT_CHAT_CONTEXT,
+      context._info,
+    ).then((r) => r.json());
+    const { sentMessageIds, chatType } = context.SHARE_CONTEXT;
+    // 标记消息id
+    if (sentMessageIds && resp.result?.message_id) {
+      if (CONST.GROUP_TYPES.includes(chatType) && ENV.SCHEDULE_GROUP_DELETE_TYPE.includes(msgType) ||
+        CONST.PRIVATE_TYPES.includes(chatType) && ENV.SCHEDULE_PRIVATE_DELETE_TYPE.includes(msgType)) {
+        sentMessageIds.add(resp.result.message_id);
+        if (msgType === 'command') {
+          // 删除发送人的消息
+          sentMessageIds.add(context.SHARE_CONTEXT.messageId);
+        }
+      }
+    }
+    return resp;
+  };
 }
 
 /**
@@ -175,16 +187,16 @@ export async function deleteMessagesFromTelegram(chat_id, bot_token,  message_id
   return await fetch(
     `${ENV.TELEGRAM_API_DOMAIN}/bot${bot_token}/deleteMessages`,
     {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            chat_id,
-            message_ids,
-        }),
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        chat_id,
+        message_ids,
+      }),
     },
-);
+  ).then(r => r.json());
 
 }
 

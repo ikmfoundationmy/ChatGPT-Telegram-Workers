@@ -4,7 +4,9 @@ import {MemoryCache} from 'cloudflare-worker-adapter/cache/memory.js';
 import fs from 'fs';
 import HttpsProxyAgent from 'https-proxy-agent';
 import fetch from 'node-fetch';
-import {ENV} from '../../src/config/env.js';
+import { ENV } from '../../src/config/env.js';
+import toml from 'toml';
+import tasks from "../../src/tools/scheduleTask.js";
 
 const config = JSON.parse(fs.readFileSync('./config.json', 'utf-8'));
 
@@ -48,16 +50,30 @@ if (proxy) {
   });
 }
 
-
 // 配置版本信息
 try {
   const buildInfo = JSON.parse(fs.readFileSync('../../dist/buildinfo.json', 'utf-8'));
   ENV.BUILD_TIMESTAMP = buildInfo.timestamp;
   ENV.BUILD_VERSION = buildInfo.sha;
   console.log(buildInfo);
+
+  // 定时任务
+  const raw = fs.readFileSync('../../wrangler.toml');
+  const env = { ...toml.parse(raw).vars, DATABASE: cache };
+  if (env.SCHEDULE_TIME && env.SCHEDULE_TIME > 5) {
+    setInterval(async () => {
+      const promises = [];
+      for (const task of Object.values(tasks)) {
+        promises.push(task(env));
+      }
+      await Promise.all(promises);
+    }, env.SCHEDULE_TIME * 60 * 1000);
+  }
+
 } catch (e) {
   console.log(e);
 }
+
 const {default: worker} = await import('../../main.js');
 adapter.startServer(
     config.port || 8787,
