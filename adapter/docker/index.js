@@ -1,6 +1,7 @@
 import adapter from 'cloudflare-worker-adapter';
 import { RedisCache } from 'cloudflare-worker-adapter/cache/redis.js';
 import toml from 'toml';
+import fs from 'fs';
 import { default as worker } from 'chatgpt-telegram-workers';
 
 const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
