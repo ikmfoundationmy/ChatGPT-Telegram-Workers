@@ -8,18 +8,23 @@ async function schedule_detele_message(ENV) {
     const scheduleDeteleKey = 'schedule_detele_message';
     const scheduledData = JSON.parse((await DATABASE.get(scheduleDeteleKey)) || '{}');
     let botTokens = [];
+    let botNames = [];
 
     if (typeof ENV.TELEGRAM_AVAILABLE_TOKENS === 'string') {
       botTokens = parseArray(ENV.TELEGRAM_AVAILABLE_TOKENS);
     } else botTokens = ENV.TELEGRAM_AVAILABLE_TOKENS;
 
+    if (typeof ENV.TELEGRAM_BOT_NAME === 'string') {
+      botNames = parseArray(ENV.TELEGRAM_BOT_NAME);
+    } else botNames = ENV.TELEGRAM_BOT_NAME;
+
     const taskPromises = [];
 
     for (const [bot_name, chats] of Object.entries(scheduledData)) {
-      const bot_index = ENV.TELEGRAM_BOT_NAME.indexOf(bot_name);
-      if (bot_index < 0) throw new Error('bot name is invalid');
+      const bot_index = botNames.indexOf(bot_name);
+      if (bot_index < 0) throw new Error(`bot name: ${bot_name} is not exist.`);
       const bot_token = botTokens[bot_index];
-      if (!bot_token) throw new Error('bot token is null');
+      if (!bot_token) throw new Error(`Cant find bot ${bot_name} - position ${bot_index + 1}'s token\nAll token list: ${botTokens}`);
       for (const [chat_id, messages] of Object.entries(chats)) {
         if (messages.length === 0) continue;
 

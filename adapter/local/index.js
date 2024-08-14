@@ -60,7 +60,7 @@ try {
   // 定时任务
   const raw = fs.readFileSync('../../wrangler.toml');
   const env = { ...toml.parse(raw).vars, DATABASE: cache };
-  if (env.SCHEDULE_TIME && env.SCHEDULE_TIME > 5) {
+  if (env.SCHEDULE_TIME && env.SCHEDULE_TIME >= 5) {
     setInterval(async () => {
       await worker.scheduled(null, env, null);
     }, env.SCHEDULE_TIME * 60 * 1000);

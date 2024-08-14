@@ -148,9 +148,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1723620731;
+  BUILD_TIMESTAMP = 1723629837;
   // 当前版本 commit id
-  BUILD_VERSION = "6aac4ab";
+  BUILD_VERSION = "aeb47b8";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -537,7 +537,7 @@ var Context = class {
     this.SHARE_CONTEXT.chatId = message.chat.id;
     this.SHARE_CONTEXT.speakerId = message.from.id || message.chat.id;
     this.SHARE_CONTEXT.messageId = message.message_id;
-    if (ENV.SCHEDULE_TIME > 5)
+    if (ENV.SCHEDULE_TIME >= 5)
       this.SHARE_CONTEXT.sentMessageIds = /* @__PURE__ */ new Set();
   }
   /**
@@ -4721,18 +4721,24 @@ async function schedule_detele_message(ENV2) {
     const scheduleDeteleKey = "schedule_detele_message";
     const scheduledData = JSON.parse(await DATABASE2.get(scheduleDeteleKey) || "{}");
     let botTokens = [];
+    let botNames = [];
     if (typeof ENV2.TELEGRAM_AVAILABLE_TOKENS === "string") {
       botTokens = parseArray(ENV2.TELEGRAM_AVAILABLE_TOKENS);
     } else
       botTokens = ENV2.TELEGRAM_AVAILABLE_TOKENS;
+    if (typeof ENV2.TELEGRAM_BOT_NAME === "string") {
+      botNames = parseArray(ENV2.TELEGRAM_BOT_NAME);
+    } else
+      botNames = ENV2.TELEGRAM_BOT_NAME;
     const taskPromises = [];
     for (const [bot_name, chats] of Object.entries(scheduledData)) {
-      const bot_index = ENV2.TELEGRAM_BOT_NAME.indexOf(bot_name);
+      const bot_index = botNames.indexOf(bot_name);
       if (bot_index < 0)
-        throw new Error("bot name is invalid");
+        throw new Error(`bot name: ${bot_name} is not exist.`);
       const bot_token = botTokens[bot_index];
       if (!bot_token)
-        throw new Error("bot token is null");
+        throw new Error(`Cant find bot ${bot_name} - position ${bot_index + 1}'s token
+All token list: ${botTokens}`);
       for (const [chat_id, messages] of Object.entries(chats)) {
         if (messages.length === 0)
           continue;
