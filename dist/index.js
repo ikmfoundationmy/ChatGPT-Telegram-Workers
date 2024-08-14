@@ -148,9 +148,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1723617551;
+  BUILD_TIMESTAMP = 1723620256;
   // 当前版本 commit id
-  BUILD_VERSION = "87d85d0";
+  BUILD_VERSION = "333c772";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -3076,7 +3076,7 @@ ${context._info.message_title}
     console.log(`[START] Chat via ${llm.name}`);
     const answer = await requestCompletionsFromLLM(params, context, llm, modifier, onStream);
     if (!answer) {
-      return sendMessageToTelegramWithContext(context)("None response");
+      return sendMessageToTelegramWithContext(context)("None response", "command");
     }
     if (answer instanceof Response) {
       return answer;
@@ -3137,7 +3137,7 @@ async function chatViaFileWithLLM(context) {
     const answer = await llm(raw, file_name, context);
     if (!answer.ok) {
       console.error(answer.message);
-      return sendMessageToTelegramWithContext(context)("Chat via file failed.");
+      return sendMessageToTelegramWithContext(context)("Chat via file failed.", "command");
     }
     console.log(`[FILE DONE] ${llm.name}: ${((performance.now() - startTime) / 1e3).toFixed(1)}s`);
     if (!context._info.isLastStep) {
@@ -3162,7 +3162,7 @@ async function chatViaFileWithLLM(context) {
     return null;
   } catch (e) {
     context.CURRENT_CHAT_CONTEXT.disable_web_page_preview = true;
-    return sendMessageToTelegramWithContext(context)(e.substring(2048));
+    return sendMessageToTelegramWithContext(context)(e.substring(2048), "command");
   }
 }
 
@@ -3753,7 +3753,7 @@ async function msgIgnoreOldMessage(message, context) {
 }
 async function msgCheckEnvIsReady(message, context) {
   if (!DATABASE) {
-    return sendMessageToTelegramWithContext(context)("DATABASE Not Set");
+    return sendMessageToTelegramWithContext(context)("DATABASE Not Set", "command");
   }
   return null;
 }
@@ -3892,7 +3892,7 @@ async function msgInitUserConfig(message, context) {
     context.SHARE_CONTEXT.telegraphAccessToken = await DATABASE.get(telegraphAccessTokenKey);
     return null;
   } catch (e) {
-    return sendMessageToTelegramWithContext(context)(e.message);
+    return sendMessageToTelegramWithContext(context)(e.message, "command");
   }
 }
 async function msgIgnoreSpecificMessage(message) {
@@ -3911,7 +3911,7 @@ async function msgInitMiddleInfo(message, context) {
     return null;
   } catch (e) {
     console.log(e.message);
-    return sendMessageToTelegramWithContext(context)(e.message);
+    return sendMessageToTelegramWithContext(context)(e.message, "command");
   }
 }
 async function msgHandleCommand(message, context) {
@@ -3941,7 +3941,7 @@ async function msgChatWithLLM(message, context) {
           {
             const gen = loadImageGen(context)?.request;
             if (!gen) {
-              return sendMessageToTelegramWithContext(context)(`ERROR: Image generator not found`);
+              return sendMessageToTelegramWithContext(context)(`ERROR: Image generator not found`, "command");
             }
             setTimeout(() => sendChatActionToTelegramWithContext(context)("upload_photo").catch(console.error), 0);
             result = await gen(context._info.lastStep.text || text, context);
@@ -3963,7 +3963,7 @@ async function msgChatWithLLM(message, context) {
         case "audio:audio":
         case "text:audio":
         default:
-          return sendMessageToTelegramWithContext(context)("unsupported type");
+          return sendMessageToTelegramWithContext(context)("unsupported type", "command");
       }
       if (context.CURRENT_CHAT_CONTEXT.message_id && !ENV.HIDE_MIDDLE_MESSAGE) {
         context.CURRENT_CHAT_CONTEXT.message_id = null;
@@ -3972,7 +3972,7 @@ async function msgChatWithLLM(message, context) {
     }
   } catch (e) {
     console.error(e);
-    return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`);
+    return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`, "command");
   }
   return new Response("success", { status: 200 });
 }

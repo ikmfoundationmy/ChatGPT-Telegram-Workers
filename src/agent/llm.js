@@ -236,7 +236,7 @@ export async function chatWithLLM(params, context, modifier, pointerLLM = loadCh
 
         const answer = await requestCompletionsFromLLM(params, context, llm, modifier, onStream);
         if (!answer) {
-            return sendMessageToTelegramWithContext(context)('None response');
+            return sendMessageToTelegramWithContext(context)('None response', 'command');
         }
         if (answer instanceof Response) {
             return answer;
@@ -301,7 +301,7 @@ export async function chatViaFileWithLLM(context) {
         const answer = await llm(raw, file_name, context);
         if (!answer.ok) {
             console.error(answer.message);
-            return sendMessageToTelegramWithContext(context)('Chat via file failed.');
+            return sendMessageToTelegramWithContext(context)('Chat via file failed.', 'command');
         }
         console.log(`[FILE DONE] ${llm.name}: ${((performance.now() - startTime) / 1000).toFixed(1)}s`);
         if (!context._info.isLastStep) {
@@ -327,7 +327,7 @@ export async function chatViaFileWithLLM(context) {
         return null;
     } catch (e) {
         context.CURRENT_CHAT_CONTEXT.disable_web_page_preview = true;
-        return sendMessageToTelegramWithContext(context)(e.substring(2048));
+        return sendMessageToTelegramWithContext(context)(e.substring(2048), 'command');
     }
 }
 
