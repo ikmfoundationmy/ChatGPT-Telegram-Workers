@@ -160,7 +160,7 @@ export class MiddleInfo {
     if (!this.model || !this.process_start_time[this.step_index]) {
       return '';
     }
-    const show_info = this.processes?.[this.step_index]?.show_info ?? this._bp_config.ENABLE_SHOWINFO;
+    const show_info = this.processes?.[this.step_index - 1]?.show_info ?? this._bp_config.ENABLE_SHOWINFO;
     if (!show_info) return '';
     const step_count = this.process_count;
     const stepInfo = step_count > 1 ? `[STEP ${this.step_index}/${step_count}]\n` : '';

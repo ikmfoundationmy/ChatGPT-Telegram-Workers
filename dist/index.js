@@ -148,9 +148,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1723629837;
+  BUILD_TIMESTAMP = 1723642367;
   // 当前版本 commit id
-  BUILD_VERSION = "aeb47b8";
+  BUILD_VERSION = "5ff0301";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -2574,7 +2574,7 @@ var MiddleInfo = class {
     if (!this.model || !this.process_start_time[this.step_index]) {
       return "";
     }
-    const show_info = this.processes?.[this.step_index]?.show_info ?? this._bp_config.ENABLE_SHOWINFO;
+    const show_info = this.processes?.[this.step_index - 1]?.show_info ?? this._bp_config.ENABLE_SHOWINFO;
     if (!show_info)
       return "";
     const step_count = this.process_count;
