@@ -148,9 +148,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1723608303;
+  BUILD_TIMESTAMP = 1723611712;
   // 当前版本 commit id
-  BUILD_VERSION = "e008349";
+  BUILD_VERSION = "1b39f7b";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -983,6 +983,21 @@ function deleteMessageFromTelegramWithContext(context) {
       }
     );
   };
+}
+async function deleteMessagesFromTelegram(chat_id, bot_token, message_ids) {
+  return await fetch(
+    `${ENV.TELEGRAM_API_DOMAIN}/bot${bot_token}/deleteMessages`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        chat_id,
+        message_ids
+      })
+    }
+  ).then((r) => r.json());
 }
 async function sendPhotoToTelegram(photo, token, context, _info = null) {
   const url = `${ENV.TELEGRAM_API_DOMAIN}/bot${token}/sendPhoto`;
@@ -4697,12 +4712,62 @@ var jina_reader = {
   type: "web_crawler"
 };
 
+// src/tools/scheduleTask.js
+async function schedule_detele_message(ENV2) {
+  try {
+    console.log("- Start task: schedule_detele_message");
+    const DATABASE2 = ENV2.DATABASE;
+    const scheduleDeteleKey = "schedule_detele_message";
+    const scheduledData = JSON.parse(await DATABASE2.get(scheduleDeteleKey) || "{}");
+    let botTokens = [];
+    if (typeof ENV2.TELEGRAM_AVAILABLE_TOKENS === "string") {
+      botTokens = parseArray(ENV2.TELEGRAM_AVAILABLE_TOKENS);
+    } else
+      botTokens = ENV2.TELEGRAM_AVAILABLE_TOKENS;
+    const taskPromises = [];
+    for (const [bot_name, chats] of Object.entries(scheduledData)) {
+      const bot_index = ENV2.TELEGRAM_BOT_NAME.indexOf(bot_name);
+      if (bot_index < 0)
+        throw new Error("bot name is invalid");
+      const bot_token = botTokens[bot_index];
+      if (!bot_token)
+        throw new Error("bot token is null");
+      for (const [chat_id, messages] of Object.entries(chats)) {
+        if (messages.length === 0)
+          continue;
+        const expired_msgs = messages.filter((msg) => msg.ttl <= Date.now()).map((msg) => msg.id).flat();
+        if (expired_msgs.length === 0)
+          continue;
+        scheduledData[bot_name][chat_id] = messages.filter((msg) => msg.ttl > Date.now());
+        console.log(`Start delete: ${chat_id} - ${expired_msgs}`);
+        for (let i = 0; i < expired_msgs.length; i += 100) {
+          taskPromises.push(deleteMessagesFromTelegram(chat_id, bot_token, expired_msgs.slice(i, i + 100)));
+        }
+      }
+    }
+    const resp = await Promise.all(taskPromises);
+    for (const [i, { ok, description }] of Object.entries(resp)) {
+      if (ok) {
+        console.log(`task ${+i + 1}: delete successful`);
+      } else {
+        console.error(`task {i+1}: ${description}`);
+      }
+    }
+    await DATABASE2.put(scheduleDeteleKey, JSON.stringify(scheduledData));
+    return new Response(`{ok:"true"}`, { headers: { "Content-Type": "application/json" } });
+  } catch (e) {
+    console.error(e.message);
+    return new Response(`{ok:"false"}`, { headers: { "Content-Type": "application/json" } });
+  }
+}
+var scheduleTask_default = { schedule_detele_message };
+
 // src/tools/index.js
 var tools_default2 = { duckduckgo_search, jina_reader };
 
 // main.js
 var main_default = {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     try {
       env.tools = tools_default2;
       initEnv(env, i18n);
@@ -4710,6 +4775,18 @@ var main_default = {
     } catch (e) {
       console.error(e);
       return new Response(errorToString(e), { status: 500 });
+    }
+  },
+  async scheduled(event, env, ctx) {
+    try {
+      const promises = [];
+      for (const task of Object.values(scheduleTask_default)) {
+        promises.push(task(env));
+      }
+      await Promise.all(promises);
+      console.log("All tasks done.");
+    } catch (e) {
+      console.error("Error in scheduled tasks:", e);
     }
   }
 };

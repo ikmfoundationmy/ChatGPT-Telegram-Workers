@@ -6,7 +6,7 @@ import HttpsProxyAgent from 'https-proxy-agent';
 import fetch from 'node-fetch';
 import { ENV } from '../../src/config/env.js';
 import toml from 'toml';
-import tasks from "../../src/tools/scheduleTask.js";
+import { default as worker } from '../../main.js';
 
 const config = JSON.parse(fs.readFileSync('./config.json', 'utf-8'));
 
@@ -62,11 +62,7 @@ try {
   const env = { ...toml.parse(raw).vars, DATABASE: cache };
   if (env.SCHEDULE_TIME && env.SCHEDULE_TIME > 5) {
     setInterval(async () => {
-      const promises = [];
-      for (const task of Object.values(tasks)) {
-        promises.push(task(env));
-      }
-      await Promise.all(promises);
+      await worker.scheduled(null, env, null);
     }, env.SCHEDULE_TIME * 60 * 1000);
   }
 
@@ -74,7 +70,7 @@ try {
   console.log(e);
 }
 
-const {default: worker} = await import('../../main.js');
+// const {default: worker} = await import('../../main.js');
 adapter.startServer(
     config.port || 8787,
     config.host || '0.0.0.0',
