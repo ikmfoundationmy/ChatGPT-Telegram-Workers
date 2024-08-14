@@ -78,7 +78,7 @@ async function msgIgnoreOldMessage(message, context) {
  */
 async function msgCheckEnvIsReady(message, context) {
     if (!DATABASE) {
-        return sendMessageToTelegramWithContext(context)('DATABASE Not Set', 'command');
+        return sendMessageToTelegramWithContext(context)('DATABASE Not Set', 'tip');
     }
     return null;
 }
@@ -280,7 +280,7 @@ async function msgInitUserConfig(message, context) {
       context.SHARE_CONTEXT.telegraphAccessToken = await DATABASE.get(telegraphAccessTokenKey);
       return null;
     } catch (e) {
-      return sendMessageToTelegramWithContext(context)(e.message, 'command');
+      return sendMessageToTelegramWithContext(context)(e.message, 'tip');
     }
   }
 
@@ -318,7 +318,7 @@ async function msgInitMiddleInfo(message, context) {
     return null;
   } catch (e) {
     console.log(e.message);
-    return sendMessageToTelegramWithContext(context)(e.message, 'command');
+    return sendMessageToTelegramWithContext(context)(e.message, 'tip');
   }
 }
 
@@ -378,7 +378,7 @@ async function msgChatWithLLM(message, context) {
           {
             const gen = loadImageGen(context)?.request;
             if (!gen) {
-              return sendMessageToTelegramWithContext(context)(`ERROR: Image generator not found`, 'command');
+              return sendMessageToTelegramWithContext(context)(`ERROR: Image generator not found`, 'tip');
             }
             setTimeout(() => sendChatActionToTelegramWithContext(context)('upload_photo').catch(console.error), 0);
             result = await gen(context._info.lastStep.text || text, context);
@@ -400,7 +400,7 @@ async function msgChatWithLLM(message, context) {
         case 'audio:audio':
         case 'text:audio':
         default:
-          return sendMessageToTelegramWithContext(context)('unsupported type', 'command');
+          return sendMessageToTelegramWithContext(context)('unsupported type', 'tip');
       }
 
       // 每个流程独立消息
@@ -412,7 +412,7 @@ async function msgChatWithLLM(message, context) {
     }
   } catch (e) {
     console.error(e);
-    return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`, 'command');
+    return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`, 'tip');
   }
 
   return new Response('success', { status: 200 });

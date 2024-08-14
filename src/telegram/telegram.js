@@ -155,7 +155,7 @@ export function sendMessageToTelegramWithContext(context) {
           (CONST.PRIVATE_TYPES.includes(chatType) && ENV.SCHEDULE_PRIVATE_DELETE_TYPE.includes(msgType)))
       ) {
         sentMessageIds.add(clone_resp.result.message_id);
-        if (msgType === 'command') {
+        if (msgType === 'tip') {
           // 删除发送人的消息
           sentMessageIds.add(context.SHARE_CONTEXT.messageId);
         }

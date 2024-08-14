@@ -303,10 +303,10 @@ class Environment {
     DISABLE_WEB_PREVIEW = false;
     // 定时任务时间间隔, 单位:分钟, 最小间隔为5
     SCHEDULE_TIME = -1;
-    // 定时删除群组消息的类型 命令对话:command 普通对话:chat
-    SCHEDULE_GROUP_DELETE_TYPE = ['command'];
+    // 定时删除群组消息的类型 提示信息:tip 普通对话:chat
+    SCHEDULE_GROUP_DELETE_TYPE = ['tip'];
     // 定时删除私人消息的类型 命令对话:command与普通对话:chat
-    SCHEDULE_PRIVATE_DELETE_TYPE = ['command'];
+    SCHEDULE_PRIVATE_DELETE_TYPE = ['tip'];
 
 }
 
