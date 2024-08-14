@@ -150,7 +150,7 @@ export async function chatWithLLM(params, context, modifier, pointerLLM = loadCh
         try {
             if (!context.CURRENT_CHAT_CONTEXT.message_id) {
                 context.CURRENT_CHAT_CONTEXT.parse_mode = null;
-                const msg = await sendMessageToTelegramWithContext(context)('...');
+                const msg = await sendMessageToTelegramWithContext(context)('...').then(r => r.json());
                 context.CURRENT_CHAT_CONTEXT.message_id = msg.result.message_id;
             }
             context.CURRENT_CHAT_CONTEXT.parse_mode = parseMode;
@@ -286,7 +286,7 @@ export async function chatWithLLM(params, context, modifier, pointerLLM = loadCh
 export async function chatViaFileWithLLM(context) {
     try {
         if (!context.CURRENT_CHAT_CONTEXT.message_id) {
-            const msg = await sendMessageToTelegramWithContext(context)('...');
+            const msg = await sendMessageToTelegramWithContext(context)('...').then(r => r.json());
             context.CURRENT_CHAT_CONTEXT.message_id = msg.result.message_id;
             context.CURRENT_CHAT_CONTEXT.reply_markup = null;
           }

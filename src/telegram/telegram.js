@@ -138,19 +138,23 @@ export async function sendMessageToTelegram(message, token, context, _info = nul
  * @returns {function(string): Promise<Response>}
  */
 export function sendMessageToTelegramWithContext(context) {
+  const { sentMessageIds, chatType } = context.SHARE_CONTEXT;
   return async (message, msgType = 'chat') => {
     const resp = await sendMessageToTelegram(
       message,
       context.SHARE_CONTEXT.currentBotToken,
       context.CURRENT_CHAT_CONTEXT,
       context._info,
-    ).then((r) => r.json());
-    const { sentMessageIds, chatType } = context.SHARE_CONTEXT;
-    // 标记消息id
-    if (sentMessageIds && resp.result?.message_id) {
-      if (CONST.GROUP_TYPES.includes(chatType) && ENV.SCHEDULE_GROUP_DELETE_TYPE.includes(msgType) ||
-        CONST.PRIVATE_TYPES.includes(chatType) && ENV.SCHEDULE_PRIVATE_DELETE_TYPE.includes(msgType)) {
-        sentMessageIds.add(resp.result.message_id);
+    );
+    if (sentMessageIds) {
+      const clone_resp = await resp.clone().json();
+      // 标记消息id
+      if (
+        !sentMessageIds.has(clone_resp.result.message_id) &&
+        ((CONST.GROUP_TYPES.includes(chatType) && ENV.SCHEDULE_GROUP_DELETE_TYPE.includes(msgType)) ||
+          (CONST.PRIVATE_TYPES.includes(chatType) && ENV.SCHEDULE_PRIVATE_DELETE_TYPE.includes(msgType)))
+      ) {
+        sentMessageIds.add(clone_resp.result.message_id);
         if (msgType === 'command') {
           // 删除发送人的消息
           sentMessageIds.add(context.SHARE_CONTEXT.messageId);

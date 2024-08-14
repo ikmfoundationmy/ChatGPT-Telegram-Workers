@@ -312,7 +312,7 @@ async function msgInitMiddleInfo(message, context) {
   try {
     context._info = await MiddleInfo.initInfo(message, context);
     if (!message.text && !message.reply_to_message?.text) {
-      const msg = await sendMessageToTelegramWithContext(context)('file info get successful.');
+      const msg = await sendMessageToTelegramWithContext(context)('file info get successful.').then(r => r.json());
       context.CURRENT_CHAT_CONTEXT.message_id = msg.result.message_id;
     }
     return null;

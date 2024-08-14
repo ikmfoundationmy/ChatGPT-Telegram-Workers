@@ -148,9 +148,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1723611712;
+  BUILD_TIMESTAMP = 1723617551;
   // 当前版本 commit id
-  BUILD_VERSION = "1b39f7b";
+  BUILD_VERSION = "87d85d0";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -948,17 +948,18 @@ async function sendMessageToTelegram(message, token, context, _info = null) {
   return new Response("Message batch send", { status: 200 });
 }
 function sendMessageToTelegramWithContext(context) {
+  const { sentMessageIds, chatType } = context.SHARE_CONTEXT;
   return async (message, msgType = "chat") => {
     const resp = await sendMessageToTelegram(
       message,
       context.SHARE_CONTEXT.currentBotToken,
       context.CURRENT_CHAT_CONTEXT,
       context._info
-    ).then((r) => r.json());
-    const { sentMessageIds, chatType } = context.SHARE_CONTEXT;
-    if (sentMessageIds && resp.result?.message_id) {
-      if (CONST.GROUP_TYPES.includes(chatType) && ENV.SCHEDULE_GROUP_DELETE_TYPE.includes(msgType) || CONST.PRIVATE_TYPES.includes(chatType) && ENV.SCHEDULE_PRIVATE_DELETE_TYPE.includes(msgType)) {
-        sentMessageIds.add(resp.result.message_id);
+    );
+    if (sentMessageIds) {
+      const clone_resp = await resp.clone().json();
+      if (!sentMessageIds.has(clone_resp.result.message_id) && (CONST.GROUP_TYPES.includes(chatType) && ENV.SCHEDULE_GROUP_DELETE_TYPE.includes(msgType) || CONST.PRIVATE_TYPES.includes(chatType) && ENV.SCHEDULE_PRIVATE_DELETE_TYPE.includes(msgType))) {
+        sentMessageIds.add(clone_resp.result.message_id);
         if (msgType === "command") {
           sentMessageIds.add(context.SHARE_CONTEXT.messageId);
         }
@@ -2987,7 +2988,7 @@ async function chatWithLLM(params, context, modifier, pointerLLM = loadChatLLM) 
     try {
       if (!context.CURRENT_CHAT_CONTEXT.message_id) {
         context.CURRENT_CHAT_CONTEXT.parse_mode = null;
-        const msg = await sendMessageToTelegramWithContext(context)("...");
+        const msg = await sendMessageToTelegramWithContext(context)("...").then((r) => r.json());
         context.CURRENT_CHAT_CONTEXT.message_id = msg.result.message_id;
       }
       context.CURRENT_CHAT_CONTEXT.parse_mode = parseMode;
@@ -3120,7 +3121,7 @@ ${context._info.message_title}
 async function chatViaFileWithLLM(context) {
   try {
     if (!context.CURRENT_CHAT_CONTEXT.message_id) {
-      const msg = await sendMessageToTelegramWithContext(context)("...");
+      const msg = await sendMessageToTelegramWithContext(context)("...").then((r) => r.json());
       context.CURRENT_CHAT_CONTEXT.message_id = msg.result.message_id;
       context.CURRENT_CHAT_CONTEXT.reply_markup = null;
     }
@@ -3904,7 +3905,7 @@ async function msgInitMiddleInfo(message, context) {
   try {
     context._info = await MiddleInfo.initInfo(message, context);
     if (!message.text && !message.reply_to_message?.text) {
-      const msg = await sendMessageToTelegramWithContext(context)("file info get successful.");
+      const msg = await sendMessageToTelegramWithContext(context)("file info get successful.").then((r) => r.json());
       context.CURRENT_CHAT_CONTEXT.message_id = msg.result.message_id;
     }
     return null;
