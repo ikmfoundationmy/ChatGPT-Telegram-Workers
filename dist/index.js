@@ -148,9 +148,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1723607760;
+  BUILD_TIMESTAMP = 1723608303;
   // 当前版本 commit id
-  BUILD_VERSION = "77bd24e";
+  BUILD_VERSION = "e008349";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -304,6 +304,9 @@ var ENV_KEY_MAPPER = {
   WORKERS_AI_MODEL: "WORKERS_CHAT_MODEL"
 };
 function parseArray(raw) {
+  if (raw.trim() === "") {
+    return [];
+  }
   if (raw.startsWith("[") && raw.endsWith("]")) {
     try {
       return JSON.parse(raw);
