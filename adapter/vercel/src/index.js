@@ -1,6 +1,5 @@
 /* eslint-disable no-unused-vars */
 import worker from 'chatgpt-telegram-workers';
-import { RedisCache } from '../utils/redis.js';
 import Middle from './_middleware.js';
 
 export const config = {
@@ -13,20 +12,17 @@ export default async (req, res) => {
   if (result instanceof Response) {
     return result;
   }
-  const redis = new RedisCache(process.env.REDIS_URL, process.env.REDIS_TOKEN);
-  const env = {
-    ...(process.env || {}),
-    DATABASE: redis,
-  };
+  const env = process.env;
+  // 兼容之前的环境变量名
+  env.UPSTASH_REDIS_REST_URL = process.env.REDIS_URL;
+  env.UPSTASH_REDIS_REST_TOKEN = process.env.REDIS_TOKEN;
+
   const body = await req.text();
   const cfReq = new Request(req.url, {
     method: req.method,
     headers: req.headers,
     ...(body && { body }),
   });
-
-  // console.log(`url: ${req.url}`)
-  // console.log(`body: ${JSON.stringify(req)}`);
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream({

@@ -2,14 +2,19 @@ import {initEnv} from './src/config/env.js';
 import {handleRequest} from './src/route.js';
 import {errorToString} from './src/utils/utils.js';
 import i18n from './src/i18n/index.js';
-import tools from "./src/tools/index.js";
 import tasks from "./src/tools/scheduleTask.js";
 
 
 export default {
   async fetch(request, env, ctx) {
     try {
-      env.tools = tools;
+      if (!env.DATABASE) {
+        const { RedisCache } = await import("./src/utils/redis.js");
+        if (env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN) {
+          env.DATABASE = new RedisCache(env.UPSTASH_REDIS_REST_URL, env.UPSTASH_REDIS_REST_TOKEN);
+        }
+      }
+      
       initEnv(env, i18n);
       return await handleRequest(request);
     } catch (e) {

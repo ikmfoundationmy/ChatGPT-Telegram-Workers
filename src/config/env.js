@@ -1,6 +1,7 @@
 import '../types/i18n.js';
 import '../types/context.js';
-import prompts from "../prompt/prompt.js";;
+import prompts from "../prompt/prompt.js";
+import tools from "../tools/index.js";
 
 /**
  * @class
@@ -439,9 +440,7 @@ export function initEnv(env, i18n) {
     mergeEnvironment(ENV, env);
     mergeEnvironment(ENV.USER_CONFIG, env);
     ENV.USER_CONFIG.DEFINE_KEYS = [];
-    if (env.tools) {
-        ENV.TOOLS = env.tools;
-    }
+    ENV.TOOLS = tools;
 
     // 兼容旧版配置
     {
