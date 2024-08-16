@@ -347,9 +347,12 @@ async function commandSetUserConfigs(message, command, subcommand, context) {
     const needUpdate = updateTagReg.test(subcommand);
     subcommand = subcommand.replace(updateTagReg, '$1');
 
-    const msgCommand = subcommand.matchAll(/(-\w+)\s+(.+?)(\s+|$)/g);
+    const msgCommand = subcommand.matchAll(/(-\w+)\s+(.*?)(\s+|$)/g);
     let msg = '';
     let hasKey = false;
+    if (context.USER_CONFIG.AI_PROVIDER === 'auto') {
+      context.USER_CONFIG.AI_PROVIDER = 'openai';
+    }
 
     for (const [, k, v] of msgCommand) {
       let key = keys[k],
@@ -386,6 +389,13 @@ async function commandSetUserConfigs(message, command, subcommand, context) {
             }
             context._info.config('mode', v);
             break;
+          case 'USE_TOOLS':
+            if (v === 'on') {
+              value = Object.keys(ENV.TOOLS);
+            } else if (v === 'off') {
+              value = [];
+            }
+            break;
           default:
             break;
         }
@@ -393,9 +403,9 @@ async function commandSetUserConfigs(message, command, subcommand, context) {
         if (!Object.keys(context.USER_CONFIG).includes(key)) {
           return sendMessageToTelegramWithContext(context)(`Key ${key} not found`, 'tip');
         }
-        context.USER_CONFIG[key] = value || v;
+        context.USER_CONFIG[key] = value ?? v;
         context.USER_CONFIG.DEFINE_KEYS.push(key);
-        console.log(`/set ${key || 'unknown'} ${(value || v).substring(0, 6)}...'`);
+        console.log(`/set ${key || 'unknown'} ${(JSON.stringify(value) || v).substring(0, 20)}`);
       } else return sendMessageToTelegramWithContext(context)(`Mapping Key ${k} is not exist`, 'tip');
       if(!hasKey) hasKey = true;
     }

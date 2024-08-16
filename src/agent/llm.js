@@ -172,8 +172,8 @@ export async function chatWithLLM(params, context, modifier, pointerLLM = loadCh
           };
           return async (text) => {
             if (
+              ENV.TELEGRAPH_NUM_LIMIT > 0 &&
               text.length > ENV.TELEGRAPH_NUM_LIMIT &&
-              ENV.ENABLE_TELEGRAPH &&
               CONST.GROUP_TYPES.includes(context.SHARE_CONTEXT.chatType)
             ) {
               const telegraph_prefix = prefix + `\n#Answer\n🤖 _${context._info.model}_\n`;
@@ -231,7 +231,7 @@ export async function chatWithLLM(params, context, modifier, pointerLLM = loadCh
         if (llm === null) {
             return sendMessageToTelegramWithContext(context)(`LLM is not enable`);
         }
-        const prompt = context.USER_CONFIG.SYSTEM_INIT_MESSAGE;
+        
         console.log(`[START] Chat via ${llm.name}`);
 
         const answer = await requestCompletionsFromLLM(params, context, llm, modifier, onStream);

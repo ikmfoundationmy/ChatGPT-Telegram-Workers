@@ -47,7 +47,7 @@ async function schedule_detele_message(ENV) {
       if (ok) {
         console.log(`task ${+i + 1}: delete successful`);
       } else {
-        console.error(`task {i+1}: ${description}`);
+        console.error(`task ${i+1}: ${description}`);
       }
     }
 

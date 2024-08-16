@@ -318,7 +318,7 @@ async function msgInitMiddleInfo(message, context) {
     return null;
   } catch (e) {
     console.log(e.message);
-    return sendMessageToTelegramWithContext(context)(e.message, 'tip');
+    throw new Error('Can’t init info, please see the log for detail.');
   }
 }
 
@@ -515,7 +515,7 @@ export async function handleMessage(token, body) {
   
     const exitHanders = [msgTagNeedDelete];
 
-    for (const handler of handlers) {
+  for (const handler of handlers) {
         try {
           const result = await handler(message, context);
           if (result && result instanceof Response) {

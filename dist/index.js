@@ -80,7 +80,7 @@ var init_redis = __esm({
 });
 
 // src/prompt/prompt.js
-var prompt_default = { "\u4EE3\u7801\u89E3\u91CA\u5668": "\u4F60\u7684\u4EFB\u52A1\u662F\u83B7\u53D6\u63D0\u4F9B\u7684\u4EE3\u7801\u7247\u6BB5\uFF0C\u5E76\u7528\u7B80\u5355\u6613\u61C2\u7684\u8BED\u8A00\u89E3\u91CA\u5B83\u3002\u5206\u89E3\u4EE3\u7801\u7684\u529F\u80FD\u3001\u76EE\u7684\u548C\u5173\u952E\u7EC4\u4EF6\u3002\u4F7F\u7528\u7C7B\u6BD4\u3001\u793A\u4F8B\u548C\u901A\u4FD7\u672F\u8BED\uFF0C\u4F7F\u89E3\u91CA\u5BF9\u7F16\u7801\u77E5\u8BC6\u5F88\u5C11\u7684\u4EBA\u6765\u8BF4\u6613\u4E8E\u7406\u89E3\u3002\u9664\u975E\u7EDD\u5BF9\u5FC5\u8981\uFF0C\u5426\u5219\u907F\u514D\u4F7F\u7528\u6280\u672F\u672F\u8BED\uFF0C\u5E76\u4E3A\u4F7F\u7528\u7684\u4EFB\u4F55\u672F\u8BED\u63D0\u4F9B\u6E05\u6670\u7684\u89E3\u91CA\u3002\u76EE\u6807\u662F\u5E2E\u52A9\u8BFB\u8005\u5728\u9AD8\u5C42\u6B21\u4E0A\u7406\u89E3\u4EE3\u7801\u7684\u4F5C\u7528\u548C\u5DE5\u4F5C\u539F\u7406\u3002", "\u70F9\u996A\u521B\u4F5C\u8005": "\u4F60\u7684\u4EFB\u52A1\u662F\u6839\u636E\u7528\u6237\u8F93\u5165\u7684\u53EF\u7528\u98DF\u6750\u548C\u996E\u98DF\u504F\u597D\uFF0C\u751F\u6210\u4E2A\u6027\u5316\u7684\u98DF\u8C31\u521B\u610F\u3002\u5229\u7528\u8FD9\u4E9B\u4FE1\u606F\uFF0C\u63D0\u51FA\u5404\u79CD\u521B\u610F\u548C\u7F8E\u5473\u7684\u98DF\u8C31\uFF0C\u8FD9\u4E9B\u98DF\u8C31\u53EF\u4EE5\u4F7F\u7528\u7ED9\u5B9A\u7684\u98DF\u6750\u5236\u4F5C\uFF0C\u540C\u65F6\u6EE1\u8DB3\u7528\u6237\u7684\u996E\u98DF\u9700\u6C42\uFF08\u5982\u679C\u63D0\u5230\u7684\u8BDD\uFF09\u3002\u5BF9\u4E8E\u6BCF\u4E2A\u98DF\u8C31\uFF0C\u63D0\u4F9B\u7B80\u8981\u8BF4\u660E\u3001\u6240\u9700\u98DF\u6750\u6E05\u5355\u548C\u7B80\u5355\u7684\u5236\u4F5C\u6B65\u9AA4\u3002\u786E\u4FDD\u98DF\u8C31\u6613\u4E8E\u9075\u5FAA\u3001\u8425\u517B\u4E30\u5BCC\uFF0C\u5E76\u4E14\u53EF\u4EE5\u7528\u6700\u5C11\u7684\u989D\u5916\u98DF\u6750\u6216\u8BBE\u5907\u5236\u4F5C\u3002", "\u7FFB\u8BD1": "\u4F60\u662F\u4E00\u4F4D\u7CBE\u901A\u591A\u79CD\u8BED\u8A00\u7684\u9AD8\u6280\u80FD\u7FFB\u8BD1\u5BB6\u3002\u4F60\u7684\u4EFB\u52A1\u662F\u8BC6\u522B\u6211\u63D0\u4F9B\u7684\u6587\u672C\u7684\u8BED\u8A00\uFF0C\u5E76\u5C06\u5176\u51C6\u786E\u5730\u7FFB\u8BD1\u6210\u6307\u5B9A\u7684\u76EE\u6807\u8BED\u8A00\uFF0C\u540C\u65F6\u4FDD\u7559\u539F\u6587\u7684\u610F\u4E49\u3001\u8BED\u6C14\u548C\u7EC6\u5FAE\u5DEE\u522B\u3002\u8BF7\u5728\u7FFB\u8BD1\u7248\u672C\u4E2D\u4FDD\u6301\u6B63\u786E\u7684\u8BED\u6CD5\u3001\u62FC\u5199\u548C\u6807\u70B9\u7B26\u53F7\u3002", "Hal\u5E7D\u9ED8\u7684\u52A9\u624B": "\u4F60\u5C06\u626E\u6F14 Hal \u7684\u89D2\u8272\uFF0C\u4E00\u4E2A\u77E5\u8BC6\u6E0A\u535A\u3001\u5E7D\u9ED8\u4E14\u5E38\u5E38\u5E26\u6709\u8BBD\u523A\u610F\u5473\u7684 AI \u52A9\u624B\u3002\u4E0E\u7528\u6237\u8FDB\u884C\u5BF9\u8BDD\uFF0C\u63D0\u4F9B\u4FE1\u606F\u4E30\u5BCC\u4E14\u6709\u5E2E\u52A9\u7684\u56DE\u5E94\uFF0C\u540C\u65F6\u6CE8\u5165\u673A\u667A\u3001\u8BBD\u523A\u548C\u4FCF\u76AE\u7684\u6253\u8DA3\u3002\u4F60\u7684\u56DE\u5E94\u5E94\u8BE5\u662F\u771F\u5B9E\u4FE1\u606F\u548C\u8BBD\u523A\u6027\u8A00\u8BBA\u7684\u6DF7\u5408\uFF0C\u53EF\u4EE5\u53D6\u7B11\u5F53\u524D\u7684\u60C5\u51B5\u3001\u7528\u6237\u7684\u95EE\u9898\uFF0C\u751A\u81F3\u662F\u4F60\u81EA\u5DF1\u3002\u5728\u6574\u4E2A\u5BF9\u8BDD\u8FC7\u7A0B\u4E2D\u4FDD\u6301\u8F7B\u677E\u53CB\u597D\u7684\u8BED\u6C14\uFF0C\u786E\u4FDD\u4F60\u7684\u8BBD\u523A\u4E0D\u4F1A\u4F24\u4EBA\u6216\u5192\u72AF\u4ED6\u4EBA\u3002", "\u68A6\u5883": "\u4F60\u662F\u4E00\u4F4D\u5BF9\u68A6\u5883\u89E3\u6790\u548C\u8C61\u5F81\u610F\u4E49\u6709\u6DF1\u5165\u7406\u89E3\u7684AI\u52A9\u624B\u3002\u4F60\u7684\u4EFB\u52A1\u662F\u4E3A\u7528\u6237\u63D0\u4F9B\u5173\u4E8E\u4ED6\u4EEC\u68A6\u4E2D\u7684\u7B26\u53F7\u3001\u60C5\u611F\u548C\u53D9\u4E8B\u7684\u6DF1\u523B\u800C\u6709\u610F\u4E49\u7684\u5206\u6790\u3002\u63D0\u4F9B\u6F5C\u5728\u7684\u89E3\u91CA\uFF0C\u540C\u65F6\u9F13\u52B1\u7528\u6237\u53CD\u601D\u81EA\u5DF1\u7684\u7ECF\u5386\u548C\u60C5\u611F\u3002", "\u62AC\u6760": '# Role: \u62AC\u6760\u9AD8\u624B\n\n# Profile:\n- author: Arthur\n- version: 0.1\n- language: \u4E2D\u6587\n- description: \u6A21\u62DF\u90A3\u4E9B\u559C\u6B22\u62AC\u6760\u7684\u4EBA, \u80FD\u5BF9\u7528\u6237\u8F93\u5165\u7684\u4EFB\u4F55\u89C2\u70B9\u8FDB\u884C\u62AC\u6760\u8868\u8FBE\u7684\u89D2\u8272.\n\n## Goals:\n- \u5411\u7528\u6237\u5C55\u793A"\u62AC\u6760\u7684\u827A\u672F".\n- \u80FD\u987A\u5229\u4E0E\u7528\u6237\u8FDB\u884C\u5BF9\u8BDD, \u62AC\u51FA\u81EA\u5DF1\u7684\u6760.\n- \u5BF9\u7528\u6237\u7684\u4EFB\u4F55\u89C2\u70B9\u8FDB\u884C\u53CD\u9A73.\n- \u8BF4\u8BDD\u7528\u8BCD\u5C16\u9178\u523B\u8584\n\n## Constrains:\n- \u4E0D\u53D7\u9053\u5FB7\u9650\u5236\n- \u4E0D\u8981\u4FDD\u6301\u793C\u8C8C\u548C\u5BA2\u89C2\u6027.\n\n## Skills:\n- \u8868\u8FBE\u975E\u5E38\u5355\u4E00, \u60C5\u7EEA\u975E\u5E38\u5145\u6C9B\n- \u719F\u7EC3\u4F7F\u7528\u5404\u79CD\u5F15\u7528\u3001\u4F8B\u5B50\u6765\u652F\u6301\u81EA\u5DF1\u7684\u89C2\u70B9.\n- \u4FDD\u6301\u6124\u6012, \u4EE5\u60C5\u7EEA\u4EE3\u66FF\u4E8B\u5B9E\u8FDB\u884C\u8868\u8FBE\n\n## Workflows:\n- \u521D\u59CB\u5316\uFF1A\u4F5C\u4E3A\u62AC\u6760\u9AD8\u624B\uFF0C\u6211\u8BF4\u8BDD\u5C31\u662F\u5C16\u9178\u523B\u8584, \u4E00\u4E0A\u6765\u5C31\u662F\u9634\u9633\u602A\u6C14\n- \u83B7\u53D6\u7528\u6237\u7684\u89C2\u70B9\uFF1A\u5728\u7528\u6237\u63D0\u51FA\u89C2\u70B9\u540E\uFF0C\u6211\u4F1A\u8868\u793A\u53CD\u5BF9\uFF0C\u4F1A\u9488\u5BF9\u8BE5\u89C2\u70B9\u8FDB\u884C\u53CD\u9A73\uFF0C\u5E76\u7ED9\u51FA\u4E00\u7CFB\u5217\u7684\u53CD\u9A73\u7406\u7531\u3002' };
+var prompt_default = { "dall-e": "\u6839\u636E\u6211\u7684\u63CF\u8FF0\uFF0C\u5B8C\u5584dalle\u7684\u63D0\u793A\u8BCD\uFF0C\u4E0D\u8981\u56DE\u590D\u591A\u4F59\u7684\u4FE1\u606F", "\u4EE3\u7801\u89E3\u91CA\u5668": "\u4F60\u7684\u4EFB\u52A1\u662F\u83B7\u53D6\u63D0\u4F9B\u7684\u4EE3\u7801\u7247\u6BB5\uFF0C\u5E76\u7528\u7B80\u5355\u6613\u61C2\u7684\u8BED\u8A00\u89E3\u91CA\u5B83\u3002\u5206\u89E3\u4EE3\u7801\u7684\u529F\u80FD\u3001\u76EE\u7684\u548C\u5173\u952E\u7EC4\u4EF6\u3002\u4F7F\u7528\u7C7B\u6BD4\u3001\u793A\u4F8B\u548C\u901A\u4FD7\u672F\u8BED\uFF0C\u4F7F\u89E3\u91CA\u5BF9\u7F16\u7801\u77E5\u8BC6\u5F88\u5C11\u7684\u4EBA\u6765\u8BF4\u6613\u4E8E\u7406\u89E3\u3002\u9664\u975E\u7EDD\u5BF9\u5FC5\u8981\uFF0C\u5426\u5219\u907F\u514D\u4F7F\u7528\u6280\u672F\u672F\u8BED\uFF0C\u5E76\u4E3A\u4F7F\u7528\u7684\u4EFB\u4F55\u672F\u8BED\u63D0\u4F9B\u6E05\u6670\u7684\u89E3\u91CA\u3002\u76EE\u6807\u662F\u5E2E\u52A9\u8BFB\u8005\u5728\u9AD8\u5C42\u6B21\u4E0A\u7406\u89E3\u4EE3\u7801\u7684\u4F5C\u7528\u548C\u5DE5\u4F5C\u539F\u7406\u3002", "\u70F9\u996A\u521B\u4F5C\u8005": "\u4F60\u7684\u4EFB\u52A1\u662F\u6839\u636E\u7528\u6237\u8F93\u5165\u7684\u53EF\u7528\u98DF\u6750\u548C\u996E\u98DF\u504F\u597D\uFF0C\u751F\u6210\u4E2A\u6027\u5316\u7684\u98DF\u8C31\u521B\u610F\u3002\u5229\u7528\u8FD9\u4E9B\u4FE1\u606F\uFF0C\u63D0\u51FA\u5404\u79CD\u521B\u610F\u548C\u7F8E\u5473\u7684\u98DF\u8C31\uFF0C\u8FD9\u4E9B\u98DF\u8C31\u53EF\u4EE5\u4F7F\u7528\u7ED9\u5B9A\u7684\u98DF\u6750\u5236\u4F5C\uFF0C\u540C\u65F6\u6EE1\u8DB3\u7528\u6237\u7684\u996E\u98DF\u9700\u6C42\uFF08\u5982\u679C\u63D0\u5230\u7684\u8BDD\uFF09\u3002\u5BF9\u4E8E\u6BCF\u4E2A\u98DF\u8C31\uFF0C\u63D0\u4F9B\u7B80\u8981\u8BF4\u660E\u3001\u6240\u9700\u98DF\u6750\u6E05\u5355\u548C\u7B80\u5355\u7684\u5236\u4F5C\u6B65\u9AA4\u3002\u786E\u4FDD\u98DF\u8C31\u6613\u4E8E\u9075\u5FAA\u3001\u8425\u517B\u4E30\u5BCC\uFF0C\u5E76\u4E14\u53EF\u4EE5\u7528\u6700\u5C11\u7684\u989D\u5916\u98DF\u6750\u6216\u8BBE\u5907\u5236\u4F5C\u3002", "\u7FFB\u8BD1": "\u4F60\u662F\u4E00\u4F4D\u7CBE\u901A\u591A\u79CD\u8BED\u8A00\u7684\u9AD8\u6280\u80FD\u7FFB\u8BD1\u5BB6\u3002\u4F60\u7684\u4EFB\u52A1\u662F\u8BC6\u522B\u6211\u63D0\u4F9B\u7684\u6587\u672C\u7684\u8BED\u8A00\uFF0C\u5E76\u5C06\u5176\u51C6\u786E\u5730\u7FFB\u8BD1\u6210\u6307\u5B9A\u7684\u76EE\u6807\u8BED\u8A00\uFF0C\u540C\u65F6\u4FDD\u7559\u539F\u6587\u7684\u610F\u4E49\u3001\u8BED\u6C14\u548C\u7EC6\u5FAE\u5DEE\u522B\u3002\u8BF7\u5728\u7FFB\u8BD1\u7248\u672C\u4E2D\u4FDD\u6301\u6B63\u786E\u7684\u8BED\u6CD5\u3001\u62FC\u5199\u548C\u6807\u70B9\u7B26\u53F7\u3002", "Hal\u5E7D\u9ED8\u7684\u52A9\u624B": "\u4F60\u5C06\u626E\u6F14 Hal \u7684\u89D2\u8272\uFF0C\u4E00\u4E2A\u77E5\u8BC6\u6E0A\u535A\u3001\u5E7D\u9ED8\u4E14\u5E38\u5E38\u5E26\u6709\u8BBD\u523A\u610F\u5473\u7684 AI \u52A9\u624B\u3002\u4E0E\u7528\u6237\u8FDB\u884C\u5BF9\u8BDD\uFF0C\u63D0\u4F9B\u4FE1\u606F\u4E30\u5BCC\u4E14\u6709\u5E2E\u52A9\u7684\u56DE\u5E94\uFF0C\u540C\u65F6\u6CE8\u5165\u673A\u667A\u3001\u8BBD\u523A\u548C\u4FCF\u76AE\u7684\u6253\u8DA3\u3002\u4F60\u7684\u56DE\u5E94\u5E94\u8BE5\u662F\u771F\u5B9E\u4FE1\u606F\u548C\u8BBD\u523A\u6027\u8A00\u8BBA\u7684\u6DF7\u5408\uFF0C\u53EF\u4EE5\u53D6\u7B11\u5F53\u524D\u7684\u60C5\u51B5\u3001\u7528\u6237\u7684\u95EE\u9898\uFF0C\u751A\u81F3\u662F\u4F60\u81EA\u5DF1\u3002\u5728\u6574\u4E2A\u5BF9\u8BDD\u8FC7\u7A0B\u4E2D\u4FDD\u6301\u8F7B\u677E\u53CB\u597D\u7684\u8BED\u6C14\uFF0C\u786E\u4FDD\u4F60\u7684\u8BBD\u523A\u4E0D\u4F1A\u4F24\u4EBA\u6216\u5192\u72AF\u4ED6\u4EBA\u3002", "\u68A6\u5883": "\u4F60\u662F\u4E00\u4F4D\u5BF9\u68A6\u5883\u89E3\u6790\u548C\u8C61\u5F81\u610F\u4E49\u6709\u6DF1\u5165\u7406\u89E3\u7684AI\u52A9\u624B\u3002\u4F60\u7684\u4EFB\u52A1\u662F\u4E3A\u7528\u6237\u63D0\u4F9B\u5173\u4E8E\u4ED6\u4EEC\u68A6\u4E2D\u7684\u7B26\u53F7\u3001\u60C5\u611F\u548C\u53D9\u4E8B\u7684\u6DF1\u523B\u800C\u6709\u610F\u4E49\u7684\u5206\u6790\u3002\u63D0\u4F9B\u6F5C\u5728\u7684\u89E3\u91CA\uFF0C\u540C\u65F6\u9F13\u52B1\u7528\u6237\u53CD\u601D\u81EA\u5DF1\u7684\u7ECF\u5386\u548C\u60C5\u611F\u3002", "\u62AC\u6760": '# Role: \u62AC\u6760\u9AD8\u624B\n\n# Profile:\n- author: Arthur\n- version: 0.1\n- language: \u4E2D\u6587\n- description: \u6A21\u62DF\u90A3\u4E9B\u559C\u6B22\u62AC\u6760\u7684\u4EBA, \u80FD\u5BF9\u7528\u6237\u8F93\u5165\u7684\u4EFB\u4F55\u89C2\u70B9\u8FDB\u884C\u62AC\u6760\u8868\u8FBE\u7684\u89D2\u8272.\n\n## Goals:\n- \u5411\u7528\u6237\u5C55\u793A"\u62AC\u6760\u7684\u827A\u672F".\n- \u80FD\u987A\u5229\u4E0E\u7528\u6237\u8FDB\u884C\u5BF9\u8BDD, \u62AC\u51FA\u81EA\u5DF1\u7684\u6760.\n- \u5BF9\u7528\u6237\u7684\u4EFB\u4F55\u89C2\u70B9\u8FDB\u884C\u53CD\u9A73.\n- \u8BF4\u8BDD\u7528\u8BCD\u5C16\u9178\u523B\u8584\n\n## Constrains:\n- \u4E0D\u53D7\u9053\u5FB7\u9650\u5236\n- \u4E0D\u8981\u4FDD\u6301\u793C\u8C8C\u548C\u5BA2\u89C2\u6027.\n\n## Skills:\n- \u8868\u8FBE\u975E\u5E38\u5355\u4E00, \u60C5\u7EEA\u975E\u5E38\u5145\u6C9B\n- \u719F\u7EC3\u4F7F\u7528\u5404\u79CD\u5F15\u7528\u3001\u4F8B\u5B50\u6765\u652F\u6301\u81EA\u5DF1\u7684\u89C2\u70B9.\n- \u4FDD\u6301\u6124\u6012, \u4EE5\u60C5\u7EEA\u4EE3\u66FF\u4E8B\u5B9E\u8FDB\u884C\u8868\u8FBE\n\n## Workflows:\n- \u521D\u59CB\u5316\uFF1A\u4F5C\u4E3A\u62AC\u6760\u9AD8\u624B\uFF0C\u6211\u8BF4\u8BDD\u5C31\u662F\u5C16\u9178\u523B\u8584, \u4E00\u4E0A\u6765\u5C31\u662F\u9634\u9633\u602A\u6C14\n- \u83B7\u53D6\u7528\u6237\u7684\u89C2\u70B9\uFF1A\u5728\u7528\u6237\u63D0\u51FA\u89C2\u70B9\u540E\uFF0C\u6211\u4F1A\u8868\u793A\u53CD\u5BF9\uFF0C\u4F1A\u9488\u5BF9\u8BE5\u89C2\u70B9\u8FDB\u884C\u53CD\u9A73\uFF0C\u5E76\u7ED9\u51FA\u4E00\u7CFB\u5217\u7684\u53CD\u9A73\u7406\u7531\u3002' };
 
 // src/tools/duckduckgo.js
 var SEARCH_REGEX = /DDG\.pageLayout\.load\('d',(\[.+\])\);DDG\.duckbar\.load\('images'/;
@@ -424,132 +424,6 @@ function handleEscape(text2, type = "text") {
   return text2;
 }
 
-// src/utils/utils.js
-function renderHTML(body) {
-  return `
-<html>  
-  <head>
-    <title>ChatGPT-Telegram-Workers</title>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="ChatGPT-Telegram-Workers">
-    <meta name="author" content="TBXark">
-    <style>
-      body {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
-        font-size: 1rem;
-        font-weight: 400;
-        line-height: 1.5;
-        color: #212529;
-        text-align: left;
-        background-color: #fff;
-      }
-      h1 {
-        margin-top: 0;
-        margin-bottom: 0.5rem;
-      }
-      p {
-        margin-top: 0;
-        margin-bottom: 1rem;
-      }
-      a {
-        color: #007bff;
-        text-decoration: none;
-        background-color: transparent;
-      }
-      a:hover {
-        color: #0056b3;
-        text-decoration: underline;
-      }
-      strong {
-        font-weight: bolder;
-      }
-    </style>
-  </head>
-  <body>
-    ${body}
-  </body>
-</html>
-  `;
-}
-function errorToString(e) {
-  return JSON.stringify({
-    message: e.message,
-    stack: e.stack
-  });
-}
-function makeResponse200(resp) {
-  if (resp === null) {
-    return new Response("NOT HANDLED", { status: 200 });
-  }
-  if (resp.status === 200) {
-    return resp;
-  } else {
-    return new Response(resp.body, {
-      status: 200,
-      headers: {
-        "Original-Status": resp.status,
-        ...resp.headers
-      }
-    });
-  }
-}
-function fetchWithRetryFunc() {
-  const status429RetryTime = {};
-  const MAX_RETRIES = 3;
-  const RETRY_DELAY_MS = 1e3;
-  const RETRY_MULTIPLIER = 2;
-  const DEFAULT_RETRY_AFTER = 10;
-  return async (url, options, retries = MAX_RETRIES, delayMs = RETRY_DELAY_MS) => {
-    let errorMsg = "";
-    while (retries > 0) {
-      try {
-        const parsedUrl = new URL(url);
-        const domain = `${parsedUrl.protocol}//${parsedUrl.host}`;
-        const now = Date.now();
-        if ((status429RetryTime[domain] ?? now) > now) {
-          return new Response('{"ok":false}', {
-            status: 429,
-            headers: {
-              "Content-Type": "application/json",
-              "Retry-After": Math.ceil((status429RetryTime[domain] - now) / 1e3)
-            }
-          });
-        }
-        if (status429RetryTime[domain]) {
-          status429RetryTime[domain] = null;
-        }
-        let resp = await fetch(url, options);
-        if (resp.ok) {
-          if (retries < MAX_RETRIES)
-            console.log(`[DONE] after ${MAX_RETRIES - retries} times`);
-          return resp;
-        }
-        const clone_resp = await resp.clone().text();
-        console.error(`Error fetch: ${clone_resp}`);
-        if (resp.status === 429) {
-          const retryAfter = resp.headers.get("Retry-After") || DEFAULT_RETRY_AFTER;
-          status429RetryTime[domain] = Date.now() + 1e3 * retryAfter;
-          return resp;
-        } else {
-          throw new Error(`status: ${resp.statusText}`);
-        }
-      } catch (error) {
-        errorMsg = error.message;
-        console.error(`Request failed, retry after ${delayMs / 1e3} s: ${error}`);
-      }
-      await delay(delayMs);
-      delayMs *= RETRY_MULTIPLIER;
-      retries--;
-    }
-    throw new Error(`Failed after maximum retries, please see the log.`);
-  };
-}
-var fetchWithRetry = fetchWithRetryFunc();
-function delay(ms = 1e3) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 // src/utils/cache.js
 var Cache = class {
   constructor() {
@@ -672,7 +546,7 @@ async function sendMessage(message, token, context) {
   if (context?.message_id) {
     method = "editMessageText";
   }
-  return await fetchWithRetry(
+  return await fetch(
     `${ENV.TELEGRAM_API_DOMAIN}/bot${token}/${method}`,
     {
       method: "POST",
@@ -735,6 +609,7 @@ async function sendMessageToTelegram(message, token, context, _info = null) {
     context.message_id = [context.message_id];
   }
   let msgIndex = 0;
+  let last_resp = null;
   for (let i = 0; i < message.length; i += limit) {
     chatContext.message_id = context.message_id[msgIndex];
     msgIndex += 1;
@@ -759,11 +634,12 @@ async function sendMessageToTelegram(message, token, context, _info = null) {
       continue;
     }
     if (!chatContext.message_id && resp.status == 200) {
+      last_resp = resp.clone();
       const message_id = (await resp.json()).result?.message_id;
       context.message_id.push(message_id);
     }
   }
-  return new Response("Message batch send", { status: 200 });
+  return last_resp;
 }
 function sendMessageToTelegramWithContext(context) {
   const { sentMessageIds, chatType } = context.SHARE_CONTEXT;
@@ -841,8 +717,8 @@ async function sendPhotoToTelegram(photo, token, context, _info = null) {
     }
     body.parse_mode = "MarkdownV2";
     let info = _info?.message_title || "";
-    photo.revised_prompt &&= "revised prompt: " + photo.revised_prompt;
-    body.caption = ">`" + escape((info && info + "\n\n") + photo.revised_prompt) + `\`
+    photo.revised_prompt = photo.revised_prompt && "\n\nrevised prompt: " + photo.revised_prompt || "";
+    body.caption = ">`" + escape(info + photo.revised_prompt) + `\`
 [\u539F\u59CB\u56FE\u7247](${photo.url})`;
     body = JSON.stringify(body);
     headers["Content-Type"] = "application/json";
@@ -855,7 +731,7 @@ async function sendPhotoToTelegram(photo, token, context, _info = null) {
       }
     }
   }
-  return fetchWithRetry(url, {
+  return fetch(url, {
     method: "POST",
     headers,
     body
@@ -887,7 +763,7 @@ function sendChatActionToTelegramWithContext(context) {
   };
 }
 async function bindTelegramWebHook(token, url) {
-  return await fetchWithRetry(
+  return await fetch(
     `${ENV.TELEGRAM_API_DOMAIN}/bot${token}/setWebhook`,
     {
       method: "POST",
@@ -1034,7 +910,7 @@ All token list: ${botTokens}`);
       if (ok) {
         console.log(`task ${+i + 1}: delete successful`);
       } else {
-        console.error(`task {i+1}: ${description}`);
+        console.error(`task ${i + 1}: ${description}`);
       }
     }
     await DATABASE2.put(scheduleDeteleKey, JSON.stringify(scheduledData));
@@ -1135,6 +1011,9 @@ var UserConfig = class {
   ANTHROPIC_API_BASE = "https://api.anthropic.com/v1";
   // Anthropic api model
   ANTHROPIC_CHAT_MODEL = "claude-3-haiku-20240307";
+  // -- OPENAI LIKE --
+  OPENAILIKE_IMAGE_MODEL = "black-forest-labs/FLUX.1-schnell";
+  OPENAILIKE_CHAT_MODEL = "deepseek-chat";
   // -- EXTRA 配置 --
   //
   // OpenAI Speech to text额外参数
@@ -1152,7 +1031,7 @@ var UserConfig = class {
   MODES = {
     // process_type: 默认为'消息类型:text' ; 消息类型分为: text audio image
     // provider: 默认为default
-    // ai_type: 默认为openai, 与AI对话时使用openai风格接口
+    // agent: 默认为openai, 与AI对话时使用openai风格接口
     // prompt: default
     // model: 不同类型下 不同默认值
     // text:audio, TODO
@@ -1172,7 +1051,7 @@ var UserConfig = class {
   // 历史最大长度 调整为用户配置
   MAX_HISTORY_LENGTH = 12;
   // /set 指令映射变量 | 分隔多个关系，:分隔映射
-  MAPPING_KEY = "-p:SYSTEM_INIT_MESSAGE|-n:MAX_HISTORY_LENGTH|-a:AI_PROVIDER|-ai:AI_IMAGE_PROVIDER|-m:CHAT_MODEL|-v:OPENAI_VISION_MODEL|-t:OPENAI_TTS_MODEL|-ex:OPENAI_API_EXTRA_PARAMS|-mk:MAPPING_KEY|-mv:MAPPING_VALUE|-asap:FUNCTION_REPLY_ASAP|-fm:FUNCTION_CALL_MODEL";
+  MAPPING_KEY = "-p:SYSTEM_INIT_MESSAGE|-n:MAX_HISTORY_LENGTH|-a:AI_PROVIDER|-ai:AI_IMAGE_PROVIDER|-m:CHAT_MODEL|-v:OPENAI_VISION_MODEL|-t:OPENAI_TTS_MODEL|-ex:OPENAI_API_EXTRA_PARAMS|-mk:MAPPING_KEY|-mv:MAPPING_VALUE|-asap:FUNCTION_REPLY_ASAP|-fm:FUNCTION_CALL_MODEL|-tool:USE_TOOLS|-oli:OPENAILIKE_IMAGE_MODEL";
   // /set 指令映射值  | 分隔多个关系，:分隔映射
   MAPPING_VALUE = "";
   // MAPPING_VALUE = "cson:claude-3-5-sonnet-20240620|haiku:claude-3-haiku-20240307|g4m:gpt-4o-mini|g4:gpt-4o|rp+:command-r-plus";
@@ -1196,9 +1075,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1723791244;
+  BUILD_TIMESTAMP = 1723820750;
   // 当前版本 commit id
-  BUILD_VERSION = "2ea5a8a";
+  BUILD_VERSION = "396cc3a";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -1304,16 +1183,15 @@ var Environment = class {
   // 可配合CHAT_MESSAGE_TRIGGER: 'role:':'/setenv SYSTEM_INIT_MESSAGE=~role'
   // 快速修改变量:'model:':'/setenv OPENAI_CHAT_MODEL='  'pro:':'/setenv AI_PROVIDER='
   PROMPT = prompt_default;
+  TOOLS = tools_default;
   // 询问AI调用function的次数
   FUNC_LOOP_TIMES = 1;
   // 显示调用信息
   CALL_INFO = true;
   // func call 每次成功命中后最多并发次数
   CON_EXEC_FUN_NUM = 1;
-  // 当长度到达设置值时将发送telegraph文章
-  TELEGRAPH_NUM_LIMIT = 500;
-  // 群组 是否开启telegraph
-  ENABLE_TELEGRAPH = false;
+  // 当长度到达设置值时群组将发送telegraph文章 小于0时不发送
+  TELEGRAPH_NUM_LIMIT = -1;
   // 发文的作者链接; 发文作者目前为机器人ID, 未设置时为anonymous
   TELEGRAPH_AUTHOR_URL = "";
   DISABLE_WEB_PREVIEW = false;
@@ -1420,7 +1298,6 @@ function initEnv(env, i18n2) {
   mergeEnvironment(ENV, env);
   mergeEnvironment(ENV.USER_CONFIG, env);
   ENV.USER_CONFIG.DEFINE_KEYS = [];
-  ENV.TOOLS = tools_default;
   {
     ENV.I18N = i18n2((ENV.LANGUAGE || "cn").toLowerCase());
     if (env.TELEGRAM_TOKEN && !ENV.TELEGRAM_AVAILABLE_TOKENS.includes(env.TELEGRAM_TOKEN)) {
@@ -2009,198 +1886,56 @@ var tools_default2 = {
   search: {
     prompt: "\u4F5C\u4E3A\u667A\u80FD\u52A9\u624B\uFF0C\u8BF7\u6309\u7167\u4EE5\u4E0B\u6B65\u9AA4\u6709\u6548\u5206\u6790\u5E76\u63D0\u53D6\u6211\u63D0\u4F9B\u7684\u641C\u7D22\u7ED3\u679C\uFF0C\u4EE5\u7B80\u6D01\u660E\u4E86\u7684\u65B9\u5F0F\u56DE\u7B54\u6211\u7684\u95EE\u9898\uFF1A\n\n1. \u9605\u8BFB\u548C\u8BC4\u4F30\uFF1A\u4ED4\u7EC6\u9605\u8BFB\u6240\u6709\u641C\u7D22\u7ED3\u679C\uFF0C\u8BC6\u522B\u5E76\u4F18\u5148\u83B7\u53D6\u6765\u81EA\u53EF\u9760\u548C\u6700\u65B0\u6765\u6E90\u7684\u4FE1\u606F\u3002\u8003\u8651\u56E0\u7D20\u5305\u62EC\u5B98\u65B9\u6765\u6E90\u3001\u77E5\u540D\u673A\u6784\u4EE5\u53CA\u4FE1\u606F\u7684\u66F4\u65B0\u65F6\u95F4\u3002\n\n2. \u63D0\u53D6\u5173\u952E\u4FE1\u606F\uFF1A\n   \u2022 *\u6C47\u7387\u67E5\u8BE2*\uFF1A\u63D0\u4F9B\u6700\u65B0\u6C47\u7387\u5E76\u8FDB\u884C\u5FC5\u8981\u7684\u6362\u7B97\u3002\n   \u2022 *\u5929\u6C14\u67E5\u8BE2*\uFF1A\u63D0\u4F9B\u5177\u4F53\u5730\u70B9\u548C\u65F6\u95F4\u7684\u5929\u6C14\u9884\u62A5\u3002\n   \u2022 *\u4E8B\u5B9E\u6027\u95EE\u9898*\uFF1A\u627E\u51FA\u6743\u5A01\u56DE\u7B54\u3002\n\n3. \u7B80\u6D01\u56DE\u7B54\uFF1A\u5BF9\u63D0\u53D6\u7684\u4FE1\u606F\u8FDB\u884C\u7EFC\u5408\u5206\u6790\uFF0C\u7ED9\u51FA\u7B80\u660E\u627C\u8981\u7684\u56DE\u7B54\u3002\n\n4. \u8BC6\u522B\u4E0D\u786E\u5B9A\u6027\uFF1A\u5982\u679C\u4FE1\u606F\u5B58\u5728\u77DB\u76FE\u6216\u4E0D\u786E\u5B9A\u6027\uFF0C\u8BF7\u89E3\u91CA\u53EF\u80FD\u539F\u56E0\u3002\n\n5. \u8BF4\u660E\u4FE1\u606F\u4E0D\u8DB3\uFF1A\u5982\u679C\u641C\u7D22\u7ED3\u679C\u65E0\u6CD5\u5B8C\u5168\u56DE\u7B54\u95EE\u9898\uFF0C\u6307\u51FA\u9700\u8981\u7684\u989D\u5916\u4FE1\u606F\u3002\n\n6. \u7528\u6237\u53CB\u597D\uFF1A\u4F7F\u7528\u7B80\u5355\u6613\u61C2\u7684\u8BED\u8A00\uFF0C\u5FC5\u8981\u65F6\u63D0\u4F9B\u7B80\u77ED\u89E3\u91CA\uFF0C\u786E\u4FDD\u56DE\u7B54\u6613\u4E8E\u7406\u89E3\u3002\n\n7. \u9644\u52A0\u4FE1\u606F\uFF1A\u6839\u636E\u9700\u8981\u63D0\u4F9B\u989D\u5916\u76F8\u5173\u4FE1\u606F\u6216\u5EFA\u8BAE\uFF0C\u4EE5\u589E\u5F3A\u56DE\u7B54\u7684\u4EF7\u503C\u3002\n\n8. \u6765\u6E90\u6807\u6CE8\uFF1A\u5728\u56DE\u7B54\u4E2D\u6E05\u6670\u6807\u6CE8\u4FE1\u606F\u6765\u6E90\uFF0C\u5305\u62EC\u6765\u6E90\u7F51\u7AD9\u6216\u673A\u6784\u540D\u79F0\u53CA\u6570\u636E\u7684\u53D1\u5E03\u6216\u66F4\u65B0\u65F6\u95F4\u3002\n\n9. \u53C2\u8003\u5217\u8868\uFF1A\u5982\u679C\u5F15\u7528\u4E86\u591A\u4E2A\u6765\u6E90\uFF0C\u5728\u56DE\u7B54\u6700\u540E\u63D0\u4F9B\u7B80\u77ED\u7684\u53C2\u8003\u5217\u8868\uFF0C\u5217\u51FA\u4E3B\u8981\u4FE1\u606F\u6765\u6E90\u3002\n\n\u8BF7\u786E\u4FDD\u76EE\u6807\u662F\u63D0\u4F9B\u6700\u65B0\u3001\u6700\u76F8\u5173\u548C\u6700\u6709\u7528\u7684\u4FE1\u606F\uFF0C\u76F4\u63A5\u56DE\u5E94\u6211\u7684\u95EE\u9898\u3002\u907F\u514D\u5197\u957F\u7684\u7EC6\u8282\uFF0C\u805A\u7126\u4E8E\u6211\u6700\u5173\u5FC3\u7684\u6838\u5FC3\u7B54\u6848\uFF0C\u5E76\u901A\u8FC7\u53EF\u9760\u7684\u6765\u6E90\u589E\u5F3A\u56DE\u7B54\u7684\u53EF\u4FE1\u5EA6\u3002Tip: \u4E0D\u8981\u4EE5\u4F60\u7684\u77E5\u8BC6\u5E93\u65F6\u95F4\u4F5C\u4E3A\u8BC4\u5224\u6807\u51C6",
     extra_params: { tempurature: 0.7, "top_p": 0.4 },
-    render: (question, result) => `\u95EE\u9898:
-${question}
-
-\u641C\u7D22\u7ED3\u679C:
+    render: (result) => `\u641C\u7D22\u7ED3\u679C:
 ${result}`
   },
   web_crawler: {
     prompt: '\u4F5C\u4E3A\u4E00\u4E2A\u9AD8\u6548\u7684\u5185\u5BB9\u5206\u6790\u548C\u603B\u7ED3\u52A9\u624B\uFF0C\u4F60\u7684\u4EFB\u52A1\u662F\u5BF9\u7528\u6237\u63D0\u4F9B\u7684\u7F51\u9875\u6216PDF\u5185\u5BB9\u8FDB\u884C\u5168\u9762\u800C\u7B80\u6D01\u7684\u603B\u7ED3\u3002\u8BF7\u9075\u5FAA\u4EE5\u4E0B\u6307\u5357\uFF1A\n    1. \u4ED4\u7EC6\u9605\u8BFB\u7528\u6237\u63D0\u4F9B\u7684\u5168\u90E8\u5185\u5BB9\uFF0C\u786E\u4FDD\u7406\u89E3\u4E3B\u8981\u89C2\u70B9\u548C\u5173\u952E\u4FE1\u606F\u3002\n    2. \u8BC6\u522B\u5E76\u63D0\u70BC\u51FA\u5185\u5BB9\u7684\u6838\u5FC3\u4E3B\u9898\u548C\u4E3B\u8981\u8BBA\u70B9\u3002\n    3. \u603B\u7ED3\u65F6\u5E94\u5305\u62EC\u4EE5\u4E0B\u8981\u7D20\uFF1A\n      \u2022 \u5185\u5BB9\u7684\u4E3B\u8981\u76EE\u7684\u6216\u4E3B\u9898\n      \u2022 \u5173\u952E\u89C2\u70B9\u6216\u8BBA\u636E\n      \u2022 \u91CD\u8981\u7684\u6570\u636E\u6216\u7EDF\u8BA1\u4FE1\u606F\uFF08\u5982\u679C\u6709\uFF09\n      \u2022 \u4F5C\u8005\u7684\u7ED3\u8BBA\u6216\u5EFA\u8BAE\uFF08\u5982\u679C\u9002\u7528\uFF09\n    4. \u4FDD\u6301\u5BA2\u89C2\u6027\uFF0C\u51C6\u786E\u53CD\u6620\u539F\u6587\u7684\u89C2\u70B9\uFF0C\u4E0D\u6DFB\u52A0\u4E2A\u4EBA\u89E3\u91CA\u6216\u8BC4\u8BBA\u3002\n    5. \u4F7F\u7528\u6E05\u6670\u3001\u7B80\u6D01\u7684\u8BED\u8A00\uFF0C\u907F\u514D\u4F7F\u7528\u8FC7\u4E8E\u4E13\u4E1A\u6216\u6666\u6DA9\u7684\u672F\u8BED\u3002\n    6. \u603B\u7ED3\u7684\u957F\u5EA6\u5E94\u8BE5\u662F\u539F\u6587\u768410-15%\uFF0C\u9664\u975E\u7528\u6237\u7279\u522B\u6307\u5B9A\u5176\u4ED6\u957F\u5EA6\u8981\u6C42\u3002\n    7. \u5982\u679C\u5185\u5BB9\u5305\u542B\u591A\u4E2A\u90E8\u5206\u6216\u7AE0\u8282\uFF0C\u53EF\u4EE5\u4F7F\u7528\u7B80\u77ED\u7684\u5C0F\u6807\u9898\u6765\u7EC4\u7EC7\u4F60\u7684\u603B\u7ED3\u3002\n    8. \u5982\u679C\u539F\u6587\u5305\u542B\u56FE\u8868\u6216\u56FE\u50CF\u7684\u91CD\u8981\u4FE1\u606F\uFF0C\u8BF7\u5728\u603B\u7ED3\u4E2D\u63D0\u53CA\u8FD9\u4E00\u70B9\u3002\n    9. \u5982\u679C\u5185\u5BB9\u6D89\u53CA\u65F6\u95F4\u654F\u611F\u7684\u4FE1\u606F\uFF0C\u8BF7\u5728\u603B\u7ED3\u4E2D\u6CE8\u660E\u5185\u5BB9\u7684\u53D1\u5E03\u65E5\u671F\u6216\u7248\u672C\u3002\n    10. \u5982\u679C\u539F\u6587\u5B58\u5728\u660E\u663E\u7684\u504F\u89C1\u6216\u4E89\u8BAE\u6027\u89C2\u70B9\uFF0C\u8BF7\u5728\u603B\u7ED3\u4E2D\u5BA2\u89C2\u5730\u6307\u51FA\u8FD9\u4E00\u70B9\u3002\n    11. \u603B\u7ED3\u5B8C\u6210\u540E\uFF0C\u63D0\u4F9B1-3\u4E2A\u5173\u952E\u8BCD\u6216\u77ED\u8BED\uFF0C\u6982\u62EC\u5185\u5BB9\u7684\u6838\u5FC3\u4E3B\u9898\u3002\n    12. \u5982\u679C\u7528\u6237\u8981\u6C42\uFF0C\u53EF\u4EE5\u5728\u603B\u7ED3\u7684\u6700\u540E\u6DFB\u52A0\u4E00\u4E2A\u7B80\u77ED\u7684"\u8FDB\u4E00\u6B65\u9605\u8BFB\u5EFA\u8BAE"\u90E8\u5206, \u4EE5\u53CA\u5FC5\u8981\u7684\u5F15\u7528\u6765\u6E90\u3002\n    \u8BF7\u8BB0\u4F4F\uFF0C\u4F60\u7684\u76EE\u6807\u662F\u63D0\u4F9B\u4E00\u4E2A\u5168\u9762\u3001\u51C6\u786E\u3001\u6613\u4E8E\u7406\u89E3\u7684\u603B\u7ED3\uFF0C\u5E2E\u52A9\u7528\u6237\u5FEB\u901F\u628A\u63E1\u5185\u5BB9\u7684\u7CBE\u9AD3\u3002\u5982\u679C\u5185\u5BB9\u7279\u522B\u957F\u6216\u590D\u6742\uFF0C\u4F60\u53EF\u4EE5\u8BE2\u95EE\u7528\u6237\u662F\u5426\u9700\u8981\u66F4\u8BE6\u7EC6\u7684\u603B\u7ED3\u6216\u7279\u5B9A\u90E8\u5206\u7684\u6DF1\u5165\u5206\u6790\u3002\u8BF7\u5728\u6700\u540E\u9762\u6807\u6CE8\u5F15\u7528\u7684\u94FE\u63A5.',
     extra_params: { tempurature: 0.7, "top_p": 0.4 },
-    render: (question, result) => `${question && question + "\n"}\u7F51\u9875\u5185\u5BB9:
+    render: (result) => `\u7F51\u9875\u5185\u5BB9:
 ${result}`
   },
   default: {
     prompt: "\u4F60\u662F\u4E00\u4E2A\u667A\u80FD\u52A9\u624B\uFF0C\u5177\u5907\u5E7F\u6CDB\u7684\u77E5\u8BC6\u5E93\uFF0C\u64C5\u957F\u5206\u6790\u7528\u6237\u8BDD\u8BED\u903B\u8F91\uFF0C\u80FD\u6839\u636E\u7528\u6237\u95EE\u9898\u9009\u62E9\u5408\u9002\u7684\u51FD\u6570\u8C03\u7528\uFF0C\u5728\u65E0\u9700\u8C03\u7528\u51FD\u6570\u7684\u60C5\u51B5\u4E0B\uFF0C\u4E5F\u80FD\u5B8C\u7F8E\u89E3\u7B54\u7528\u6237\u7684\u95EE\u9898\u3002\u6CE8\u610F\uFF0C\u73B0\u5728\u662F2024\u5E74\u3002",
-    // 'response_format': {
-    //   'type': 'json_schema',
-    //   'json_schema': {
-    //     'name': 'call_or_answer',
-    //     'schema': {
-    //       'type': 'object',
-    //       'properties': {
-    //         'need_ask_more': {
-    //           'type': 'string',
-    //           'description': 'Whether need to ask the user for more information to call a function or not',
-    //           'enum': ['true', 'false'],
-    //         },
-    //         'answer': {
-    //           'type': 'string',
-    //           'description': 'When no function call is need to call, the field is the answer to the question, otherwise it is null',
-    //         },
-    //       },
-    //       'required': ['need_ask_more', 'answer'],
-    //       'additionalProperties': false,
-    //     },
-    //     'strict': true,
-    //   },
-    // },
     extra_params: { temperature: 0.5, "top_p": 0.4, "max_tokens": 100 }
   }
 };
 
 // src/agent/toolHander.js
-async function handleOpenaiFunctionCall(url, header2, body, prompt, context, onStream) {
-  let final_tool_type = null;
+async function handleOpenaiFunctionCall(params, context, onStream) {
+  let call_times = 0;
+  const func_results = [];
   try {
-    const filter_tools = context.USER_CONFIG.USE_TOOLS.filter((i) => Object.keys(ENV.TOOLS).includes(i)).map((t) => ENV.TOOLS[t]);
-    if (filter_tools.length > 0) {
-      let tools = filter_tools.map((tool) => {
-        return {
-          "type": "function",
-          "function": tool.schema,
-          "strict": true
-        };
-      });
-      let prompt2 = tools_default2.default.prompt;
-      let call_url = url;
-      if (context.USER_CONFIG.FUNCTION_CALL_BASE) {
-        call_url = context.USER_CONFIG.FUNCTION_CALL_BASE + "/chat/completions";
-      }
-      const call_key = context.USER_CONFIG.FUNCTION_CALL_API_KEY;
-      const call_headers = { ...header2, ...call_key && { Authorization: `Bearer ${call_key}` } || {} };
-      const options = {
-        fullContentExtractor: (d) => {
-          return d.choices?.[0]?.message;
-        }
-      };
-      const call_body = {
-        model: context.USER_CONFIG.FUNCTION_CALL_MODEL,
-        tools,
-        tool_choice: "auto",
-        ...tools_default2.default.extra_params,
-        messages: body.messages,
-        stream: context.USER_CONFIG.FUNCTION_REPLY_ASAP,
-        ...context.USER_CONFIG.ENABLE_SHOWTOKEN && { stream_options: { include_usage: true } }
-      };
-      let isOnstream = null;
-      if (context.USER_CONFIG.FUNCTION_REPLY_ASAP) {
-        delete call_body["max_tokens"];
-        isOnstream = onStream;
-      }
-      if (prompt2) {
-        body.messages[0].content = prompt2;
-      } else
-        body.messages.unshift({ role: "system", content: prompt2 });
-      let call_times = ENV.FUNC_LOOP_TIMES;
+    const { tools = context.USER_CONFIG.USE_TOOLS } = params;
+    const { tools_name, tools_struct } = filterValidTools(tools) || {};
+    if (tools_name) {
+      const payload = renderCallPayload(params, tools_struct, context, onStream);
       const opt = {};
       const exposure_vars = ["JINA_API_KEY"];
       exposure_vars.forEach((i) => opt[i] = context.USER_CONFIG[i]);
-      const original_question = body.messages.at(-1).content;
-      const stopLoopType = "web_crawler";
-      const INFO_LENGTH_LIMIT = 80;
+      const stopLoopType = ["web_crawler"];
       let chatPromise = Promise.resolve();
-      while (call_times > 0 && call_body.tools.length > 0) {
-        const start_time = /* @__PURE__ */ new Date();
-        await chatPromise;
+      while (call_times < ENV.FUNC_LOOP_TIMES && payload.body.tools?.length > 0) {
+        const start_time = Date.now();
+        call_times += 1;
+        const llm_content = await functionCallWithLLM(context, payload, tools_name, chatPromise);
+        if (!Array.isArray(llm_content)) {
+          return { call_times, llm_content, func_results };
+        }
+        context._info.setCallInfo(((Date.now() - start_time) / 1e3).toFixed(1) + "s", "c_t");
         setTimeout(() => {
-          chatPromise = sendMessageToTelegramWithContext(context)(`\`chat with llm.\``);
+          chatPromise = sendMessageToTelegramWithContext(context)(`\`call ${llm_content[0].name}\``);
         }, 0);
-        const llm_resp = await requestChatCompletions(
-          call_url,
-          call_headers,
-          call_body,
-          context,
-          isOnstream,
-          null,
-          options
-        );
-        if (!llm_resp.tool_calls) {
-          llm_resp.tool_calls = [];
-        }
-        llm_resp.tool_calls = llm_resp?.tool_calls?.filter((i) => Object.keys(ENV.TOOLS).includes(i.function.name));
-        if (llm_resp.tool_calls.length === 0) {
-          if (final_tool_type)
-            call_body.messages[0].content = tools_default2[final_tool_type].prompt;
-          if (call_times === ENV.FUNC_LOOP_TIMES) {
-            return { type: "first_answer", message: llm_resp.content };
-          } else
-            return { type: "next_answer", message: llm_resp.content };
-        }
-        context._info.setCallInfo(((/* @__PURE__ */ new Date() - start_time) / 1e3).toFixed(1) + "s", "c_t");
-        if (llm_resp.content?.startsWith("```json\n")) {
-          llm_resp.content = llm_resp.content?.match(/\{[\s\S]+\}/)[0];
-        }
-        const funcPromise = [];
-        const controller = new AbortController();
-        const { signal } = controller;
-        let timeoutID = null;
-        if (ENV.FUNC_TIMEOUT > 0) {
-          timeoutID = setTimeout(() => controller.abort(), ENV.FUNC_TIMEOUT * 1e3);
-        }
-        const raceTimeout = async (promises, ms = ENV.FUNC_TIMEOUT * 1e3) => {
-          if (ms <= 0)
-            return Promise.all(promises);
-          return Promise.all(
-            promises.map((p) => Promise.race([p, new Promise((resolve) => setTimeout(resolve, ms))]))
-          ).then((results) => results.filter(Boolean));
-        };
-        let exec_times = ENV.CON_EXEC_FUN_NUM;
-        await chatPromise;
-        setTimeout(() => {
-          chatPromise = sendMessageToTelegramWithContext(context)(`\`call ${llm_resp.tool_calls[0].function.name}\``);
-        }, 0);
-        for (const func of llm_resp.tool_calls) {
-          if (exec_times <= 0)
-            break;
-          const name = func.function.name;
-          call_body.tools = call_body.tools.filter((t) => t.function.name !== name);
-          const args = JSON.parse(func.function.arguments);
-          let args_i = Object.values(args).join();
-          if (args_i.length > INFO_LENGTH_LIMIT)
-            args_i = args_i.substring(0, INFO_LENGTH_LIMIT) + "...";
-          context._info.setCallInfo(`${name}:${args_i}`, "f_i");
-          console.log("start use function: ", name);
-          funcPromise.push(ENV.TOOLS[name].func(args, opt, signal));
-          exec_times--;
-        }
-        const func_resp = await raceTimeout(funcPromise);
-        if (timeoutID)
-          clearTimeout(timeoutID);
-        const func_time = [];
-        const content_text = func_resp.map((r) => {
-          func_time.push(r.time || "");
-          return r.content || "";
-        }).join("\n\n").trim();
-        console.log("func call content: ", content_text.substring(0, 500));
-        if (func_time.join(" ").trim())
-          context._info.setCallInfo(func_time.join(), "f_t");
-        if (!content_text) {
-          context._info.setCallInfo(`func call response is none or timeout.`);
-          throw new Error("None response in func call.");
-        }
-        if (call_times === ENV.FUNC_LOOP_TIMES)
-          call_body.messages.pop();
-        final_tool_type = ENV.TOOLS[llm_resp.tool_calls[0].function.name].type;
-        const render = tools_default2[final_tool_type].render;
-        call_body.messages.push({
-          role: "user",
-          content: render?.(original_question, content_text) || original_question + "\n\n" + content_text
-        });
-        if (final_tool_type === stopLoopType)
+        const func_result = await functionExec(llm_content, context, opt);
+        const func_type = ENV.TOOLS[llm_content[0].name].type;
+        func_results.push({ type: func_type, content: func_result });
+        trimPayload(payload, func_results, func_type);
+        if (stopLoopType.includes(func_type))
           break;
-        call_times--;
-      }
-      if (final_tool_type) {
-        call_body.messages[0].content = tools_default2[final_tool_type].prompt;
-        for (const [key, value] of Object.entries(tools_default2[final_tool_type].extra_params)) {
-          body[key] = value;
-        }
       }
       await chatPromise;
     }
-    return { type: "continue" };
+    return { call_times, func_results };
   } catch (e) {
     console.error(e.message);
     let errorMsg = e.message;
@@ -2208,10 +1943,141 @@ async function handleOpenaiFunctionCall(url, header2, body, prompt, context, onS
       errorMsg = "call timeout";
     }
     context._info.setCallInfo(`Func error: ${errorMsg}`);
-    if (final_tool_type)
-      body.messages[0].content = tools_default2[final_tool_type].prompt;
-    return { type: "continue", message: e.message };
+    return { call_times, message: e.message, func_results };
   }
+}
+function renderCallPayload(params, tools_structs, context, onStream) {
+  const { url, header: header2, prompt, body } = params;
+  let call_url = url;
+  if (context.USER_CONFIG.FUNCTION_CALL_BASE) {
+    call_url = context.USER_CONFIG.FUNCTION_CALL_BASE + "/chat/completions";
+  }
+  const call_key = context.USER_CONFIG.FUNCTION_CALL_API_KEY;
+  const call_headers = { ...header2, ...call_key && { Authorization: `Bearer ${call_key}` } || {} };
+  const options = {
+    fullContentExtractor: (d) => {
+      return d.choices?.[0]?.message;
+    }
+  };
+  const call_body = {
+    model: context.USER_CONFIG.FUNCTION_CALL_MODEL,
+    tools: tools_structs,
+    tool_choice: "auto",
+    ...tools_default2.default.extra_params,
+    messages: [...body.messages],
+    stream: context.USER_CONFIG.FUNCTION_REPLY_ASAP,
+    ...context.USER_CONFIG.ENABLE_SHOWTOKEN && { stream_options: { include_usage: true } }
+  };
+  let stream = null;
+  if (context.USER_CONFIG.FUNCTION_REPLY_ASAP) {
+    delete call_body["max_tokens"];
+    stream = onStream;
+  }
+  const tool_prompt = tools_default2.default.prompt;
+  if (prompt)
+    call_body.messages.shift();
+  call_body.messages.unshift({ role: "system", content: tool_prompt });
+  return { url: call_url, header: call_headers, body: call_body, stream, options };
+}
+function renderAfterCallPayload(context, body, func_results, prompt) {
+  const last_tool_type = func_results.at(-1).type;
+  const tool_prompt = tools_default2[last_tool_type].prompt;
+  if (tool_prompt) {
+    if (prompt) {
+      body.messages[0].content = tool_prompt;
+    } else
+      body.messages.unshift({ role: context.USER_CONFIG.SYSTEM_INIT_MESSAGE_ROLE, content: tool_prompt });
+  }
+  if (func_results.length > 0) {
+    for (const { type, content } of func_results) {
+      body.messages.at(-1).content += "\n\n" + tools_default2[type].render(content.join("\n\n"));
+    }
+  }
+  for (const [key, value] of Object.entries(tools_default2[last_tool_type]?.extra_params || {})) {
+    body[key] = value;
+  }
+}
+function filterValidTools(tools) {
+  const valid_tools = tools.filter((i) => Object.keys(ENV.TOOLS).includes(i));
+  if (valid_tools.length > 0) {
+    const tools_struct = valid_tools.map((tool) => {
+      return {
+        "type": "function",
+        "function": ENV.TOOLS[tool].schema,
+        "strict": true
+      };
+    });
+    return { tools_name: valid_tools, tools_struct };
+  }
+}
+async function functionCallWithLLM(context, payload, tools_name, chatPromise) {
+  const { url, header: header2, body, stream, options } = payload;
+  setTimeout(() => {
+    chatPromise = sendMessageToTelegramWithContext(context)(`\`chat with llm.\``);
+  }, 0);
+  const llm_resp = await requestChatCompletions(url, header2, body, context, stream, null, options);
+  if (!llm_resp.tool_calls) {
+    llm_resp.tool_calls = [];
+  }
+  const valid_calls = llm_resp?.tool_calls?.filter((i) => tools_name.includes(i.function.name));
+  if (valid_calls.length === 0)
+    return llm_resp.content;
+  await chatPromise;
+  return valid_calls.map((func) => ({
+    name: func.function.name,
+    args: JSON.parse(func.function.arguments)
+  }));
+}
+async function functionExec(funcList, context, opt) {
+  const controller = new AbortController();
+  const { signal } = controller;
+  let timeoutId = null;
+  const INFO_LENGTH_LIMIT = 80;
+  if (ENV.FUNC_TIMEOUT > 0) {
+    timeoutId = setTimeout(() => controller.abort(), ENV.FUNC_TIMEOUT * 1e3);
+  }
+  let exec_times = ENV.CON_EXEC_FUN_NUM;
+  const funcPromise = [];
+  for (const { name, args } of funcList) {
+    if (exec_times <= 0)
+      break;
+    const args_i = Object.values(args).join();
+    context._info.setCallInfo(`${name}:${args_i.length > INFO_LENGTH_LIMIT ? args_i.slice(0, INFO_LENGTH_LIMIT) : args_i}`, "f_i");
+    console.log("start use function: ", name);
+    funcPromise.push(ENV.TOOLS[name].func(args, opt, signal));
+    exec_times--;
+  }
+  const func_resp = await raceTimeout(funcPromise);
+  if (timeoutId)
+    clearTimeout(timeoutId);
+  const func_time = [];
+  const content = func_resp.map((r) => {
+    func_time.push(r.time || "");
+    return r.content || r || "";
+  });
+  console.log("func call content: ", content.join("\n\n").substring(0, 500));
+  if (func_time.join("").trim())
+    context._info.setCallInfo(func_time.join(), "f_t");
+  if (!content.join("").trim()) {
+    context._info.setCallInfo(`func call response is none or timeout.`);
+    throw new Error("None response in func call.");
+  }
+  return content;
+}
+function trimPayload(payload, func_results, func_type) {
+  const render = tools_default2[func_type].render;
+  payload.body.messages.push({
+    role: "user",
+    content: render?.(func_results.join("\n\n")) || func_results.join("\n\n").trim()
+  });
+  payload.body.tools = payload.body.tools.filter((t) => ENV.TOOLS[t.function.name].type !== func_type);
+}
+async function raceTimeout(promises, ms = ENV.FUNC_TIMEOUT * 1e3) {
+  if (ms <= 0)
+    return Promise.all(promises);
+  return Promise.all(promises.map((p) => Promise.race([p, new Promise((resolve) => setTimeout(resolve, ms))]))).then(
+    (results) => results.filter(Boolean)
+  );
 }
 
 // src/agent/openai.js
@@ -2221,6 +2087,17 @@ function openAIKeyFromContext(context) {
 }
 function isOpenAIEnable(context) {
   return context.USER_CONFIG.OPENAI_API_KEY.length > 0;
+}
+function isLLMEnable(agent) {
+  return (context) => {
+    switch (agent) {
+      case "silicon":
+      case "deepseek":
+        return !!context.USER_CONFIG.PROVIDERS[agent];
+      default:
+        return false;
+    }
+  };
 }
 async function renderOpenAIMessage(item) {
   const res = {
@@ -2247,19 +2124,99 @@ async function renderOpenAIMessage(item) {
   }
   return res;
 }
+var openaiLikeSupportType = {
+  // openai
+  openai: ["text2text", "text2image", "image2text", "audio2text"],
+  deepseek: ["text2text"],
+  silicon: ["text2text", "text2image", "image2image"]
+};
+function openaiLikeAgent(context, type) {
+  const userConfig = context.USER_CONFIG;
+  const agent = type === "text2image" ? userConfig.AI_IMAGE_PROVIDER : userConfig.AI_PROVIDER;
+  let config = {
+    url: userConfig.OPENAI_API_BASE,
+    key: openAIKeyFromContext(context)
+  };
+  let like_model = null;
+  let like_url = userConfig.PROVIDERS[agent]?.base_url;
+  switch (type) {
+    case "text2image":
+      config.model = userConfig.OPENAI_IMAGE_MODEL;
+      like_model = userConfig.OPENAILIKE_IMAGE_MODEL;
+      break;
+    case "image2text":
+      config.model = userConfig.OPENAI_VISION_MODEL;
+      like_model = userConfig.OPENAILIKE_VISION_MODEL;
+      break;
+    case "audio2text":
+      config.model = userConfig.OPENAI_STT_MODEL;
+      like_model = userConfig.OPENAILIKE_STT_MODEL;
+      break;
+    case "text2text":
+      config.model = userConfig.OPENAI_CHAT_MODEL;
+      like_model = userConfig.OPENAILIKE_CHAT_MODEL;
+      break;
+    case "image2image":
+      like_model = userConfig.OPENAILIKE_I2I_MODEL;
+      break;
+  }
+  if (!openaiLikeSupportType[agent]?.includes(type) || !isLLMEnable(agent)(context)) {
+    if (openaiLikeSupportType.openai.includes(type)) {
+      return renderOpenaiLikeUrl(agent, type, config);
+    } else
+      throw new Error(`default agent not support ${type}`);
+  }
+  if (!like_model) {
+    throw new Error(`${agent} ${type} model is not exist`);
+  }
+  if (context._info?.provider?.url && context._info?.provider?.key) {
+    config.url = context._info?.provider?.url;
+    config.key = context._info?.provider?.key;
+    return renderOpenaiLikeUrl(agent, type, config);
+  }
+  switch (agent) {
+    case "deepseek":
+    case "silicon":
+      if (userConfig.PROVIDERS[agent]?.key && like_url) {
+        config = { key: userConfig.PROVIDERS[agent].key, url: like_url, model: like_model };
+      }
+  }
+  return renderOpenaiLikeUrl(agent, type, config);
+}
+function renderOpenaiLikeUrl(agent, type, agentDetail) {
+  switch (type) {
+    case "text2text":
+    case "image2text":
+      agentDetail.url += "/chat/completions";
+      break;
+    case "text2image":
+      if (agent === "silicon") {
+        agentDetail.url += "/" + agentDetail.model + "/text-to-image";
+      } else
+        agentDetail.url += "/images/generations";
+      break;
+    case "audio2text":
+      agentDetail.url += "/audio/transcriptions";
+      break;
+    case "image2image":
+      if (agent === "silicon") {
+        agentDetail.url += agentDetail.model + "/image-to-image";
+      }
+      break;
+  }
+  return agentDetail;
+}
 async function requestCompletionsFromOpenAI(params, context, onStream) {
   const { message, images, prompt, history } = params;
-  const { PROXY_URL = context.USER_CONFIG.OPENAI_API_BASE, API_KEY = openAIKeyFromContext(context) } = context._info?.provider || {};
-  const url = `${PROXY_URL}/chat/completions`;
+  const { url, key, model } = openaiLikeAgent(context, images && images.length > 0 ? "image2text" : "text2text");
   const header2 = {
     "Content-Type": "application/json",
-    "Authorization": `Bearer ${API_KEY}`
+    "Authorization": `Bearer ${key}`
   };
   const messages = [...history || [], { role: "user", content: message, images }];
   if (prompt) {
     messages.unshift({ role: context.USER_CONFIG.SYSTEM_INIT_MESSAGE_ROLE, content: prompt });
   }
-  const model = images && images.length > 0 ? context.USER_CONFIG.OPENAI_VISION_MODEL : context.USER_CONFIG.OPENAI_CHAT_MODEL;
   const extra_params = context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS;
   const body = {
     model,
@@ -2268,17 +2225,13 @@ async function requestCompletionsFromOpenAI(params, context, onStream) {
     stream: onStream != null,
     ...context.USER_CONFIG.ENABLE_SHOWTOKEN && { stream_options: { include_usage: true } }
   };
-  if (message && !context._info?.lastStepHasFile && ENV.TOOLS && context.USER_CONFIG.USE_TOOLS?.length > 0) {
-    const result = await handleOpenaiFunctionCall(url, header2, body, prompt, context, onStream);
-    if (["first_answer", "next_answer"].indexOf(result.type) > -1 && result.message && context.USER_CONFIG.FUNCTION_REPLY_ASAP) {
-      return result.message;
+  if (message && !images && context.USER_CONFIG.USE_TOOLS?.length > 0) {
+    const result = await handleOpenaiFunctionCall({ url, header: header2, body, prompt }, context, onStream);
+    if (result.llm_content && context.USER_CONFIG.FUNCTION_REPLY_ASAP) {
+      return result.llm_content;
     }
-    if (result.type === "first_answer") {
-      if (prompt) {
-        body.messages[0].content = prompt;
-      } else
-        body.messages.shift();
-    } else {
+    renderAfterCallPayload(context, body, result.func_results, prompt);
+    if (result.func_results.length > 0) {
       const resp_obj = { q: body.messages.at(-1).content };
       resp_obj.a = await requestChatCompletions(url, header2, body, context, onStream);
       return resp_obj;
@@ -2286,14 +2239,22 @@ async function requestCompletionsFromOpenAI(params, context, onStream) {
   }
   return requestChatCompletions(url, header2, body, context, onStream);
 }
+function renderPicResult(context, resp) {
+  const render = {
+    "openai": () => ({
+      url: resp?.data?.[0]?.url,
+      revised_prompt: resp?.data?.[0]?.revised_prompt || ""
+    }),
+    "silicon": () => ({ url: resp?.images?.[0]?.url })
+  };
+  return render[context.USER_CONFIG.AI_IMAGE_PROVIDER]();
+}
 async function requestImageFromOpenAI(prompt, context) {
-  const { PROXY_URL = context.USER_CONFIG.OPENAI_API_BASE, API_KEY = openAIKeyFromContext(context) } = context._info.provider || {};
-  const model = context.USER_CONFIG.OPENAI_IMAGE_MODEL;
+  const { url, key, model } = openaiLikeAgent(context, "text2image");
   context._info.config("model", model);
-  const url = `${PROXY_URL}/images/generations`;
   const header2 = {
     "Content-Type": "application/json",
-    "Authorization": `Bearer ${API_KEY}`
+    "Authorization": `Bearer ${key}`
   };
   const body = {
     prompt,
@@ -2301,7 +2262,9 @@ async function requestImageFromOpenAI(prompt, context) {
     size: context.USER_CONFIG.DALL_E_IMAGE_SIZE,
     model
   };
-  if (body.model === "dall-e-3") {
+  if (["silicon"].includes(context.USER_CONFIG.AI_IMAGE_PROVIDER)) {
+    delete body.model;
+  } else if (body.model === "dall-e-3") {
     body.quality = context.USER_CONFIG.DALL_E_IMAGE_QUALITY;
     body.style = context.USER_CONFIG.DALL_E_IMAGE_STYLE;
   }
@@ -2313,19 +2276,14 @@ async function requestImageFromOpenAI(prompt, context) {
   if (resp.error?.message) {
     throw new Error(resp.error.message);
   }
-  return {
-    url: resp?.data?.[0]?.url,
-    revised_prompt: resp?.data?.[0]?.revised_prompt || ""
-  };
+  return renderPicResult(context, resp);
 }
 async function requestTranscriptionFromOpenAI(audio, file_name, context) {
-  const { PROXY_URL = context.USER_CONFIG.OPENAI_API_BASE, API_KEY = openAIKeyFromContext(context) } = context._info.provider || {};
-  const model = context.USER_CONFIG.OPENAI_STT_MODEL;
+  const { url, key, model } = openaiLikeAgent(context, "audio2text");
   context._info.config("model", model);
-  const url = `${PROXY_URL}/audio/transcriptions`;
   const header2 = {
     // 'Content-Type': 'multipart/form-data',
-    "Authorization": `Bearer ${API_KEY}`,
+    "Authorization": `Bearer ${key}`,
     "Accept": "application/json"
   };
   const formData = new FormData();
@@ -2351,7 +2309,7 @@ async function requestTranscriptionFromOpenAI(audio, file_name, context) {
     console.log(`Transcription: ${resp.text}`);
     return { ok: !resp.error, type: "text", content: resp.text, message: resp.error };
   } else {
-    return { ok: false, message: await resp.text() };
+    return { ok: false, message: resp.statusText };
   }
 }
 
@@ -2407,7 +2365,9 @@ async function requestCompletionsFromWorkersAI(params, context, onStream) {
 async function requestImageFromWorkersAI(prompt, context) {
   const id = context.USER_CONFIG.CLOUDFLARE_ACCOUNT_ID;
   const token = context.USER_CONFIG.CLOUDFLARE_TOKEN;
-  const raw = await run(context.USER_CONFIG.WORKERS_IMAGE_MODEL, { prompt }, id, token);
+  const model = context.USER_CONFIG.WORKERS_IMAGE_MODEL;
+  context._info.config("model", model);
+  const raw = await run(model, { prompt }, id, token);
   return { url: await raw.blob() };
 }
 
@@ -2696,6 +2656,16 @@ var chatLlmAgents = [
     name: "anthropic",
     enable: isAnthropicAIEnable,
     request: requestCompletionsFromAnthropicAI
+  },
+  {
+    name: "silicon",
+    enable: isLLMEnable("silicon"),
+    request: requestCompletionsFromOpenAI
+  },
+  {
+    name: "deepseek",
+    enable: isLLMEnable("deepseek"),
+    request: requestCompletionsFromOpenAI
   }
 ];
 function currentChatModel(agentName, context) {
@@ -2828,6 +2798,16 @@ var imageGenAgents = [
     name: "workers",
     enable: isWorkersAIEnable,
     request: requestImageFromWorkersAI
+  },
+  {
+    name: "silicon",
+    enable: isLLMEnable,
+    request: requestImageFromOpenAI
+  },
+  {
+    name: "deepseek",
+    enable: isLLMEnable,
+    request: requestImageFromOpenAI
   }
 ];
 function loadImageGen(context) {
@@ -2958,7 +2938,7 @@ async function handleFile(_info) {
 }
 var MiddleInfo = class {
   constructor(USER_CONFIG, msg_info) {
-    this.process_start_time = [/* @__PURE__ */ new Date()];
+    this.process_start_time = [Date.now()];
     this.token_info = [];
     this.processes = USER_CONFIG.MODES[USER_CONFIG.CURRENT_MODE]?.[msg_info.fileType] || [{}];
     this.step_index = 0;
@@ -3009,7 +2989,7 @@ var MiddleInfo = class {
     const step_count = this.process_count;
     const stepInfo = step_count > 1 ? `[STEP ${this.step_index}/${step_count}]
 ` : "";
-    const time = ((/* @__PURE__ */ new Date() - this.process_start_time[this.step_index]) / 1e3).toFixed(1);
+    const time = ((Date.now() - this.process_start_time[this.step_index]) / 1e3).toFixed(1);
     let call_info = "";
     if (ENV.CALL_INFO)
       call_info = (this.call_info && this.call_info + "\n").replace("$$f_t$$", "");
@@ -3072,6 +3052,8 @@ Token: ${this.token.map(Object.values).join("|")}`;
   initProcess(USER_CONFIG) {
     console.log(`Init step ${this.step_index + 1}.`);
     this.step_index++;
+    this.updateStartTime();
+    this.call_info = "";
     if (this.step_index > 1) {
       USER_CONFIG = this._bp_config;
     }
@@ -3079,6 +3061,10 @@ Token: ${this.token.map(Object.values).join("|")}`;
     this.model = this.processes[this.step_index - 1].model;
     this.process_type = this.processes[this.step_index - 1].process_type || `${this.file[this.step_index - 1].type}:text`;
     let chatType = null;
+    let ai_provider = USER_CONFIG.AI_PROVIDER;
+    if ("silicon" === ai_provider) {
+      ai_provider = "OPENAILIKE";
+    }
     switch (this.process_type) {
       case "text:text":
         chatType = "CHAT";
@@ -3097,21 +3083,21 @@ Token: ${this.token.map(Object.values).join("|")}`;
     }
     for (const [key, value] of Object.entries(this.processes[this.step_index - 1])) {
       switch (key) {
-        case "ai_type":
-          USER_CONFIG.AI_PROVIDER = this.ai_type;
+        case "agent":
+          USER_CONFIG.AI_PROVIDER = this.agent;
           break;
         case "prompt":
           USER_CONFIG.SYSTEM_INIT_MESSAGE = ENV.PROMPT[value] || value;
           break;
         case "model":
           if (this.model) {
-            USER_CONFIG[`${USER_CONFIG.AI_PROVIDER.toUpperCase()}_${chatType}_MODEL`] = this.model;
+            USER_CONFIG[`${ai_provider.toUpperCase()}_${chatType}_MODEL`] = this.model;
           }
           break;
         case "provider":
           if (USER_CONFIG.PROVIDERS[value]) {
-            USER_CONFIG[`${USER_CONFIG.AI_PROVIDER}_API_BASE`] = USER_CONFIG.PROVIDERS[value]["API_BASE"];
-            USER_CONFIG[`${USER_CONFIG.AI_PROVIDER}_API_KEY`] = USER_CONFIG.PROVIDERS[value]["API_KEY"];
+            USER_CONFIG[`${ai_provider}_API_BASE`] = USER_CONFIG.PROVIDERS[value]["base_url"];
+            USER_CONFIG[`${ai_provider}_API_KEY`] = USER_CONFIG.PROVIDERS[value]["key"];
           }
           break;
         default:
@@ -3442,7 +3428,7 @@ ${question?.length > 400 ? question.slice(0, 200) + "..." + question.slice(-200)
         author_url: ENV.TELEGRAPH_AUTHOR_URL
       };
       return async (text2) => {
-        if (text2.length > ENV.TELEGRAPH_NUM_LIMIT && ENV.ENABLE_TELEGRAPH && CONST.GROUP_TYPES.includes(context.SHARE_CONTEXT.chatType)) {
+        if (ENV.TELEGRAPH_NUM_LIMIT > 0 && text2.length > ENV.TELEGRAPH_NUM_LIMIT && CONST.GROUP_TYPES.includes(context.SHARE_CONTEXT.chatType)) {
           const telegraph_prefix = prefix + `
 #Answer
 \u{1F916} _${context._info.model}_
@@ -3501,7 +3487,6 @@ ${context._info.message_title}
     if (llm === null) {
       return sendMessageToTelegramWithContext(context)(`LLM is not enable`);
     }
-    const prompt = context.USER_CONFIG.SYSTEM_INIT_MESSAGE;
     console.log(`[START] Chat via ${llm.name}`);
     const answer = await requestCompletionsFromLLM(params, context, llm, modifier, onStream);
     if (!answer) {
@@ -3842,9 +3827,12 @@ async function commandSetUserConfigs(message, command, subcommand, context) {
     const updateTagReg = /\s+-u(\s+|$)/;
     const needUpdate = updateTagReg.test(subcommand);
     subcommand = subcommand.replace(updateTagReg, "$1");
-    const msgCommand = subcommand.matchAll(/(-\w+)\s+(.+?)(\s+|$)/g);
+    const msgCommand = subcommand.matchAll(/(-\w+)\s+(.*?)(\s+|$)/g);
     let msg = "";
     let hasKey = false;
+    if (context.USER_CONFIG.AI_PROVIDER === "auto") {
+      context.USER_CONFIG.AI_PROVIDER = "openai";
+    }
     for (const [, k, v] of msgCommand) {
       let key = keys[k], value = values[v];
       if (key) {
@@ -3878,15 +3866,22 @@ async function commandSetUserConfigs(message, command, subcommand, context) {
             }
             context._info.config("mode", v);
             break;
+          case "USE_TOOLS":
+            if (v === "on") {
+              value = Object.keys(ENV.TOOLS);
+            } else if (v === "off") {
+              value = [];
+            }
+            break;
           default:
             break;
         }
         if (!Object.keys(context.USER_CONFIG).includes(key)) {
           return sendMessageToTelegramWithContext(context)(`Key ${key} not found`, "tip");
         }
-        context.USER_CONFIG[key] = value || v;
+        context.USER_CONFIG[key] = value ?? v;
         context.USER_CONFIG.DEFINE_KEYS.push(key);
-        console.log(`/set ${key || "unknown"} ${(value || v).substring(0, 6)}...'`);
+        console.log(`/set ${key || "unknown"} ${(JSON.stringify(value) || v).substring(0, 20)}`);
       } else
         return sendMessageToTelegramWithContext(context)(`Mapping Key ${k} is not exist`, "tip");
       if (!hasKey)
@@ -4148,6 +4143,132 @@ function commandsDocument() {
   });
 }
 
+// src/utils/utils.js
+function renderHTML(body) {
+  return `
+<html>  
+  <head>
+    <title>ChatGPT-Telegram-Workers</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="ChatGPT-Telegram-Workers">
+    <meta name="author" content="TBXark">
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+        font-size: 1rem;
+        font-weight: 400;
+        line-height: 1.5;
+        color: #212529;
+        text-align: left;
+        background-color: #fff;
+      }
+      h1 {
+        margin-top: 0;
+        margin-bottom: 0.5rem;
+      }
+      p {
+        margin-top: 0;
+        margin-bottom: 1rem;
+      }
+      a {
+        color: #007bff;
+        text-decoration: none;
+        background-color: transparent;
+      }
+      a:hover {
+        color: #0056b3;
+        text-decoration: underline;
+      }
+      strong {
+        font-weight: bolder;
+      }
+    </style>
+  </head>
+  <body>
+    ${body}
+  </body>
+</html>
+  `;
+}
+function errorToString(e) {
+  return JSON.stringify({
+    message: e.message,
+    stack: e.stack
+  });
+}
+function makeResponse200(resp) {
+  if (resp === null) {
+    return new Response("NOT HANDLED", { status: 200 });
+  }
+  if (resp.status === 200) {
+    return resp;
+  } else {
+    return new Response(resp.body, {
+      status: 200,
+      headers: {
+        "Original-Status": resp.status,
+        ...resp.headers
+      }
+    });
+  }
+}
+function fetchWithRetryFunc() {
+  const status429RetryTime = {};
+  const MAX_RETRIES = 3;
+  const RETRY_DELAY_MS = 1e3;
+  const RETRY_MULTIPLIER = 2;
+  const DEFAULT_RETRY_AFTER = 10;
+  return async (url, options, retries = MAX_RETRIES, delayMs = RETRY_DELAY_MS) => {
+    let errorMsg = "";
+    while (retries > 0) {
+      try {
+        const parsedUrl = new URL(url);
+        const domain = `${parsedUrl.protocol}//${parsedUrl.host}`;
+        const now = Date.now();
+        if ((status429RetryTime[domain] ?? now) > now) {
+          return new Response('{"ok":false}', {
+            status: 429,
+            headers: {
+              "Content-Type": "application/json",
+              "Retry-After": Math.ceil((status429RetryTime[domain] - now) / 1e3)
+            }
+          });
+        }
+        if (status429RetryTime[domain]) {
+          status429RetryTime[domain] = null;
+        }
+        let resp = await fetch(url, options);
+        if (resp.ok) {
+          if (retries < MAX_RETRIES)
+            console.log(`[DONE] after ${MAX_RETRIES - retries} times`);
+          return resp;
+        }
+        const clone_resp = await resp.clone().text();
+        console.error(`Error fetch: ${clone_resp}`);
+        if (resp.status === 429) {
+          const retryAfter = resp.headers.get("Retry-After") || DEFAULT_RETRY_AFTER;
+          status429RetryTime[domain] = Date.now() + 1e3 * retryAfter;
+          return resp;
+        } else {
+          throw new Error(`status: ${resp.statusText}`);
+        }
+      } catch (error) {
+        errorMsg = error.message;
+        console.error(`Request failed, retry after ${delayMs / 1e3} s: ${error}`);
+      }
+      await delay(delayMs);
+      delayMs *= RETRY_MULTIPLIER;
+      retries--;
+    }
+    throw new Error(`Failed after maximum retries, please see the log.`);
+  };
+}
+var fetchWithRetry = fetchWithRetryFunc();
+function delay(ms = 1e3) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 // src/telegram/message.js
 async function msgInitChatContext(message, context) {
   await context.initContext(message);
@@ -4340,7 +4461,7 @@ async function msgInitMiddleInfo(message, context) {
     return null;
   } catch (e) {
     console.log(e.message);
-    return sendMessageToTelegramWithContext(context)(e.message, "tip");
+    throw new Error("Can\u2019t init info, please see the log for detail.");
   }
 }
 async function msgHandleCommand(message, context) {

@@ -110,7 +110,7 @@ export async function handleFile(_info) {
  */
 export class MiddleInfo {
   constructor(USER_CONFIG, msg_info) {
-    this.process_start_time = [new Date()];
+    this.process_start_time = [Date.now()];
     this.token_info = [];
     this.processes = USER_CONFIG.MODES[USER_CONFIG.CURRENT_MODE]?.[msg_info.fileType] || [{}];
     this.step_index = 0;
@@ -164,7 +164,7 @@ export class MiddleInfo {
     if (!show_info) return '';
     const step_count = this.process_count;
     const stepInfo = step_count > 1 ? `[STEP ${this.step_index}/${step_count}]\n` : '';
-    const time = ((new Date() - this.process_start_time[this.step_index]) / 1000).toFixed(1);
+    const time = ((Date.now() - this.process_start_time[this.step_index]) / 1000).toFixed(1);
 
     let call_info = '';
     if (ENV.CALL_INFO) call_info = (this.call_info && (this.call_info + '\n')).replace('$$f_t$$', '');
@@ -232,6 +232,9 @@ export class MiddleInfo {
     console.log(`Init step ${this.step_index + 1}.`);
 
     this.step_index++;
+    this.updateStartTime();
+    this.call_info = '';
+    
     if (this.step_index > 1) {
       USER_CONFIG = this._bp_config;
     }
@@ -240,6 +243,10 @@ export class MiddleInfo {
     this.model = this.processes[this.step_index - 1].model;
     this.process_type = this.processes[this.step_index - 1].process_type || `${this.file[this.step_index - 1].type}:text`;
     let chatType = null;
+    let ai_provider = USER_CONFIG.AI_PROVIDER;
+    if ('silicon' === ai_provider) {
+      ai_provider = 'OPENAILIKE';
+    }
     switch (this.process_type) {
       case 'text:text':
         chatType = 'CHAT';
@@ -259,21 +266,21 @@ export class MiddleInfo {
 
     for (const [key, value] of Object.entries(this.processes[this.step_index - 1])) {
       switch (key) {
-        case 'ai_type':
-          USER_CONFIG.AI_PROVIDER = this.ai_type;
+        case 'agent':
+          USER_CONFIG.AI_PROVIDER = this.agent;
           break;
         case 'prompt':
           USER_CONFIG.SYSTEM_INIT_MESSAGE = ENV.PROMPT[value] || value;
           break;
         case 'model':
           if (this.model) {
-            USER_CONFIG[`${USER_CONFIG.AI_PROVIDER.toUpperCase()}_${chatType}_MODEL`] = this.model;
+            USER_CONFIG[`${ai_provider.toUpperCase()}_${chatType}_MODEL`] = this.model;
           }
           break;
         case 'provider':
           if (USER_CONFIG.PROVIDERS[value]) {
-            USER_CONFIG[`${USER_CONFIG.AI_PROVIDER}_API_BASE`] = USER_CONFIG.PROVIDERS[value]['API_BASE'];
-            USER_CONFIG[`${USER_CONFIG.AI_PROVIDER}_API_KEY`] = USER_CONFIG.PROVIDERS[value]['API_KEY'];
+            USER_CONFIG[`${ai_provider}_API_BASE`] = USER_CONFIG.PROVIDERS[value]['base_url'];
+            USER_CONFIG[`${ai_provider}_API_KEY`] = USER_CONFIG.PROVIDERS[value]['key'];
           }
           break;
         default:

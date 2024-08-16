@@ -100,7 +100,12 @@ export class UserConfig {
   // Anthropic api base
   ANTHROPIC_API_BASE = 'https://api.anthropic.com/v1';
   // Anthropic api model
-  ANTHROPIC_CHAT_MODEL = 'claude-3-haiku-20240307';
+    ANTHROPIC_CHAT_MODEL = 'claude-3-haiku-20240307';
+
+  // -- OPENAI LIKE --
+    
+  OPENAILIKE_IMAGE_MODEL = 'black-forest-labs/FLUX.1-schnell';
+  OPENAILIKE_CHAT_MODEL = 'deepseek-chat';
 
   // -- EXTRA 配置 --
   //
@@ -119,7 +124,7 @@ export class UserConfig {
   MODES = {
     // process_type: 默认为'消息类型:text' ; 消息类型分为: text audio image
     // provider: 默认为default
-    // ai_type: 默认为openai, 与AI对话时使用openai风格接口
+    // agent: 默认为openai, 与AI对话时使用openai风格接口
     // prompt: default
     // model: 不同类型下 不同默认值
     // text:audio, TODO
@@ -140,7 +145,7 @@ export class UserConfig {
   MAX_HISTORY_LENGTH = 12;
   // /set 指令映射变量 | 分隔多个关系，:分隔映射
   MAPPING_KEY =
-    '-p:SYSTEM_INIT_MESSAGE|-n:MAX_HISTORY_LENGTH|-a:AI_PROVIDER|-ai:AI_IMAGE_PROVIDER|-m:CHAT_MODEL|-v:OPENAI_VISION_MODEL|-t:OPENAI_TTS_MODEL|-ex:OPENAI_API_EXTRA_PARAMS|-mk:MAPPING_KEY|-mv:MAPPING_VALUE|-asap:FUNCTION_REPLY_ASAP|-fm:FUNCTION_CALL_MODEL';
+    '-p:SYSTEM_INIT_MESSAGE|-n:MAX_HISTORY_LENGTH|-a:AI_PROVIDER|-ai:AI_IMAGE_PROVIDER|-m:CHAT_MODEL|-v:OPENAI_VISION_MODEL|-t:OPENAI_TTS_MODEL|-ex:OPENAI_API_EXTRA_PARAMS|-mk:MAPPING_KEY|-mv:MAPPING_VALUE|-asap:FUNCTION_REPLY_ASAP|-fm:FUNCTION_CALL_MODEL|-tool:USE_TOOLS|-oli:OPENAILIKE_IMAGE_MODEL';
   // /set 指令映射值  | 分隔多个关系，:分隔映射
   MAPPING_VALUE = '';
   // MAPPING_VALUE = "cson:claude-3-5-sonnet-20240620|haiku:claude-3-haiku-20240307|g4m:gpt-4o-mini|g4:gpt-4o|rp+:command-r-plus";
@@ -288,6 +293,7 @@ class Environment {
     // 可配合CHAT_MESSAGE_TRIGGER: 'role:':'/setenv SYSTEM_INIT_MESSAGE=~role'
     // 快速修改变量:'model:':'/setenv OPENAI_CHAT_MODEL='  'pro:':'/setenv AI_PROVIDER='
     PROMPT = prompts;
+    TOOLS = tools;
 
     // 询问AI调用function的次数
     FUNC_LOOP_TIMES = 1;
@@ -295,10 +301,8 @@ class Environment {
     CALL_INFO = true;
     // func call 每次成功命中后最多并发次数
     CON_EXEC_FUN_NUM = 1;
-    // 当长度到达设置值时将发送telegraph文章
-    TELEGRAPH_NUM_LIMIT = 500;
-    // 群组 是否开启telegraph
-    ENABLE_TELEGRAPH = false;
+    // 当长度到达设置值时群组将发送telegraph文章 小于0时不发送
+    TELEGRAPH_NUM_LIMIT = -1;
     // 发文的作者链接; 发文作者目前为机器人ID, 未设置时为anonymous
     TELEGRAPH_AUTHOR_URL = '';
     DISABLE_WEB_PREVIEW = false;
@@ -440,7 +444,6 @@ export function initEnv(env, i18n) {
     mergeEnvironment(ENV, env);
     mergeEnvironment(ENV.USER_CONFIG, env);
     ENV.USER_CONFIG.DEFINE_KEYS = [];
-    ENV.TOOLS = tools;
 
     // 兼容旧版配置
     {

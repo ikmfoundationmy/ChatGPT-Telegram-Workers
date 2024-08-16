@@ -1,4 +1,4 @@
-import {isOpenAIEnable, requestCompletionsFromOpenAI, requestImageFromOpenAI, requestTranscriptionFromOpenAI} from "./openai.js";
+import {isOpenAIEnable, isLLMEnable, requestCompletionsFromOpenAI, requestImageFromOpenAI, requestTranscriptionFromOpenAI} from "./openai.js";
 import {isWorkersAIEnable, requestCompletionsFromWorkersAI, requestImageFromWorkersAI} from "./workersai.js";
 import {isGeminiAIEnable, requestCompletionsFromGeminiAI} from "./gemini.js";
 import {isMistralAIEnable, requestCompletionsFromMistralAI} from "./mistralai.js";
@@ -52,7 +52,17 @@ export const chatLlmAgents = [
         name: "anthropic",
         enable: isAnthropicAIEnable,
         request: requestCompletionsFromAnthropicAI
-    }
+    },
+    {
+        name: "silicon",
+        enable: isLLMEnable('silicon'),
+        request: requestCompletionsFromOpenAI
+    },
+    {
+        name: "deepseek",
+        enable: isLLMEnable('deepseek'),
+        request: requestCompletionsFromOpenAI
+    },
 ];
 
 /**
@@ -248,7 +258,17 @@ export const imageGenAgents = [
         name: "workers",
         enable: isWorkersAIEnable,
         request: requestImageFromWorkersAI
-    }
+    },
+    {
+        name: "silicon",
+        enable: isLLMEnable,
+        request: requestImageFromOpenAI
+    },
+    {
+        name: "deepseek",
+        enable: isLLMEnable,
+        request: requestImageFromOpenAI
+    },
 ];
 
 
