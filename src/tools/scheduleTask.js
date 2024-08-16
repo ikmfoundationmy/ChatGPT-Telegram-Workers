@@ -22,7 +22,10 @@ async function schedule_detele_message(ENV) {
 
     for (const [bot_name, chats] of Object.entries(scheduledData)) {
       const bot_index = botNames.indexOf(bot_name);
-      if (bot_index < 0) throw new Error(`bot name: ${bot_name} is not exist.`);
+      if (bot_index < 0) {
+        console.error(`bot name: ${bot_name} is not exist.`);
+        continue;
+      }
       const bot_token = botTokens[bot_index];
       if (!bot_token) throw new Error(`Cant find bot ${bot_name} - position ${bot_index + 1}'s token\nAll token list: ${botTokens}`);
       for (const [chat_id, messages] of Object.entries(chats)) {

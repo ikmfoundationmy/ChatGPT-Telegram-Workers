@@ -886,8 +886,10 @@ async function schedule_detele_message(ENV2) {
     const taskPromises = [];
     for (const [bot_name, chats] of Object.entries(scheduledData)) {
       const bot_index = botNames.indexOf(bot_name);
-      if (bot_index < 0)
-        throw new Error(`bot name: ${bot_name} is not exist.`);
+      if (bot_index < 0) {
+        console.error(`bot name: ${bot_name} is not exist.`);
+        continue;
+      }
       const bot_token = botTokens[bot_index];
       if (!bot_token)
         throw new Error(`Cant find bot ${bot_name} - position ${bot_index + 1}'s token
@@ -1075,9 +1077,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1723820750;
+  BUILD_TIMESTAMP = 1723821739;
   // 当前版本 commit id
-  BUILD_VERSION = "396cc3a";
+  BUILD_VERSION = "3c3dc22";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
