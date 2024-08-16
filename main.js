@@ -9,10 +9,9 @@ export default {
   async fetch(request, env, ctx) {
     try {
       if (!env.DATABASE && env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN) {
-        const { Redis } = await import('@upstash/redis/cloudflare');
-        env.DATABASE = Redis.fromEnv(env);
+        const {RedisCache} = await import('./src/utils/redis.js');
+        env.DATABASE = new RedisCache(env.UPSTASH_REDIS_REST_URL, env.UPSTASH_REDIS_REST_TOKEN);
       }
-
       initEnv(env, i18n);
       return await handleRequest(request);
     } catch (e) {
@@ -24,8 +23,8 @@ export default {
   async scheduled(event, env, ctx) {
     try {
       if (!env.DATABASE && env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN) {
-        const { Redis } = await import('@upstash/redis/cloudflare');
-        env.DATABASE = Redis.fromEnv(env);
+        const {RedisCache} = await import('./src/utils/redis.js');
+        env.DATABASE = new RedisCache(env.UPSTASH_REDIS_REST_URL, env.UPSTASH_REDIS_REST_TOKEN);
       }
       const promises = [];
       for (const task of Object.values(tasks)) {
