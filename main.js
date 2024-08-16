@@ -2,29 +2,31 @@ import {initEnv} from './src/config/env.js';
 import {handleRequest} from './src/route.js';
 import {errorToString} from './src/utils/utils.js';
 import i18n from './src/i18n/index.js';
-import tasks from "./src/tools/scheduleTask.js";
+import tasks from './src/tools/scheduleTask.js';
 
 
 export default {
   async fetch(request, env, ctx) {
     try {
-      if (!env.DATABASE) {
-        const { RedisCache } = await import("./src/utils/redis.js");
-        if (env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN) {
-          env.DATABASE = new RedisCache(env.UPSTASH_REDIS_REST_URL, env.UPSTASH_REDIS_REST_TOKEN);
-        }
+      if (!env.DATABASE && env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN) {
+        const { Redis } = await import('@upstash/redis/cloudflare');
+        env.DATABASE = Redis.fromEnv(env);
       }
-      
+
       initEnv(env, i18n);
       return await handleRequest(request);
     } catch (e) {
       console.error(e);
-      return new Response(errorToString(e), {status: 500});
+      return new Response(errorToString(e), { status: 500 });
     }
   },
 
   async scheduled(event, env, ctx) {
     try {
+      if (!env.DATABASE && env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN) {
+        const { Redis } = await import('@upstash/redis/cloudflare');
+        env.DATABASE = Redis.fromEnv(env);
+      }
       const promises = [];
       for (const task of Object.values(tasks)) {
         promises.push(task(env));
@@ -34,6 +36,6 @@ export default {
     } catch (e) {
       console.error('Error in scheduled tasks:', e);
     }
-  }
+  },
 };
 
