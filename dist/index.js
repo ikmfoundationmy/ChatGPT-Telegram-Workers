@@ -1091,9 +1091,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1723887079;
+  BUILD_TIMESTAMP = 1723888992;
   // 当前版本 commit id
-  BUILD_VERSION = "ee96b35";
+  BUILD_VERSION = "37f994b";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -1964,7 +1964,7 @@ async function handleOpenaiFunctionCall(params, context, onStream) {
     if (e2.name === "AbortError") {
       errorMsg = "call timeout";
     }
-    context._info.setCallInfo(`⚠️${errorMsg.slice(0,50)}`);
+    context._info.setCallInfo(`\u26A0\uFE0F${errorMsg.slice(0, 50)}`);
     return { call_times, message: e2.message, func_results };
   }
 }
@@ -2270,13 +2270,13 @@ async function requestCompletionsFromOpenAI(params, context, onStream) {
 }
 function renderPicResult(context, resp) {
   const render = {
-    "openai": () => ({
+    "openai": {
       url: resp?.data?.[0]?.url,
       revised_prompt: resp?.data?.[0]?.revised_prompt || ""
-    }),
-    "silicon": () => ({ url: resp?.images?.[0]?.url })
+    },
+    "silicon": { url: resp?.images?.[0]?.url }
   };
-  return render[context.USER_CONFIG.AI_IMAGE_PROVIDER]();
+  return render[context.USER_CONFIG.AI_IMAGE_PROVIDER];
 }
 async function requestImageFromOpenAI(prompt, context) {
   const { url, key, model } = openaiLikeAgent(context, "text2image");

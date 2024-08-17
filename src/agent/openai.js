@@ -209,14 +209,13 @@ export async function requestCompletionsFromOpenAI(params, context, onStream) {
 
 function renderPicResult(context, resp) {
   const render = {
-    'openai': () => (
-      {
-        url: resp?.data?.[0]?.url,
-        revised_prompt: resp?.data?.[0]?.revised_prompt || ''
-      }),
-    'silicon': () => ({ url: resp?.images?.[0]?.url })
+    'openai': {
+      url: resp?.data?.[0]?.url,
+      revised_prompt: resp?.data?.[0]?.revised_prompt || '',
+    },
+    'silicon': { url: resp?.images?.[0]?.url },
   };
-  return render[context.USER_CONFIG.AI_IMAGE_PROVIDER]();
+  return render[context.USER_CONFIG.AI_IMAGE_PROVIDER];
 }
 
 
