@@ -200,8 +200,8 @@ class Environment {
     TELEGRAM_AVAILABLE_TOKENS = [];
     // 默认消息模式
     DEFAULT_PARSE_MODE = 'MarkdownV2';
-    // 最小stream模式消息间隔，小于等于0则不限制 不处理
-    // TELEGRAM_MIN_STREAM_INTERVAL = -1;
+    // 最小stream模式消息间隔，小于等于0则不限制
+    TELEGRAM_MIN_STREAM_INTERVAL = -1;
     // 图片尺寸偏移 0为第一位，-1为最后一位, 越靠后的图片越大。PS: 图片过大可能导致token消耗过多，或者workers超时或内存不足
     // 默认选择次低质量的图片
     TELEGRAM_PHOTO_SIZE_OFFSET = -2;

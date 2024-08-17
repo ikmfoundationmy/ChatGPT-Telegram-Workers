@@ -23,5 +23,5 @@ adapter.startServer(
   './config/config.toml',
   { DATABASE: cache },
   { server: process.env.DOMAIN },
-  worker.fetch,
+  worker.initHander,
 );

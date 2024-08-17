@@ -44,6 +44,10 @@ async function schedule_detele_message(ENV) {
         }
       }
     }
+    if (taskPromises.length === 0) {
+      console.log('Nothing need to delete.')
+      return new Response(`{ok:"true"}`, { headers: { 'Content-Type': "application/json" } });
+    }
     
     const resp = await Promise.all(taskPromises);
     for (const [i, { ok, description }] of Object.entries(resp)) {

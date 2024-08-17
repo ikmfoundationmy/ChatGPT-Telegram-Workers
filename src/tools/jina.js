@@ -17,20 +17,22 @@ export const jina_reader = {
     },
   },
 
-  func: async ({ url }, { JINA_API_KEY }, signal) => {
+  need:'JINA_API_KEY',
+
+  func: async ({url, keys}, signal) => {
     if (!url) {
       throw new Error('url is null');
     }
-    if (!Array.isArray(JINA_API_KEY) || JINA_API_KEY?.length === 0) {
-      throw new Error('JINA\\_API\\_KEY is null');
+    if (!Array.isArray(keys) || keys?.length === 0) {
+      throw new Error('JINA\\_API\\_KEY is null or all keys is expired.');
     }
-    const key_length = JINA_API_KEY.length;
-    const key = JINA_API_KEY[Math.floor(Math.random() * key_length)];
+    const key_length = keys.length;
+    const key = keys[Math.floor(Math.random() * key_length)];
     console.log('jina-reader:', url);
     const startTime = Date.now();
     let result = await fetch('https://r.jina.ai/' + url, {
       headers: {
-        // 'X-Return-Format': 'text',
+        'X-Return-Format': 'text',
         'Authorization': `Bearer ${key}`,
         // 'X-Timeout': 15
       },
@@ -39,12 +41,15 @@ export const jina_reader = {
     if (!result.ok) {
       if (result.status.toString().startsWith('4') && key_length > 1) {
         console.error(`jina key: ${key.slice(0, 10) + ' ... ' + key.slice(-5)} is expired`); 
-        return jina_reader.func({ url }, { JINA_API_KEY: JINA_API_KEY.filter(i => i !== key) }, signal);
+        keys.splice(keys.indexOf(key), 1);
+        return jina_reader.func({ url, keys }, signal);
       }
-      throw new Error('All key has occured: ' + (await result.json()).message);
+      keys.pop();
+      throw new Error('All keys is unavailable. ' + (await result.json()).message);
     }
     const time = ((Date.now() - startTime) / 1000).toFixed(1) + 's';
     return { content: await result.text(), time };
+    
   },
   
   type: 'web_crawler'

@@ -165,7 +165,7 @@ async function search(query, options) {
   };
   const response = await fetch(`https://links.duckduckgo.com/d.js?${queryString(queryObject)}`);
   const data = await response.text();
-  if (data.includes("DDG.deep.is506"))
+  if (data.includes("DDG.deep.is506") || data.includes("DDG.deep.anomalyDetectionBlock"))
     throw new Error("A server error occurred!");
   const searchResults = JSON.parse(SEARCH_REGEX.exec(data)[1].replace(/\t/g, "    "));
   if (searchResults.length === 1 && !("n" in searchResults[0])) {
@@ -261,7 +261,7 @@ async function getVQD(query, ia = "web") {
     const response = await fetch(`https://duckduckgo.com/?${queryString({ q: query, ia })}`);
     const data = await response.text();
     return VQD_REGEX.exec(data)[1];
-  } catch (e) {
+  } catch (e2) {
     throw new Error(`Failed to get the VQD for query "${query}".`);
   }
 }
@@ -297,7 +297,7 @@ var duckduckgo_search = {
         "keywords": {
           "type": "array",
           "items": { "type": "string" },
-          "description": "\u641C\u7D22\u7684\u5173\u952E\u8BCD\u5217\u8868\u3002\u4F8B\u5982\uFF1A['Python', '\u673A\u5668\u5B66\u4E60', '\u6700\u65B0\u8FDB\u5C55']\u3002\u5217\u8868\u957F\u5EA6\u81F3\u5C11\u4E3A3\uFF0C\u6700\u5927\u4E3A4\u3002\u8FD9\u4E9B\u5173\u952E\u8BCD\u5E94\u8BE5\uFF1A- \u7B80\u6D01\u660E\u4E86\uFF0C\u901A\u5E38\u6BCF\u4E2A\u5173\u952E\u8BCD\u4E0D\u8D85\u8FC72-3\u4E2A\u5355\u8BCD - \u6DB5\u76D6\u67E5\u8BE2\u7684\u6838\u5FC3\u5185\u5BB9 - \u907F\u514D\u4F7F\u7528\u8FC7\u4E8E\u5BBD\u6CDB\u6216\u6A21\u7CCA\u7684\u8BCD\u8BED - \u6700\u540E\u4E00\u4E2A\u5173\u952E\u8BCD\u5E94\u8BE5\u6700\u5168\u9762"
+          "description": "\u641C\u7D22\u7684\u5173\u952E\u8BCD\u5217\u8868\u3002\u4F8B\u5982\uFF1A['Python', '\u673A\u5668\u5B66\u4E60', '\u6700\u65B0\u8FDB\u5C55']\u3002\u5217\u8868\u957F\u5EA6\u81F3\u5C11\u4E3A3\uFF0C\u6700\u5927\u4E3A4\u3002\u8FD9\u4E9B\u5173\u952E\u8BCD\u5E94\u8BE5\uFF1A- \u7B80\u6D01\u660E\u4E86\uFF0C\u901A\u5E38\u6BCF\u4E2A\u5173\u952E\u8BCD\u4E0D\u8D85\u8FC72-3\u4E2A\u5355\u8BCD - \u6DB5\u76D6\u67E5\u8BE2\u7684\u6838\u5FC3\u5185\u5BB9 - \u907F\u514D\u4F7F\u7528\u8FC7\u4E8E\u5BBD\u6CDB\u6216\u6A21\u7CCA\u7684\u8BCD\u8BED - \u6700\u540E\u4E00\u4E2A\u5173\u952E\u8BCD\u5E94\u8BE5\u6700\u5168\u3002\u53E6\u5916,\u4E0D\u8981\u81EA\u884C\u751F\u6210\u5F53\u524D\u65F6\u95F4\u7684\u5173\u952E\u8BCD"
         }
       },
       "required": ["keywords"],
@@ -341,20 +341,21 @@ var jina_reader = {
       "additionalProperties": false
     }
   },
-  func: async ({ url }, { JINA_API_KEY }, signal) => {
+  need: "JINA_API_KEY",
+  func: async ({ url, keys }, signal) => {
     if (!url) {
       throw new Error("url is null");
     }
-    if (!Array.isArray(JINA_API_KEY) || JINA_API_KEY?.length === 0) {
-      throw new Error("JINA\\_API\\_KEY is null");
+    if (!Array.isArray(keys) || keys?.length === 0) {
+      throw new Error("JINA\\_API\\_KEY is null or all keys is expired.");
     }
-    const key_length = JINA_API_KEY.length;
-    const key = JINA_API_KEY[Math.floor(Math.random() * key_length)];
+    const key_length = keys.length;
+    const key = keys[Math.floor(Math.random() * key_length)];
     console.log("jina-reader:", url);
     const startTime = Date.now();
     let result = await fetch("https://r.jina.ai/" + url, {
       headers: {
-        // 'X-Return-Format': 'text',
+        "X-Return-Format": "text",
         "Authorization": `Bearer ${key}`
         // 'X-Timeout': 15
       },
@@ -363,9 +364,11 @@ var jina_reader = {
     if (!result.ok) {
       if (result.status.toString().startsWith("4") && key_length > 1) {
         console.error(`jina key: ${key.slice(0, 10) + " ... " + key.slice(-5)} is expired`);
-        return jina_reader.func({ url }, { JINA_API_KEY: JINA_API_KEY.filter((i) => i !== key) }, signal);
+        keys.splice(keys.indexOf(key), 1);
+        return jina_reader.func({ url, keys }, signal);
       }
-      throw new Error("All key has occured: " + (await result.json()).message);
+      keys.pop();
+      throw new Error("All keys is unavailable. " + (await result.json()).message);
     }
     const time = ((Date.now() - startTime) / 1e3).toFixed(1) + "s";
     return { content: await result.text(), time };
@@ -534,28 +537,30 @@ function renderBase64DataURI(params) {
 
 // src/telegram/telegram.js
 async function sendMessage(message, token, context) {
-  const body = {
-    text: message
-  };
-  for (const key of Object.keys(context)) {
-    if (context[key] !== void 0 && context[key] !== null) {
-      body[key] = context[key];
+  try {
+    const body = {
+      text: message
+    };
+    for (const key of Object.keys(context)) {
+      if (context[key] !== void 0 && context[key] !== null) {
+        body[key] = context[key];
+      }
     }
-  }
-  let method = "sendMessage";
-  if (context?.message_id) {
-    method = "editMessageText";
-  }
-  return await fetch(
-    `${ENV.TELEGRAM_API_DOMAIN}/bot${token}/${method}`,
-    {
+    let method = "sendMessage";
+    if (context?.message_id) {
+      method = "editMessageText";
+    }
+    return await fetch(`${ENV.TELEGRAM_API_DOMAIN}/bot${token}/${method}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
       },
       body: JSON.stringify(body)
-    }
-  );
+    });
+  } catch (e2) {
+    console.error(e2);
+    throw new Error("send telegram message failed, please see the log.");
+  }
 }
 async function sendMessageToTelegram(message, token, context, _info = null) {
   const chatContext = {
@@ -695,47 +700,52 @@ async function deleteMessagesFromTelegram(chat_id, bot_token, message_ids) {
   ).then((r) => r.json());
 }
 async function sendPhotoToTelegram(photo, token, context, _info = null) {
-  const url = `${ENV.TELEGRAM_API_DOMAIN}/bot${token}/sendPhoto`;
-  let body;
-  const headers = {};
-  if (typeof photo.url === "string") {
-    if (ENV.TELEGRAPH_IMAGE_ENABLE) {
-      try {
-        const new_url = await uploadImageToTelegraph(photo.url);
-        photo.url = new_url;
-      } catch (e) {
-        console.error(e.message);
+  try {
+    const url = `${ENV.TELEGRAM_API_DOMAIN}/bot${token}/sendPhoto`;
+    let body;
+    const headers = {};
+    if (typeof photo.url === "string") {
+      if (ENV.TELEGRAPH_IMAGE_ENABLE) {
+        try {
+          const new_url = await uploadImageToTelegraph(photo.url);
+          photo.url = new_url;
+        } catch (e2) {
+          console.error(e2.message);
+        }
       }
-    }
-    body = {
-      photo: photo.url
-    };
-    for (const key of Object.keys(context)) {
-      if (context[key] !== void 0 && context[key] !== null) {
-        body[key] = context[key];
+      body = {
+        photo: photo.url
+      };
+      for (const key of Object.keys(context)) {
+        if (context[key] !== void 0 && context[key] !== null) {
+          body[key] = context[key];
+        }
       }
-    }
-    body.parse_mode = "MarkdownV2";
-    let info = _info?.message_title || "";
-    photo.revised_prompt = photo.revised_prompt && "\n\nrevised prompt: " + photo.revised_prompt || "";
-    body.caption = ">`" + escape(info + photo.revised_prompt) + `\`
+      body.parse_mode = "MarkdownV2";
+      let info = _info?.message_title || "";
+      photo.revised_prompt = photo.revised_prompt && "\n\nrevised prompt: " + photo.revised_prompt || "";
+      body.caption = ">`" + escape(info + photo.revised_prompt) + `\`
 [\u539F\u59CB\u56FE\u7247](${photo.url})`;
-    body = JSON.stringify(body);
-    headers["Content-Type"] = "application/json";
-  } else {
-    body = new FormData();
-    body.append("photo", photo.url, "photo.png");
-    for (const key of Object.keys(context)) {
-      if (context[key] !== void 0 && context[key] !== null) {
-        body.append(key, `${context[key]}`);
+      body = JSON.stringify(body);
+      headers["Content-Type"] = "application/json";
+    } else {
+      body = new FormData();
+      body.append("photo", photo.url, "photo.png");
+      for (const key of Object.keys(context)) {
+        if (context[key] !== void 0 && context[key] !== null) {
+          body.append(key, `${context[key]}`);
+        }
       }
     }
+    return await fetch(url, {
+      method: "POST",
+      headers,
+      body
+    });
+  } catch (e2) {
+    console.error(e2);
+    throw new Error("send telegram message failed, please see the log");
   }
-  return fetch(url, {
-    method: "POST",
-    headers,
-    body
-  });
 }
 function sendPhotoToTelegramWithContext(context) {
   return (img_info) => {
@@ -780,9 +790,9 @@ async function getChatRole(id, groupAdminKey, chatId, token) {
   let groupAdmin;
   try {
     groupAdmin = JSON.parse(await DATABASE.get(groupAdminKey) || "[]");
-  } catch (e) {
-    console.error(e);
-    return e.message;
+  } catch (e2) {
+    console.error(e2);
+    return e2.message;
   }
   if (!groupAdmin || !Array.isArray(groupAdmin) || groupAdmin.length === 0) {
     const administers = await getChatAdminister(chatId, token);
@@ -824,8 +834,8 @@ async function getChatAdminister(chatId, token) {
     if (resp.ok) {
       return resp.result;
     }
-  } catch (e) {
-    console.error(e);
+  } catch (e2) {
+    console.error(e2);
     return null;
   }
 }
@@ -907,6 +917,10 @@ All token list: ${botTokens}`);
         }
       }
     }
+    if (taskPromises.length === 0) {
+      console.log("Nothing need to delete.");
+      return new Response(`{ok:"true"}`, { headers: { "Content-Type": "application/json" } });
+    }
     const resp = await Promise.all(taskPromises);
     for (const [i, { ok, description }] of Object.entries(resp)) {
       if (ok) {
@@ -917,8 +931,8 @@ All token list: ${botTokens}`);
     }
     await DATABASE2.put(scheduleDeteleKey, JSON.stringify(scheduledData));
     return new Response(`{ok:"true"}`, { headers: { "Content-Type": "application/json" } });
-  } catch (e) {
-    console.error(e.message);
+  } catch (e2) {
+    console.error(e2.message);
     return new Response(`{ok:"false"}`, { headers: { "Content-Type": "application/json" } });
   }
 }
@@ -1077,9 +1091,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1723821739;
+  BUILD_TIMESTAMP = 1723887079;
   // 当前版本 commit id
-  BUILD_VERSION = "3c3dc22";
+  BUILD_VERSION = "ee96b35";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -1102,8 +1116,8 @@ var Environment = class {
   TELEGRAM_AVAILABLE_TOKENS = [];
   // 默认消息模式
   DEFAULT_PARSE_MODE = "MarkdownV2";
-  // 最小stream模式消息间隔，小于等于0则不限制 不处理
-  // TELEGRAM_MIN_STREAM_INTERVAL = -1;
+  // 最小stream模式消息间隔，小于等于0则不限制
+  TELEGRAM_MIN_STREAM_INTERVAL = -1;
   // 图片尺寸偏移 0为第一位，-1为最后一位, 越靠后的图片越大。PS: 图片过大可能导致token消耗过多，或者workers超时或内存不足
   // 默认选择次低质量的图片
   TELEGRAM_PHOTO_SIZE_OFFSET = -2;
@@ -1238,8 +1252,8 @@ function parseArray(raw) {
   if (raw.startsWith("[") && raw.endsWith("]")) {
     try {
       return JSON.parse(raw);
-    } catch (e) {
-      console.error(e);
+    } catch (e2) {
+      console.error(e2);
     }
   }
   return raw.split(",");
@@ -1274,8 +1288,8 @@ function mergeEnvironment(target, source) {
         } else {
           try {
             target[key] = { ...target[key], ...JSON.parse(source[key]) };
-          } catch (e) {
-            console.error(e);
+          } catch (e2) {
+            console.error(e2);
           }
         }
         break;
@@ -1402,8 +1416,8 @@ var Context = class {
       };
       const userConfig = JSON.parse(await DATABASE.get(storeKey) || "{}");
       mergeEnvironment(this.USER_CONFIG, trimUserConfig(userConfig));
-    } catch (e) {
-      console.error(e);
+    } catch (e2) {
+      console.error(e2);
     }
   }
   /**
@@ -1528,10 +1542,10 @@ var Stream = class {
         }
       }
       done = true;
-    } catch (e) {
-      if (e instanceof Error && e.name === "AbortError")
+    } catch (e2) {
+      if (e2 instanceof Error && e2.name === "AbortError")
         return;
-      throw e;
+      throw e2;
     } finally {
       if (!done)
         this.controller.abort();
@@ -1591,8 +1605,8 @@ function openaiSseJsonParser(sse) {
   if (sse.event === null) {
     try {
       return { data: JSON.parse(sse.data) };
-    } catch (e) {
-      console.error(e, sse);
+    } catch (e2) {
+      console.error(e2, sse);
     }
   }
   return {};
@@ -1602,8 +1616,8 @@ function cohereSseJsonParser(sse) {
     case "text-generation":
       try {
         return { data: JSON.parse(sse.data) };
-      } catch (e) {
-        console.error(e, sse.data);
+      } catch (e2) {
+        console.error(e2, sse.data);
         return {};
       }
     case "stream-start":
@@ -1619,8 +1633,8 @@ function anthropicSseJsonParser(sse) {
     case "content_block_delta":
       try {
         return { data: JSON.parse(sse.data) };
-      } catch (e) {
-        console.error(e, sse.data);
+      } catch (e2) {
+        console.error(e2, sse.data);
         return {};
       }
     case "message_start":
@@ -1797,8 +1811,9 @@ ${JSON.stringify(body, null, 2)}`);
     clearTimeout(timeoutID);
   }
   options = fixOpenAICompatibleOptions(options);
-  const immediatePromise = Promise.resolve("immediate");
+  const immediatePromise = Promise.resolve();
   let isNeedToSend = true;
+  let nextUpdateTime = Date.now();
   if (onStream && resp.ok && isEventStreamResponse(resp)) {
     const stream = options.streamBuilder(resp, controller);
     let contentFull = "";
@@ -1830,16 +1845,21 @@ ${JSON.stringify(body, null, 2)}`);
         if (lastChunk && lengthDelta > updateStep) {
           lengthDelta = 0;
           updateStep += 25;
-          if (!msgPromise || await Promise.race([msgPromise, immediatePromise]) !== "immediate") {
+          if (ENV.TELEGRAM_MIN_STREAM_INTERVAL > 0) {
+            if (nextUpdateTime > Date.now())
+              continue;
+            nextUpdateTime = Date.now() + ENV.TELEGRAM_MIN_STREAM_INTERVAL;
+          }
+          if (!msgPromise || !await Promise.race([msgPromise, immediatePromise])) {
             msgPromise = onStream(`${contentFull}\u25CF`);
           }
         }
         lastChunk = c;
       }
       contentFull += lastChunk;
-    } catch (e) {
+    } catch (e2) {
       contentFull += `
-ERROR: ${e.message}`;
+ERROR: ${e2.message}`;
     }
     if (usage) {
       context._info.setToken(usage?.prompt_tokens ?? 0, usage?.completion_tokens ?? 0);
@@ -1878,7 +1898,7 @@ ERROR: ${e.message}`;
       context._info.setToken(result.usage.prompt_tokens ?? 0, result.usage.completion_tokens ?? 0);
     }
     return options.fullContentExtractor(result);
-  } catch (e) {
+  } catch (e2) {
     throw Error(JSON.stringify(result));
   }
 }
@@ -1898,7 +1918,7 @@ ${result}`
 ${result}`
   },
   default: {
-    prompt: "\u4F60\u662F\u4E00\u4E2A\u667A\u80FD\u52A9\u624B\uFF0C\u5177\u5907\u5E7F\u6CDB\u7684\u77E5\u8BC6\u5E93\uFF0C\u64C5\u957F\u5206\u6790\u7528\u6237\u8BDD\u8BED\u903B\u8F91\uFF0C\u80FD\u6839\u636E\u7528\u6237\u95EE\u9898\u9009\u62E9\u5408\u9002\u7684\u51FD\u6570\u8C03\u7528\uFF0C\u5728\u65E0\u9700\u8C03\u7528\u51FD\u6570\u7684\u60C5\u51B5\u4E0B\uFF0C\u4E5F\u80FD\u5B8C\u7F8E\u89E3\u7B54\u7528\u6237\u7684\u95EE\u9898\u3002\u6CE8\u610F\uFF0C\u73B0\u5728\u662F2024\u5E74\u3002",
+    prompt: "\u4F60\u662F\u4E00\u4E2A\u667A\u80FD\u52A9\u624B\uFF0C\u5177\u5907\u5E7F\u6CDB\u7684\u77E5\u8BC6\u5E93\uFF0C\u64C5\u957F\u5206\u6790\u7528\u6237\u8BDD\u8BED\u903B\u8F91\uFF0C\u80FD\u6839\u636E\u7528\u6237\u95EE\u9898\u9009\u62E9\u5408\u9002\u7684\u51FD\u6570\u8C03\u7528\uFF0C\u5728\u65E0\u9700\u8C03\u7528\u51FD\u6570\u7684\u60C5\u51B5\u4E0B\uFF0C\u4E5F\u80FD\u5B8C\u7F8E\u89E3\u7B54\u7528\u6237\u7684\u95EE\u9898\u3002\u6CE8\u610F\uFF0C\u4F60\u6240\u77E5\u9053\u7684\u6700\u65B0\u65F6\u95F4\u662F\u8FC7\u65F6\u7684\u3002",
     extra_params: { temperature: 0.5, "top_p": 0.4, "max_tokens": 100 }
   }
 };
@@ -1938,14 +1958,14 @@ async function handleOpenaiFunctionCall(params, context, onStream) {
       await chatPromise;
     }
     return { call_times, func_results };
-  } catch (e) {
-    console.error(e.message);
-    let errorMsg = e.message;
-    if (e.name === "AbortError") {
+  } catch (e2) {
+    console.error(e2.message);
+    let errorMsg = e2.message;
+    if (e2.name === "AbortError") {
       errorMsg = "call timeout";
     }
-    context._info.setCallInfo(`Func error: ${errorMsg}`);
-    return { call_times, message: e.message, func_results };
+    context._info.setCallInfo(`⚠️${errorMsg.slice(0,50)}`);
+    return { call_times, message: e2.message, func_results };
   }
 }
 function renderCallPayload(params, tools_structs, context, onStream) {
@@ -1982,6 +2002,8 @@ function renderCallPayload(params, tools_structs, context, onStream) {
   return { url: call_url, header: call_headers, body: call_body, stream, options };
 }
 function renderAfterCallPayload(context, body, func_results, prompt) {
+  if (func_results.length === 0)
+    return;
   const last_tool_type = func_results.at(-1).type;
   const tool_prompt = tools_default2[last_tool_type].prompt;
   if (tool_prompt) {
@@ -2019,7 +2041,7 @@ async function functionCallWithLLM(context, payload, tools_name, chatPromise) {
   }, 0);
   const llm_resp = await requestChatCompletions(url, header2, body, context, stream, null, options);
   if (!llm_resp.tool_calls) {
-    llm_resp.tool_calls = [];
+    return llm_resp.content;
   }
   const valid_calls = llm_resp?.tool_calls?.filter((i) => tools_name.includes(i.function.name));
   if (valid_calls.length === 0)
@@ -2046,7 +2068,11 @@ async function functionExec(funcList, context, opt) {
     const args_i = Object.values(args).join();
     context._info.setCallInfo(`${name}:${args_i.length > INFO_LENGTH_LIMIT ? args_i.slice(0, INFO_LENGTH_LIMIT) : args_i}`, "f_i");
     console.log("start use function: ", name);
-    funcPromise.push(ENV.TOOLS[name].func(args, opt, signal));
+    const params = args;
+    if (ENV.TOOLS[name].need) {
+      params.keys = opt[ENV.TOOLS[name].need];
+    }
+    funcPromise.push(ENV.TOOLS[name].func(params, signal));
     exec_times--;
   }
   const func_resp = await raceTimeout(funcPromise);
@@ -2068,9 +2094,10 @@ async function functionExec(funcList, context, opt) {
 }
 function trimPayload(payload, func_results, func_type) {
   const render = tools_default2[func_type].render;
+  const all_content = func_results.map((i) => i.content).join("\n\n").trim();
   payload.body.messages.push({
     role: "user",
-    content: render?.(func_results.join("\n\n")) || func_results.join("\n\n").trim()
+    content: render?.(all_content) || all_content
   });
   payload.body.tools = payload.body.tools.filter((t) => ENV.TOOLS[t.function.name].type !== func_type);
 }
@@ -2229,7 +2256,7 @@ async function requestCompletionsFromOpenAI(params, context, onStream) {
   };
   if (message && !images && context.USER_CONFIG.USE_TOOLS?.length > 0) {
     const result = await handleOpenaiFunctionCall({ url, header: header2, body, prompt }, context, onStream);
-    if (result.llm_content && context.USER_CONFIG.FUNCTION_REPLY_ASAP) {
+    if (result.llm_content && !Array.isArray(result.llm_content) && context.USER_CONFIG.FUNCTION_REPLY_ASAP) {
       return result.llm_content;
     }
     renderAfterCallPayload(context, body, result.func_results, prompt);
@@ -2302,9 +2329,9 @@ async function requestTranscriptionFromOpenAI(audio, file_name, context) {
     headers: header2,
     body: formData,
     redirect: "follow"
-  }).catch((e) => {
-    console.error(e.message);
-    return { ok: false, message: e.message };
+  }).catch((e2) => {
+    console.error(e2.message);
+    return { ok: false, message: e2.message };
   });
   if (resp.ok) {
     resp = await resp.json();
@@ -2421,8 +2448,8 @@ async function requestCompletionsFromGeminiAI(params, context, onStream) {
   const data = await resp.json();
   try {
     return data.candidates[0].content.parts[0].text;
-  } catch (e) {
-    console.error(e);
+  } catch (e2) {
+    console.error(e2);
     if (!data) {
       throw new Error("Empty response");
     }
@@ -3325,8 +3352,8 @@ async function loadHistory(key) {
   let history = [];
   try {
     history = JSON.parse(await DATABASE.get(key) || "[]");
-  } catch (e) {
-    console.error(e);
+  } catch (e2) {
+    console.error(e2);
   }
   if (!history || !Array.isArray(history)) {
     history = [];
@@ -3410,8 +3437,8 @@ async function chatWithLLM(params, context, modifier, pointerLLM = loadChatLLM) 
       }
       context.CURRENT_CHAT_CONTEXT.parse_mode = parseMode;
       context.CURRENT_CHAT_CONTEXT.reply_markup = null;
-    } catch (e) {
-      console.error(e);
+    } catch (e2) {
+      console.error(e2);
     }
     setTimeout(() => sendChatActionToTelegramWithContext(context)("typing").catch(console.error), 0);
     let onStream = null;
@@ -3480,8 +3507,8 @@ ${context._info.message_title}
             }
           }
           nextEnableTime = null;
-        } catch (e) {
-          console.error(e);
+        } catch (e2) {
+          console.error(e2);
         }
       };
     }
@@ -3508,8 +3535,8 @@ ${context._info.message_title}
           resize_keyboard: true,
           one_time_keyboard: true
         };
-      } catch (e) {
-        console.error(e);
+      } catch (e2) {
+        console.error(e2);
       }
     }
     if (nextEnableTime && nextEnableTime > Date.now()) {
@@ -3524,8 +3551,8 @@ ${context._info.message_title}
     }
     console.log(`[DONE] Chat via ${llm.name}`);
     return null;
-  } catch (e) {
-    let errMsg = `Error: ${e.message}`;
+  } catch (e2) {
+    let errMsg = `Error: ${e2.message}`;
     console.error(errMsg);
     if (errMsg.length > 2048) {
       errMsg = errMsg.substring(0, 2048);
@@ -3576,9 +3603,9 @@ async function chatViaFileWithLLM(context) {
       }
     }
     return null;
-  } catch (e) {
+  } catch (e2) {
     context.CURRENT_CHAT_CONTEXT.disable_web_page_preview = true;
-    return sendMessageToTelegramWithContext(context)(e.substring(2048), "tip");
+    return sendMessageToTelegramWithContext(context)(e2.substring(2048), "tip");
   }
 }
 
@@ -3692,9 +3719,9 @@ async function commandGenerateImg(message, command, subcommand, context) {
     setTimeout(() => sendChatActionToTelegramWithContext(context)("upload_photo").catch(console.error), 0);
     const img = await gen(subcommand, context);
     return sendPhotoToTelegramWithContext(context)(img);
-  } catch (e) {
-    console.error(e.message);
-    return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`, "tip");
+  } catch (e2) {
+    console.error(e2.message);
+    return sendMessageToTelegramWithContext(context)(`ERROR: ${e2.message}`, "tip");
   }
 }
 async function commandGetHelp(message, command, subcommand, context) {
@@ -3720,8 +3747,8 @@ async function commandCreateNewChatContext(message, command, subcommand, context
     } else {
       return sendMessageToTelegramWithContext(context)(`${ENV.I18N.command.new.new_chat_start}(${context.CURRENT_CHAT_CONTEXT.chat_id})`, "tip");
     }
-  } catch (e) {
-    return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`, "tip");
+  } catch (e2) {
+    return sendMessageToTelegramWithContext(context)(`ERROR: ${e2.message}`, "tip");
   }
 }
 async function commandUpdateUserConfig(message, command, subcommand, context, processUpdate = false) {
@@ -3769,8 +3796,8 @@ async function commandUpdateUserConfig(message, command, subcommand, context, pr
     context.USER_CONFIG.DEFINE_KEYS = Array.from(new Set(context.USER_CONFIG.DEFINE_KEYS));
     await DATABASE.put(context.SHARE_CONTEXT.configStoreKey, JSON.stringify(trimUserConfig(context.USER_CONFIG)));
     return sendMessageToTelegramWithContext(context)("Update user config success", "tip");
-  } catch (e) {
-    return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`, "tip");
+  } catch (e2) {
+    return sendMessageToTelegramWithContext(context)(`ERROR: ${e2.message}`, "tip");
   }
 }
 async function commandUpdateUserConfigs(message, command, subcommand, context, processUpdate = false) {
@@ -3812,8 +3839,8 @@ async function commandUpdateUserConfigs(message, command, subcommand, context, p
       JSON.stringify(trimUserConfig(trimUserConfig(context.USER_CONFIG)))
     );
     return sendMessageToTelegramWithContext(context)("Update user config success", "tip");
-  } catch (e) {
-    return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`, "tip");
+  } catch (e2) {
+    return sendMessageToTelegramWithContext(context)(`ERROR: ${e2.message}`, "tip");
   }
 }
 async function commandSetUserConfigs(message, command, subcommand, context) {
@@ -3900,8 +3927,8 @@ async function commandSetUserConfigs(message, command, subcommand, context) {
     if (msg)
       await sendMessageToTelegramWithContext(context)(msg, "tip");
     return null;
-  } catch (e) {
-    return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`, "tip");
+  } catch (e2) {
+    return sendMessageToTelegramWithContext(context)(`ERROR: ${e2.message}`, "tip");
   }
 }
 async function commandDeleteUserConfig(message, command, subcommand, context) {
@@ -3920,8 +3947,8 @@ async function commandDeleteUserConfig(message, command, subcommand, context) {
       JSON.stringify(trimUserConfig(context.USER_CONFIG))
     );
     return sendMessageToTelegramWithContext(context)("Delete user config success", "tip");
-  } catch (e) {
-    return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`, "tip");
+  } catch (e2) {
+    return sendMessageToTelegramWithContext(context)(`ERROR: ${e2.message}`, "tip");
   }
 }
 async function commandClearUserConfig(message, command, subcommand, context) {
@@ -3934,8 +3961,8 @@ async function commandClearUserConfig(message, command, subcommand, context) {
       JSON.stringify({})
     );
     return sendMessageToTelegramWithContext(context)("Clear user config success", "tip");
-  } catch (e) {
-    return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`, "tip");
+  } catch (e2) {
+    return sendMessageToTelegramWithContext(context)(`ERROR: ${e2.message}`, "tip");
   }
 }
 async function commandFetchUpdate(message, command, subcommand, context) {
@@ -3955,8 +3982,8 @@ Current version: ${current.sha}(${timeFormat(current.ts)})`, "tip");
     } else {
       return sendMessageToTelegramWithContext(context)(`Current version: ${current.sha}(${timeFormat(current.ts)}) is up to date`, "tip");
     }
-  } catch (e) {
-    return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`, "tip");
+  } catch (e2) {
+    return sendMessageToTelegramWithContext(context)(`ERROR: ${e2.message}`, "tip");
   }
 }
 async function commandSystem(message, command, subcommand, context) {
@@ -4072,8 +4099,8 @@ async function handleCommandMessage(message, context) {
             }
           }
         }
-      } catch (e) {
-        return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`, "tip");
+      } catch (e2) {
+        return sendMessageToTelegramWithContext(context)(`ERROR: ${e2.message}`, "tip");
       }
       const subcommand = commandLine.substring(key.length).trim();
       try {
@@ -4083,8 +4110,8 @@ async function handleCommandMessage(message, context) {
           return result;
         if (message.text.length === 0)
           return new Response("None question");
-      } catch (e) {
-        return sendMessageToTelegramWithContext(context)(e.message, "tip");
+      } catch (e2) {
+        return sendMessageToTelegramWithContext(context)(e2.message, "tip");
       }
       break;
     }
@@ -4193,10 +4220,10 @@ function renderHTML(body) {
 </html>
   `;
 }
-function errorToString(e) {
+function errorToString(e2) {
   return JSON.stringify({
-    message: e.message,
-    stack: e.stack
+    message: e2.message,
+    stack: e2.stack
   });
 }
 function makeResponse200(resp) {
@@ -4288,8 +4315,8 @@ async function msgIgnoreOldMessage(message, context) {
     let idList = [];
     try {
       idList = JSON.parse(await DATABASE.get(context.SHARE_CONTEXT.chatLastMessageIdKey) || "[]");
-    } catch (e) {
-      console.error(e);
+    } catch (e2) {
+      console.error(e2);
     }
     if (idList.includes(message.message_id)) {
       return new Response("Ignore old message", { status: 200 });
@@ -4443,8 +4470,8 @@ async function msgInitUserConfig(message, context) {
     const telegraphAccessTokenKey = context.SHARE_CONTEXT.telegraphAccessTokenKey;
     context.SHARE_CONTEXT.telegraphAccessToken = await DATABASE.get(telegraphAccessTokenKey);
     return null;
-  } catch (e) {
-    return sendMessageToTelegramWithContext(context)(e.message, "tip");
+  } catch (e2) {
+    return sendMessageToTelegramWithContext(context)(e2.message, "tip");
   }
 }
 async function msgIgnoreSpecificMessage(message) {
@@ -4461,8 +4488,8 @@ async function msgInitMiddleInfo(message, context) {
       context.CURRENT_CHAT_CONTEXT.message_id = msg.result.message_id;
     }
     return null;
-  } catch (e) {
-    console.log(e.message);
+  } catch (e2) {
+    console.log(e2.message);
     throw new Error("Can\u2019t init info, please see the log for detail.");
   }
 }
@@ -4522,9 +4549,9 @@ async function msgChatWithLLM(message, context) {
       }
       delete params.images;
     }
-  } catch (e) {
-    console.error(e);
-    return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`, "tip");
+  } catch (e2) {
+    console.error(e2);
+    return sendMessageToTelegramWithContext(context)(`ERROR: ${e2.message}`, "tip");
   }
   return new Response("success", { status: 200 });
 }
@@ -4602,9 +4629,9 @@ async function handleMessage(token, body) {
       if (result && result instanceof Response) {
         break;
       }
-    } catch (e) {
-      console.error(e);
-      return new Response(errorToString(e), { status: 500 });
+    } catch (e2) {
+      console.error(e2);
+      return new Response(errorToString(e2), { status: 500 });
     }
   }
   for (const handler of exitHanders) {
@@ -4613,9 +4640,9 @@ async function handleMessage(token, body) {
       if (result && result instanceof Response) {
         return result;
       }
-    } catch (e) {
-      console.error(e);
-      return new Response(errorToString(e), { status: 500 });
+    } catch (e2) {
+      console.error(e2);
+      return new Response(errorToString(e2), { status: 500 });
     }
   }
   return null;
@@ -4776,8 +4803,8 @@ async function bindWebHookAction(request) {
     const url = `https://${domain}/telegram/${token.trim()}/${hookMode}`;
     const id = token.split(":")[0];
     result[id] = {
-      webhook: await bindTelegramWebHook(token, url).catch((e) => errorToString(e)),
-      command: await bindCommandForTelegram(token).catch((e) => errorToString(e))
+      webhook: await bindTelegramWebHook(token, url).catch((e2) => errorToString(e2)),
+      command: await bindCommandForTelegram(token).catch((e2) => errorToString(e2))
     };
   }
   const HTML = renderHTML(`
@@ -4799,9 +4826,9 @@ async function telegramWebhook(request) {
     const { token } = request.params;
     const body = await request.json();
     return makeResponse200(await handleMessage(token, body));
-  } catch (e) {
-    console.error(e);
-    return new Response(errorToString(e), { status: 200 });
+  } catch (e2) {
+    console.error(e2);
+    return new Response(errorToString(e2), { status: 200 });
   }
 }
 async function telegramSafeHook(request) {
@@ -4814,9 +4841,9 @@ async function telegramSafeHook(request) {
     url.pathname = url.pathname.replace("/safehook", "/webhook");
     request = new Request(url, request);
     return makeResponse200(await API_GUARD.fetch(request));
-  } catch (e) {
-    console.error(e);
-    return new Response(errorToString(e), { status: 200 });
+  } catch (e2) {
+    console.error(e2);
+    return new Response(errorToString(e2), { status: 200 });
   }
 }
 async function defaultIndexAction() {
@@ -4976,6 +5003,15 @@ function i18n(lang) {
 
 // main.js
 var main_default = {
+  initHander(env) {
+    try {
+      initEnv(env, i18n);
+      return handleRequest;
+    } catch (error) {
+      console.error(e);
+      return new Response(errorToString(e), { status: 500 });
+    }
+  },
   async fetch(request, env, ctx) {
     try {
       if (!env.DATABASE && env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN) {
@@ -4984,9 +5020,9 @@ var main_default = {
       }
       initEnv(env, i18n);
       return await handleRequest(request);
-    } catch (e) {
-      console.error(e);
-      return new Response(errorToString(e), { status: 500 });
+    } catch (e2) {
+      console.error(e2);
+      return new Response(errorToString(e2), { status: 500 });
     }
   },
   async scheduled(event, env, ctx) {
@@ -5001,8 +5037,8 @@ var main_default = {
       }
       await Promise.all(promises);
       console.log("All tasks done.");
-    } catch (e) {
-      console.error("Error in scheduled tasks:", e);
+    } catch (e2) {
+      console.error("Error in scheduled tasks:", e2);
     }
   }
 };

@@ -6,6 +6,16 @@ import tasks from './src/tools/scheduleTask.js';
 
 
 export default {
+  initHander(env) {
+    try {
+      initEnv(env, i18n);
+      return handleRequest;
+    } catch (error) {
+      console.error(e);
+      return new Response(errorToString(e), { status: 500 });
+    }
+  },
+
   async fetch(request, env, ctx) {
     try {
       if (!env.DATABASE && env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN) {

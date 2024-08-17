@@ -59,7 +59,7 @@ try {
 
   // 定时任务
   const raw = fs.readFileSync('../../wrangler.toml');
-  const env = { ...toml.parse(raw).vars, DATABASE: null };
+  const env = { ...toml.parse(raw).vars, DATABASE: cache };
   if (env.SCHEDULE_TIME && env.SCHEDULE_TIME >= 5) {
     setInterval(async () => {
       await worker.scheduled(null, env, null);
@@ -77,5 +77,5 @@ adapter.startServer(
     '../../wrangler.toml',
     {DATABASE: cache},
     {server: config.server},
-    worker.fetch,
+    worker.initHander,
 );

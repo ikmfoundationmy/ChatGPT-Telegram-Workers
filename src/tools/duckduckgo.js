@@ -96,7 +96,7 @@ export async function search(query, options) {
     };
     const response = await fetch(`https://links.duckduckgo.com/d.js?${queryString(queryObject)}`);
     const data = await response.text();
-    if (data.includes("DDG.deep.is506"))
+    if (data.includes("DDG.deep.is506") || data.includes("DDG.deep.anomalyDetectionBlock"))
         throw new Error("A server error occurred!");
     const searchResults = JSON.parse(SEARCH_REGEX.exec(data)[1].replace(/\t/g, "    "));
     if (searchResults.length === 1 && !("n" in searchResults[0])) {
@@ -244,7 +244,7 @@ export const duckduckgo_search = {
         'keywords': {
           'type': 'array',
           "items": { 'type': "string" },
-          'description': "搜索的关键词列表。例如：['Python', '机器学习', '最新进展']。列表长度至少为3，最大为4。这些关键词应该：- 简洁明了，通常每个关键词不超过2-3个单词 - 涵盖查询的核心内容 - 避免使用过于宽泛或模糊的词语 - 最后一个关键词应该最全面",
+          'description': "搜索的关键词列表。例如：['Python', '机器学习', '最新进展']。列表长度至少为3，最大为4。这些关键词应该：- 简洁明了，通常每个关键词不超过2-3个单词 - 涵盖查询的核心内容 - 避免使用过于宽泛或模糊的词语 - 最后一个关键词应该最全。另外,不要自行生成当前时间的关键词",
         },
       },
       'required': ['keywords'],

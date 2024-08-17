@@ -155,8 +155,9 @@ export async function requestChatCompletions(url, header, body, context, onStrea
   }
 
   options = fixOpenAICompatibleOptions(options);
-  const immediatePromise = Promise.resolve('immediate');
+  const immediatePromise = Promise.resolve();
   let isNeedToSend = true;
+  let nextUpdateTime = Date.now();
 
   if (onStream && resp.ok && isEventStreamResponse(resp)) {
     const stream = options.streamBuilder(resp, controller);
@@ -186,8 +187,13 @@ export async function requestChatCompletions(url, header, body, context, onStrea
         if (lastChunk && lengthDelta > updateStep) {
           lengthDelta = 0;
           updateStep += 25;
-          
-          if (!msgPromise || (await Promise.race([msgPromise, immediatePromise])) !== 'immediate') {
+
+          if (ENV.TELEGRAM_MIN_STREAM_INTERVAL > 0) {
+            if (nextUpdateTime > Date.now()) continue;
+            nextUpdateTime = Date.now() + ENV.TELEGRAM_MIN_STREAM_INTERVAL;
+          }
+
+          if (!msgPromise || !(await Promise.race([msgPromise, immediatePromise]))) {
             msgPromise = onStream(`${contentFull}●`);
           }
         }

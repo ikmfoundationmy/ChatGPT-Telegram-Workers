@@ -11,28 +11,30 @@ import "../types/context.js";
  * @returns {Promise<Response>}
  */
 async function sendMessage(message, token, context) {
+  try {
     const body = {
-        text: message,
+      text: message,
     };
     for (const key of Object.keys(context)) {
-        if (context[key] !== undefined && context[key] !== null) {
-            body[key] = context[key];
-        }
+      if (context[key] !== undefined && context[key] !== null) {
+        body[key] = context[key];
+      }
     }
     let method = 'sendMessage';
     if (context?.message_id) {
-        method = 'editMessageText';
+      method = 'editMessageText';
     }
-    return await fetch(
-        `${ENV.TELEGRAM_API_DOMAIN}/bot${token}/${method}`,
-        {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(body),
-        },
-    );
+    return await fetch(`${ENV.TELEGRAM_API_DOMAIN}/bot${token}/${method}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+  } catch (e) {
+    console.error(e);
+    throw new Error('send telegram message failed, please see the log.');
+  }
 }
 
 
@@ -140,30 +142,31 @@ export async function sendMessageToTelegram(message, token, context, _info = nul
  * @returns {function(string): Promise<Response>}
  */
 export function sendMessageToTelegramWithContext(context) {
+
   const { sentMessageIds, chatType } = context.SHARE_CONTEXT;
   return async (message, msgType = 'chat') => {
-    const resp = await sendMessageToTelegram(
-      message,
-      context.SHARE_CONTEXT.currentBotToken,
-      context.CURRENT_CHAT_CONTEXT,
-      context._info,
-    );
-    if (sentMessageIds) {
-      const clone_resp = await resp.clone().json();
-      // 标记消息id
-      if (
-        !sentMessageIds.has(clone_resp.result.message_id) &&
-        ((CONST.GROUP_TYPES.includes(chatType) && ENV.SCHEDULE_GROUP_DELETE_TYPE.includes(msgType)) ||
-          (CONST.PRIVATE_TYPES.includes(chatType) && ENV.SCHEDULE_PRIVATE_DELETE_TYPE.includes(msgType)))
-      ) {
-        sentMessageIds.add(clone_resp.result.message_id);
-        if (msgType === 'tip') {
-          // 删除发送人的消息
-          sentMessageIds.add(context.SHARE_CONTEXT.messageId);
+      const resp = await sendMessageToTelegram(
+        message,
+        context.SHARE_CONTEXT.currentBotToken,
+        context.CURRENT_CHAT_CONTEXT,
+        context._info,
+      );
+      if (sentMessageIds) {
+        const clone_resp = await resp.clone().json();
+        // 标记消息id
+        if (
+          !sentMessageIds.has(clone_resp.result.message_id) &&
+          ((CONST.GROUP_TYPES.includes(chatType) && ENV.SCHEDULE_GROUP_DELETE_TYPE.includes(msgType)) ||
+            (CONST.PRIVATE_TYPES.includes(chatType) && ENV.SCHEDULE_PRIVATE_DELETE_TYPE.includes(msgType)))
+        ) {
+          sentMessageIds.add(clone_resp.result.message_id);
+          if (msgType === 'tip') {
+            // 删除发送人的消息
+            sentMessageIds.add(context.SHARE_CONTEXT.messageId);
+          }
         }
       }
-    }
-    return resp;
+      return resp;
   };
 }
 
@@ -215,49 +218,53 @@ export async function deleteMessagesFromTelegram(chat_id, bot_token,  message_id
  * @returns {Promise<Response>}
  */
 export async function sendPhotoToTelegram(photo, token, context, _info = null) {
-  const url = `${ENV.TELEGRAM_API_DOMAIN}/bot${token}/sendPhoto`;
-  let body;
-  const headers = {};
-  if (typeof photo.url === 'string') {
-    if (ENV.TELEGRAPH_IMAGE_ENABLE) {
-      try {
-        const new_url = await uploadImageToTelegraph(photo.url);
-        photo.url = new_url;
-      } catch (e) {
-        console.error(e.message);
+  try {
+    const url = `${ENV.TELEGRAM_API_DOMAIN}/bot${token}/sendPhoto`;
+    let body;
+    const headers = {};
+    if (typeof photo.url === 'string') {
+      if (ENV.TELEGRAPH_IMAGE_ENABLE) {
+        try {
+          const new_url = await uploadImageToTelegraph(photo.url);
+          photo.url = new_url;
+        } catch (e) {
+          console.error(e.message);
+        }
       }
-    }
-    body = {
-      photo: photo.url,
-    };
-    for (const key of Object.keys(context)) {
-      if (context[key] !== undefined && context[key] !== null) {
-        body[key] = context[key];
+      body = {
+        photo: photo.url,
+      };
+      for (const key of Object.keys(context)) {
+        if (context[key] !== undefined && context[key] !== null) {
+          body[key] = context[key];
+        }
       }
-    }
-    body.parse_mode = 'MarkdownV2';
-    let info = _info?.message_title || '';
-  
-    photo.revised_prompt = photo.revised_prompt && ('\n\nrevised prompt: ' + photo.revised_prompt) || '';
-    body.caption = '>`' + escape((info) + photo.revised_prompt) + '`' + `\n[原始图片](${photo.url})`;
-    
+      body.parse_mode = 'MarkdownV2';
+      let info = _info?.message_title || '';
 
-    body = JSON.stringify(body);
-    headers['Content-Type'] = 'application/json';
-  } else {
-    body = new FormData();
-    body.append('photo', photo.url, 'photo.png');
-    for (const key of Object.keys(context)) {
-      if (context[key] !== undefined && context[key] !== null) {
-        body.append(key, `${context[key]}`);
+      photo.revised_prompt = (photo.revised_prompt && '\n\nrevised prompt: ' + photo.revised_prompt) || '';
+      body.caption = '>`' + escape(info + photo.revised_prompt) + '`' + `\n[原始图片](${photo.url})`;
+
+      body = JSON.stringify(body);
+      headers['Content-Type'] = 'application/json';
+    } else {
+      body = new FormData();
+      body.append('photo', photo.url, 'photo.png');
+      for (const key of Object.keys(context)) {
+        if (context[key] !== undefined && context[key] !== null) {
+          body.append(key, `${context[key]}`);
+        }
       }
     }
+    return await fetch(url, {
+      method: 'POST',
+      headers,
+      body,
+    });
+  } catch (e) {
+    console.error(e);
+    throw new Error('send telegram message failed, please see the log');
   }
-  return fetch(url, {
-    method: 'POST',
-    headers,
-    body,
-  });
 }
 
 

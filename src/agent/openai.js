@@ -192,7 +192,7 @@ export async function requestCompletionsFromOpenAI(params, context, onStream) {
 
   if (message && !images && context.USER_CONFIG.USE_TOOLS?.length > 0) {
     const result = await handleOpenaiFunctionCall({ url, header, body, prompt }, context, onStream);
-    if (result.llm_content && context.USER_CONFIG.FUNCTION_REPLY_ASAP) {
+    if (result.llm_content && !Array.isArray(result.llm_content) && context.USER_CONFIG.FUNCTION_REPLY_ASAP) {
       // 如果不需要重新生成结果
       return result.llm_content;
     }

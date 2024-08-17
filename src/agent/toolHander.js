@@ -55,7 +55,7 @@ export async function handleOpenaiFunctionCall(params, context, onStream) {
     if (e.name === 'AbortError') {
       errorMsg = 'call timeout';
     }
-    context._info.setCallInfo(`Func error: ${errorMsg}`);
+    context._info.setCallInfo(`⚠️${errorMsg.slice(0,50)}`);
     return { call_times, message: e.message, func_results };
   }
 }
@@ -116,6 +116,7 @@ function renderCallPayload(params, tools_structs, context, onStream) {
  * @return {null}
  */
 export function renderAfterCallPayload(context, body, func_results, prompt) {
+  if (func_results.length ===0) return;
   const last_tool_type = func_results.at(-1).type;
   const tool_prompt = tools_settings[last_tool_type].prompt;
 
@@ -176,7 +177,7 @@ async function functionCallWithLLM(context, payload, tools_name, chatPromise) {
   const llm_resp = await requestChatCompletions(url, header, body, context, stream, null, options);
 
   if (!llm_resp.tool_calls) {
-    llm_resp.tool_calls = [];
+    return llm_resp.content;
   }
 
   const valid_calls = llm_resp?.tool_calls?.filter((i) => tools_name.includes(i.function.name));
@@ -211,7 +212,11 @@ async function functionExec(funcList, context, opt) {
     const args_i = Object.values(args).join();
     context._info.setCallInfo(`${name}:${args_i.length > INFO_LENGTH_LIMIT ? args_i.slice(0, INFO_LENGTH_LIMIT) : args_i}`, 'f_i');
     console.log('start use function: ', name);
-    funcPromise.push(ENV.TOOLS[name].func(args, opt, signal));
+    const params = args;
+    if (ENV.TOOLS[name].need) {
+      params.keys = opt[ENV.TOOLS[name].need];
+    }
+    funcPromise.push(ENV.TOOLS[name].func(params, signal));
     exec_times--;
   }
 
@@ -242,9 +247,10 @@ async function functionExec(funcList, context, opt) {
  */
 function trimPayload(payload, func_results, func_type) {
   const render = tools_settings[func_type].render;
+  const all_content = func_results.map(i => i.content).join('\n\n').trim();
   payload.body.messages.push({
     role: 'user',
-    content: render?.(func_results.join('\n\n')) || func_results.join('\n\n').trim(),
+    content: render?.(all_content) || all_content,
   });
   // 每种func只调用一次
   payload.body.tools = payload.body.tools.filter((t) => ENV.TOOLS[t.function.name].type !== func_type);
