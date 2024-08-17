@@ -7,6 +7,7 @@ import fetch from 'node-fetch';
 import { ENV } from '../../src/config/env.js';
 import toml from 'toml';
 import { default as worker } from '../../main.js';
+import cron from 'node-cron';
 
 const config = JSON.parse(fs.readFileSync('./config.json', 'utf-8'));
 
@@ -60,10 +61,20 @@ try {
   // 定时任务
   const raw = fs.readFileSync('../../wrangler.toml');
   const env = { ...toml.parse(raw).vars, DATABASE: cache };
-  if (env.SCHEDULE_TIME && env.SCHEDULE_TIME >= 5) {
-    setInterval(async () => {
-      await worker.scheduled(null, env, null);
-    }, env.SCHEDULE_TIME * 60 * 1000);
+  // if (env.EXPIRED_TIME && env.EXPIRED_TIME >= 5) {
+  //   setInterval(async () => {
+  //     await worker.scheduled(null, env, null);
+  //   }, env.EXPIRED_TIME * 60 * 1000);
+  // }
+
+  if (env.EXPIRED_TIME && env.EXPIRED_TIME > 0 && env.CRON_CHECK_TIME) {
+    try {
+      cron.schedule(env.CRON_CHECK_TIME, async () => {
+        await worker.scheduled(null, env, null);
+      });
+    } catch (e) {
+      console.error('Failed to schedule cron job:', e);
+    }
   }
 
 } catch (e) {

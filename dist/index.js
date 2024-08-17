@@ -1091,9 +1091,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1723888992;
+  BUILD_TIMESTAMP = 1723898343;
   // 当前版本 commit id
-  BUILD_VERSION = "37f994b";
+  BUILD_VERSION = "5ea58d5";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -1211,8 +1211,10 @@ var Environment = class {
   // 发文的作者链接; 发文作者目前为机器人ID, 未设置时为anonymous
   TELEGRAPH_AUTHOR_URL = "";
   DISABLE_WEB_PREVIEW = false;
-  // 定时任务时间间隔, 单位:分钟, 最小间隔为5
-  SCHEDULE_TIME = -1;
+  // 消息过期时间, 单位: 分钟
+  EXPIRED_TIME = -1;
+  // 任务扫描周期 使用cron 表达式, 例如 '*/10 0-2,6-23 * * *' 表示每天0-2点，6-23点，每十分钟执行一次定时任务
+  CRON_CHECK_TIME = "";
   // 定时删除群组消息的类型 提示信息:tip 普通对话:chat
   SCHEDULE_GROUP_DELETE_TYPE = ["tip"];
   // 定时删除私人消息的类型 命令对话:command与普通对话:chat
@@ -1476,7 +1478,7 @@ var Context = class {
     this.SHARE_CONTEXT.chatId = message.chat.id;
     this.SHARE_CONTEXT.speakerId = message.from.id || message.chat.id;
     this.SHARE_CONTEXT.messageId = message.message_id;
-    if (ENV.SCHEDULE_TIME >= 5)
+    if (ENV.EXPIRED_TIME > 0)
       this.SHARE_CONTEXT.sentMessageIds = /* @__PURE__ */ new Set();
   }
   /**
@@ -4578,7 +4580,7 @@ async function scheduledDeleteMessage(request, context) {
   if (!scheduledData[botName][chatId]) {
     scheduledData[botName][chatId] = [];
   }
-  const offsetInMillisenconds = ENV.SCHEDULE_TIME * 60 * 1e3;
+  const offsetInMillisenconds = ENV.EXPIRED_TIME * 60 * 1e3;
   scheduledData[botName][chatId].push({
     id: [...sentMessageIds],
     ttl: Date.now() + offsetInMillisenconds

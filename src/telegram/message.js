@@ -450,7 +450,7 @@ async function scheduledDeleteMessage(request, context) {
   if (!scheduledData[botName][chatId]) {
     scheduledData[botName][chatId] = [];
   }
-  const offsetInMillisenconds = ENV.SCHEDULE_TIME * 60 * 1000;
+  const offsetInMillisenconds = ENV.EXPIRED_TIME * 60 * 1000;
   scheduledData[botName][chatId].push({
     id: [...sentMessageIds],
     ttl: Date.now() + offsetInMillisenconds,

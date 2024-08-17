@@ -11,7 +11,7 @@
   "license": "MIT",
   "dependencies": {
     "chatgpt-telegram-workers": "github:adolphnov/ChatGPT-Telegram-Workers#test",
-    "cloudflare-worker-adapter": "github:adolphnov/cloudflare-worker-adapter"
-  },
-  "devDependencies": {}
+    "cloudflare-worker-adapter": "github:adolphnov/cloudflare-worker-adapter",
+    "node-cron": "^3.0.3"
+  }
 }
