@@ -13,7 +13,6 @@ async function createAccount(author) {
 }
 
 async function createOrEditPage(sendContext, title, content, author) {
-  // const url = 'https://api.telegra.ph/createPage';
   const { url, access_token, path } = sendContext;
   const {short_name, author_name, author_url} = author;
   const body = {
@@ -34,41 +33,15 @@ async function createOrEditPage(sendContext, title, content, author) {
   }).then((r) => r.json());
 }
 
-// async function editTelegraph(access_token, path, title, content, author_name) {
-//   const url = 'https://api.telegra.ph/editPage';
-//   const headers = { 'Content-Type': 'application/json' };
-//   // const perfix_nodes = [
-//   //   { tag: 'h3', children: ['Question'] },
-//   //   { tag: 'blockquote', children: [content.question] },
-//   //   { tag: 'hr' },
-//   //   { tag: 'h3', children: ['Answer'] }];
-  
-//   const body = {
-//     access_token,
-//     path,
-//     title,
-//     author_name,
-//     content: md2node(content.answer)
-//     // 'return_content': true,
-//   };
 
-//   return fetch(url, {
-//     method: 'post',
-//     headers,
-//     body: JSON.stringify(body),
-//   }).then((r) => r.json());
-// }
-
-// function render(title, content) {
-//   return [
-//     { tag: 'h3', children: ['Question'] },
-//     { tag: 'blockquote', children: [title] },
-//     { tag: 'hr' },
-//     { tag: 'h3', children: ['Answer'] },
-//     { tag: 'pre', children: [content] },
-//   ];
-// }
-
+/**
+ * @description: 
+ * @param {*} context
+ * @param {*} title
+ * @param {*} content
+ * @param {*} author
+ * @return {*}
+ */
 async function sendTelegraph(context, title, content, author) {
   let endPoint = 'https://api.telegra.ph/editPage';
   let access_token = context.telegraphAccessToken;
@@ -85,12 +58,17 @@ async function sendTelegraph(context, title, content, author) {
     const c_resp = await createOrEditPage(sendContext, title, content, author);
     if (c_resp.ok) {
       context.telegraphPath = c_resp.result.path;
-      // console.log('telegraph url: ', c_resp.result.url);
+      console.log('telegraph url: ', c_resp.result.url);
       return c_resp;
     } else { console.error(c_resp.error); throw new Error(c_resp.error); }
   } else return createOrEditPage(sendContext, title, content, author);
 }
 
+/**
+ * @description: 
+ * @param {*} context
+ * @return {*}
+ */
 export function sendTelegraphWithContext(context) {
   return async (title, content, author) => sendTelegraph(context.SHARE_CONTEXT, title, content, author);
 }

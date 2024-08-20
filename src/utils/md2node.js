@@ -42,11 +42,11 @@ function markdownToTelegraphNodes(markdown) {
       continue;
     }
 
-    // line = line.trim();
-    if (!line) continue;
+    const _line = line.trim();
+    if (!_line) continue;
 
     // 标题
-    if (line.startsWith('#')) {
+    if (_line.startsWith('#')) {
       let level = line.match(/^#+/)[0].length;
       level = level <= 2 ? 3 : 4; // telegram 仅支持h3 h4
       const text = line.replace(/^#+\s*/, '');
@@ -54,7 +54,7 @@ function markdownToTelegraphNodes(markdown) {
       // nodes.push({ tag: `h${level}`, children: [text] }); // 简化处理
     }
     // 引用
-    else if (line.startsWith("> ")) {
+    else if (_line.startsWith("> ")) {
       const text = line.slice(2);
       nodes.push({ tag: 'blockquote', children: processInlineElements(text) });
     }
@@ -77,12 +77,12 @@ function markdownToTelegraphNodes(markdown) {
     //   currentList.children.push({ tag: 'li', children: processInlineElements(text) });
     // }
     // 分割线
-    else if (line === '---' || line === '***') {
+    else if (_line === '---' || _line === '***') {
     nodes.push({ tag: "hr" });
     }
     // 段落
     else {
-      const matches = line.match(/^(\s*)(-|\*)\s/);
+      const matches = RegExp(/^(\s*)(-|\*)\s/).exec(line);
       if (matches) {
         line = matches[1] + '• ' + line.slice(matches[0].length);
       }
