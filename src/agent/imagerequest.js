@@ -85,7 +85,7 @@ export async function requestText2Image(context, params) {
   }
   // setTimeout(() => sendChatActionToTelegramWithContext(context)('upload_photo').catch(console.error), 0);
   setTimeout(() => {
-    sendMessageToTelegramWithContext(context)('It may take a longer time, please wait a moment.', 'tip').catch(console.error);
+    sendMessageToTelegramWithContext(context)('It may take a while, please wait.', 'tip').catch(console.error);
   }, 0);
   console.log('start generate image.')
   const {url, header, body} = await gen(params, context);
@@ -134,7 +134,7 @@ export async function renderText2PicResult(context, response) {
       }
       return { type: 'image', url: (await resp?.images)?.map((i) => i?.url) };
     case "worksai":
-      resp = await resp.then(r => r.blob());
+      resp = await response.then(r => r.blob());
       return { type: 'image', url: [resp] };
     default:
       return sendMessageToTelegramWithContext(context)('unsupported agent');

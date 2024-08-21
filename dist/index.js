@@ -1157,9 +1157,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1724260557;
+  BUILD_TIMESTAMP = 1724261460;
   // 当前版本 commit id
-  BUILD_VERSION = "9b987c7";
+  BUILD_VERSION = "b5a46e1";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -3674,7 +3674,7 @@ async function requestText2Image(context, params) {
     return sendMessageToTelegramWithContext(context)(`ERROR: Image generator not found`, "tip");
   }
   setTimeout(() => {
-    sendMessageToTelegramWithContext(context)("It may take a longer time, please wait a moment.", "tip").catch(console.error);
+    sendMessageToTelegramWithContext(context)("It may take a while, please wait.", "tip").catch(console.error);
   }, 0);
   console.log("start generate image.");
   const { url, header: header2, body } = await gen(params, context);
@@ -3714,7 +3714,7 @@ async function renderText2PicResult(context, response) {
       }
       return { type: "image", url: (await resp?.images)?.map((i) => i?.url) };
     case "worksai":
-      resp = await resp.then((r) => r.blob());
+      resp = await response.then((r) => r.blob());
       return { type: "image", url: [resp] };
     default:
       return sendMessageToTelegramWithContext(context)("unsupported agent");
