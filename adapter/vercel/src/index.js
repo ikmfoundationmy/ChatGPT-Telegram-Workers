@@ -1,7 +1,6 @@
 /* eslint-disable no-unused-vars */
 import worker from 'chatgpt-telegram-workers';
 import Middle from './_middleware.js';
-import {Redis} from '@upstash/redis';
 
 export const config = {
   runtime: 'edge',
@@ -18,8 +17,6 @@ export default async (req, res) => {
   // 兼容之前的环境变量名
   env.UPSTASH_REDIS_REST_URL ||= process.env.REDIS_URL;
   env.UPSTASH_REDIS_REST_TOKEN ||= process.env.REDIS_TOKEN;
-
-  env.DATABASE = new Redis.fromEnv();
 
   const body = await req.text();
   const cfReq = new Request(req.url, {
