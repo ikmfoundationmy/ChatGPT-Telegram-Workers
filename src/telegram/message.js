@@ -340,14 +340,10 @@ async function msgHandleCommand(message, context) {
 async function msgChatWithLLM(message, context) {
   const is_concurrent = context._info.is_concurrent;
   const llmPromises = [];
-
   // 与LLM交互
   try {
     let result = null;
     for (let i = 0; i < context._info.chains.length; i++) {
-      // if (result && result instanceof Response) {
-      //   return result;
-      // }
       // 每个独立消息
       if (context.CURRENT_CHAT_CONTEXT.message_id && !ENV.HIDE_MIDDLE_MESSAGE) {
         context.CURRENT_CHAT_CONTEXT.message_id = null;
@@ -411,13 +407,10 @@ async function chatLlmHander(context, params) {
   switch (chain_type) {
     case 'text:text':
     case 'image:text':
-
       return chatWithLLM(params, context);
     case 'text:image':
-
       return requestText2Image(context, params);
     case 'audio:text':
-
       return chatViaFileWithLLM(context, params);
     case 'image:image':
       return requestI2IHander(context, params);
@@ -439,8 +432,9 @@ async function sendInitMessage(context) {
     let text = '...',
       type = 'chat';
     if (['text:image', 'image:image'].includes(chain_type)) {
-      text = 'It may take a longer time, please wait a moment.';
-      type = 'tip';
+      return;
+      // text = 'It may take a longer time, please wait a moment.';
+      // type = 'tip';
     }
     const parseMode = context.CURRENT_CHAT_CONTEXT.parse_mode;
     context.CURRENT_CHAT_CONTEXT.parse_mode = null;

@@ -42,7 +42,8 @@ async function sendMessage(message, token, context) {
  * @param {CurrentChatContextType} context
  * @returns {Promise<Response>}
  */
-export async function sendMessageToTelegram(message, token, context, _info = null) {
+export async function sendMessageToTelegram(message, token, context, _info, type) {
+  // console.log('send message', message);
   const chatContext = {
     ...context,
     message_id: Array.isArray(context.message_id) ? 0 : context.message_id,
@@ -51,8 +52,9 @@ export async function sendMessageToTelegram(message, token, context, _info = nul
   let origin_msg = message;
   let info = '';
   const escapeContent = (parse_mode = chatContext?.parse_mode) => {
-    info = _info.is_concurrent ? '' : _info?.step?.message_title || '';
-    if (!_info?.isLastStep && _info.steps.length !== 0 && parse_mode !== null || _info.is_concurrent || origin_msg.length > limit) {
+    if (!_info || _info?.steps?.length === 0 || type === 'tip') return;
+    info = _info.is_concurrent ? '' : _info.step?.message_title || '';
+    if (!_info.isLastStep && _info.steps.length !== 0 && parse_mode !== null || _info.is_concurrent || origin_msg.length > limit) {
       chatContext.parse_mode = null;
       message = (info && ( info + '\n\n' )) + origin_msg;
       chatContext.entities = [
@@ -79,12 +81,11 @@ export async function sendMessageToTelegram(message, token, context, _info = nul
       chatContext.parse_mode = null;
       context.parse_mode = null;
       info = _info?.message_title;
-      // message = '```plaintext\n' + (info ? info + '\n\n' + origin_msg : origin_msg) + '\n```'
-      message = info && ( info + '\n\n' ) + origin_msg;
-      chatContext.entities = [
-        { type: 'code', offset: 0, length: message.length },
-        { type: 'blockquote', offset: 0, length: message.length },
-      ];
+      message = info ? info + '\n\n' + origin_msg : origin_msg;
+      // chatContext.entities = [
+      //   { type: 'code', offset: 0, length: message.length },
+      //   { type: 'blockquote', offset: 0, length: message.length },
+      // ];
       return await sendMessage(message, token, chatContext);
     }
   }
@@ -146,37 +147,13 @@ export function sendMessageToTelegramWithContext(context) {
         context.SHARE_CONTEXT.currentBotToken,
         context.CURRENT_CHAT_CONTEXT,
         context._info,
+        msgType,
       );
       return await checkIsNeedTagIds(context, msgType, resp);
   };
 }
 
-/**
- * @description: 
- * @param {*} context
- * @param {*} msgType
- * @param {*} resp
- * @return {*}
- */
-async function checkIsNeedTagIds(context, msgType, resp) {
-  const { sentMessageIds, chatType } = context.SHARE_CONTEXT;
-  if (sentMessageIds) {
-    const clone_resp = await resp.clone().json();
-    // 标记消息id
-    if (
-      !sentMessageIds.has(clone_resp.result.message_id) &&
-      ((CONST.GROUP_TYPES.includes(chatType) && ENV.SCHEDULE_GROUP_DELETE_TYPE.includes(msgType)) ||
-        (CONST.PRIVATE_TYPES.includes(chatType) && ENV.SCHEDULE_PRIVATE_DELETE_TYPE.includes(msgType)))
-    ) {
-      sentMessageIds.add(clone_resp.result.message_id);
-      if (msgType === 'tip') {
-        // 删除发送人的消息
-        sentMessageIds.add(context.SHARE_CONTEXT.messageId);
-      }
-    }
-  }
-  return resp;
-}
+
 
 /**
  * @param {ContextType} context
@@ -283,9 +260,15 @@ export async function sendPhotoToTelegram(photo, token, context, _info = null) {
  * @returns {function(string): Promise<Response>}
  */
 export function sendPhotoToTelegramWithContext(context) {
-    return (img_info) => {
-        return sendPhotoToTelegram(img_info, context.SHARE_CONTEXT.currentBotToken, context.CURRENT_CHAT_CONTEXT, context._info);
-    };
+  return async (img_info, msgType = 'chat') => {
+    const resp = await sendPhotoToTelegram(
+      img_info,
+      context.SHARE_CONTEXT.currentBotToken,
+      context.CURRENT_CHAT_CONTEXT,
+      context._info,
+    );
+    return checkIsNeedTagIds(context, msgType, resp);
+  };
 }
 
 /**
@@ -308,12 +291,12 @@ export async function sendMediaGroupToTelegram(mediaGroup, token, context, _info
     media: mediaGroup.url.map((i) => ({ type: media_type, media: i })),
     chat_id: context.chat_id,
   };
-  if (context.reply_to_message_id) {
-    body.reply_parameters = {
-      message_id: context.reply_to_message_id,
-      chat_id: context.chat_id
-    }
-  }
+  // if (context.reply_to_message_id) {
+  //   body.reply_parameters = {
+  //     message_id: context.reply_to_message_id,
+  //     chat_id: context.chat_id
+  //   }
+  // }
 
   let info = _info?.step.message_title;
   if (mediaGroup.text) {
@@ -343,8 +326,14 @@ export async function sendMediaGroupToTelegram(mediaGroup, token, context, _info
  * @returns {function(string): Promise<Response>}
  */
 export function sendMediaGroupToTelegramWithContext(context) {
-  return (mediaGroup) => {
-      return sendMediaGroupToTelegram(mediaGroup, context.SHARE_CONTEXT.currentBotToken, context.CURRENT_CHAT_CONTEXT, context._info);
+  return async (mediaGroup, msgType = 'chat') => {
+    const resp = await sendMediaGroupToTelegram(
+      mediaGroup,
+      context.SHARE_CONTEXT.currentBotToken,
+      context.CURRENT_CHAT_CONTEXT,
+      context._info,
+    );
+    return checkIsNeedTagIds(context, msgType, resp);
   };
 }
 
@@ -544,5 +533,33 @@ export async function getFileUrl(file_id, token) {
     console.error(e);
     return '';
   }
+}
+
+
+/**
+ * @description: 标记消息id
+ * @param {*} context
+ * @param {*} msgType
+ * @param {*} resp
+ * @return {*}
+ */
+async function checkIsNeedTagIds(context, msgType, resp) {
+  const { sentMessageIds, chatType } = context.SHARE_CONTEXT;
+  if (sentMessageIds) {
+    const clone_resp = await resp.clone().json();
+    // 标记消息id
+    if (
+      !sentMessageIds.has(clone_resp.result.message_id) &&
+      ((CONST.GROUP_TYPES.includes(chatType) && ENV.SCHEDULE_GROUP_DELETE_TYPE.includes(msgType)) ||
+        (CONST.PRIVATE_TYPES.includes(chatType) && ENV.SCHEDULE_PRIVATE_DELETE_TYPE.includes(msgType)))
+    ) {
+      sentMessageIds.add(clone_resp.result.message_id);
+      if (msgType === 'tip') {
+        // 删除发送人的消息
+        sentMessageIds.add(context.SHARE_CONTEXT.messageId);
+      }
+    }
+  }
+  return resp;
 }
   

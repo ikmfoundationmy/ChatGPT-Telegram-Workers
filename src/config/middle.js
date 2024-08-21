@@ -78,14 +78,6 @@ async function extractMessageType(message, currentBotId) {
 }
 
 
-// export async function handerTgUrl(file, token) {
-//   const { type, url, raw, id } = file;
-//   if ((url.length === 0 || raw.length === 0) && id.length !==0) {
-//     return getTelegramFileFinalUrl(id, type, token);
-//   }
-//   return url.length > 0 ? url : raw;
-// }
-
 /**
  * @description: 通过id获取到最终url
  * @param {string[]} file_id

@@ -83,7 +83,11 @@ export async function requestText2Image(context, params) {
   if (!gen) {
     return sendMessageToTelegramWithContext(context)(`ERROR: Image generator not found`, 'tip');
   }
-  setTimeout(() => sendChatActionToTelegramWithContext(context)('upload_photo').catch(console.error), 0);
+  // setTimeout(() => sendChatActionToTelegramWithContext(context)('upload_photo').catch(console.error), 0);
+  setTimeout(() => {
+    sendMessageToTelegramWithContext(context)('It may take a longer time, please wait a moment.', 'tip').catch(console.error);
+  }, 0);
+  console.log('start generate image.')
   const {url, header, body} = await gen(params, context);
   const resp = fetch(url, {
     method: 'POST',
@@ -116,7 +120,7 @@ export async function renderText2PicResult(context, response) {
     case 'azure':
       resp = await response.then(r => r.json());
       if (resp.error?.message) {
-        throw new Error(result.error.message);
+        throw new Error(resp.error.message);
       }
       return {
         type: "image",
@@ -126,7 +130,7 @@ export async function renderText2PicResult(context, response) {
     case 'silicon':
       resp = await response.then(r => r.json());
       if (resp.message) {
-        throw new Error(result.message);
+        throw new Error(resp.message);
       }
       return { type: 'image', url: (await resp?.images)?.map((i) => i?.url) };
     case "worksai":

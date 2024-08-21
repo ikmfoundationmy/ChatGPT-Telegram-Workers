@@ -353,7 +353,7 @@ var jina_reader = {
     const key = keys[Math.floor(Math.random() * key_length)];
     console.log("jina-reader:", url);
     const startTime = Date.now();
-    let result2 = await fetch("https://r.jina.ai/" + url, {
+    let result = await fetch("https://r.jina.ai/" + url, {
       headers: {
         "X-Return-Format": "text",
         "Authorization": `Bearer ${key}`
@@ -361,17 +361,17 @@ var jina_reader = {
       },
       ...signal && { signal } || {}
     });
-    if (!result2.ok) {
-      if (result2.status.toString().startsWith("4") && key_length > 1) {
+    if (!result.ok) {
+      if (result.status.toString().startsWith("4") && key_length > 1) {
         console.error(`jina key: ${key.slice(0, 10) + " ... " + key.slice(-5)} is expired`);
         keys.splice(keys.indexOf(key), 1);
         return jina_reader.func({ url, keys }, signal);
       }
       keys.pop();
-      throw new Error("All keys is unavailable. " + (await result2.json()).message);
+      throw new Error("All keys is unavailable. " + (await result.json()).message);
     }
     const time = ((Date.now() - startTime) / 1e3).toFixed(1) + "s";
-    return { content: await result2.text(), time };
+    return { content: await result.text(), time };
   },
   type: "web_crawler"
 };
@@ -381,7 +381,7 @@ var escapeChars = /([\_\*\[\]\(\)\\\~\`\>\#\+\-\=\|\{\}\.\!])/g;
 function escape(text) {
   const lines = text.split("\n");
   const stack = [];
-  const result2 = [];
+  const result = [];
   let linetrim = "";
   for (const [i, line] of lines.entries()) {
     linetrim = line.trim();
@@ -393,7 +393,7 @@ function escape(text) {
         startIndex = stack.pop();
         if (!stack.length) {
           const content = lines.slice(startIndex, i + 1).join("\n");
-          result2.push(handleEscape(content, "code"));
+          result.push(handleEscape(content, "code"));
           continue;
         }
       } else {
@@ -401,14 +401,14 @@ function escape(text) {
       }
     }
     if (!stack.length) {
-      result2.push(handleEscape(line));
+      result.push(handleEscape(line));
     }
   }
   if (stack.length) {
     const last = lines.slice(stack[0]).join("\n") + "\n```";
-    result2.push(handleEscape(last, "code"));
+    result.push(handleEscape(last, "code"));
   }
-  return result2.join("\n");
+  return result.join("\n");
 }
 function handleEscape(text, type = "text") {
   if (!text.trim()) {
@@ -566,7 +566,7 @@ async function sendMessage(message, token, context) {
     console.error(e2);
   }
 }
-async function sendMessageToTelegram(message, token, context, _info = null) {
+async function sendMessageToTelegram(message, token, context, _info, type) {
   const chatContext = {
     ...context,
     message_id: Array.isArray(context.message_id) ? 0 : context.message_id
@@ -575,8 +575,10 @@ async function sendMessageToTelegram(message, token, context, _info = null) {
   let origin_msg = message;
   let info = "";
   const escapeContent = (parse_mode = chatContext?.parse_mode) => {
-    info = _info.is_concurrent ? "" : _info?.step?.message_title || "";
-    if (!_info?.isLastStep && _info.steps.length !== 0 && parse_mode !== null || _info.is_concurrent || origin_msg.length > limit) {
+    if (!_info || _info?.steps?.length === 0 || type === "tip")
+      return;
+    info = _info.is_concurrent ? "" : _info.step?.message_title || "";
+    if (!_info.isLastStep && _info.steps.length !== 0 && parse_mode !== null || _info.is_concurrent || origin_msg.length > limit) {
       chatContext.parse_mode = null;
       message = (info && info + "\n\n") + origin_msg;
       chatContext.entities = [
@@ -603,11 +605,7 @@ async function sendMessageToTelegram(message, token, context, _info = null) {
       chatContext.parse_mode = null;
       context.parse_mode = null;
       info = _info?.message_title;
-      message = info && info + "\n\n" + origin_msg;
-      chatContext.entities = [
-        { type: "code", offset: 0, length: message.length },
-        { type: "blockquote", offset: 0, length: message.length }
-      ];
+      message = info ? info + "\n\n" + origin_msg : origin_msg;
       return await sendMessage(message, token, chatContext);
     }
   }
@@ -656,23 +654,11 @@ function sendMessageToTelegramWithContext(context) {
       message,
       context.SHARE_CONTEXT.currentBotToken,
       context.CURRENT_CHAT_CONTEXT,
-      context._info
+      context._info,
+      msgType
     );
     return await checkIsNeedTagIds(context, msgType, resp);
   };
-}
-async function checkIsNeedTagIds(context, msgType, resp) {
-  const { sentMessageIds, chatType } = context.SHARE_CONTEXT;
-  if (sentMessageIds) {
-    const clone_resp = await resp.clone().json();
-    if (!sentMessageIds.has(clone_resp.result.message_id) && (CONST.GROUP_TYPES.includes(chatType) && ENV2.SCHEDULE_GROUP_DELETE_TYPE.includes(msgType) || CONST.PRIVATE_TYPES.includes(chatType) && ENV2.SCHEDULE_PRIVATE_DELETE_TYPE.includes(msgType))) {
-      sentMessageIds.add(clone_resp.result.message_id);
-      if (msgType === "tip") {
-        sentMessageIds.add(context.SHARE_CONTEXT.messageId);
-      }
-    }
-  }
-  return resp;
 }
 function deleteMessageFromTelegramWithContext(context) {
   return async (messageId) => {
@@ -756,8 +742,14 @@ async function sendPhotoToTelegram(photo, token, context, _info = null) {
   }
 }
 function sendPhotoToTelegramWithContext(context) {
-  return (img_info) => {
-    return sendPhotoToTelegram(img_info, context.SHARE_CONTEXT.currentBotToken, context.CURRENT_CHAT_CONTEXT, context._info);
+  return async (img_info, msgType = "chat") => {
+    const resp = await sendPhotoToTelegram(
+      img_info,
+      context.SHARE_CONTEXT.currentBotToken,
+      context.CURRENT_CHAT_CONTEXT,
+      context._info
+    );
+    return checkIsNeedTagIds(context, msgType, resp);
   };
 }
 async function sendMediaGroupToTelegram(mediaGroup, token, context, _info) {
@@ -771,12 +763,6 @@ async function sendMediaGroupToTelegram(mediaGroup, token, context, _info) {
     media: mediaGroup.url.map((i) => ({ type: media_type, media: i })),
     chat_id: context.chat_id
   };
-  if (context.reply_to_message_id) {
-    body.reply_parameters = {
-      message_id: context.reply_to_message_id,
-      chat_id: context.chat_id
-    };
-  }
   let info = _info?.step.message_title;
   if (mediaGroup.text) {
     info += "\n\n" + mediaGroup.text;
@@ -796,8 +782,14 @@ async function sendMediaGroupToTelegram(mediaGroup, token, context, _info) {
   });
 }
 function sendMediaGroupToTelegramWithContext(context) {
-  return (mediaGroup) => {
-    return sendMediaGroupToTelegram(mediaGroup, context.SHARE_CONTEXT.currentBotToken, context.CURRENT_CHAT_CONTEXT, context._info);
+  return async (mediaGroup, msgType = "chat") => {
+    const resp = await sendMediaGroupToTelegram(
+      mediaGroup,
+      context.SHARE_CONTEXT.currentBotToken,
+      context.CURRENT_CHAT_CONTEXT,
+      context._info
+    );
+    return checkIsNeedTagIds(context, msgType, resp);
   };
 }
 async function sendChatActionToTelegram(action, token, chatId) {
@@ -927,6 +919,19 @@ async function getFileUrl(file_id, token) {
     console.error(e2);
     return "";
   }
+}
+async function checkIsNeedTagIds(context, msgType, resp) {
+  const { sentMessageIds, chatType } = context.SHARE_CONTEXT;
+  if (sentMessageIds) {
+    const clone_resp = await resp.clone().json();
+    if (!sentMessageIds.has(clone_resp.result.message_id) && (CONST.GROUP_TYPES.includes(chatType) && ENV2.SCHEDULE_GROUP_DELETE_TYPE.includes(msgType) || CONST.PRIVATE_TYPES.includes(chatType) && ENV2.SCHEDULE_PRIVATE_DELETE_TYPE.includes(msgType))) {
+      sentMessageIds.add(clone_resp.result.message_id);
+      if (msgType === "tip") {
+        sentMessageIds.add(context.SHARE_CONTEXT.messageId);
+      }
+    }
+  }
+  return resp;
 }
 
 // src/tools/scheduleTask.js
@@ -1152,9 +1157,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1724239775;
+  BUILD_TIMESTAMP = 1724260557;
   // 当前版本 commit id
-  BUILD_VERSION = "1862214";
+  BUILD_VERSION = "9b987c7";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -1945,20 +1950,20 @@ ERROR: ${e2.message}`;
   if (!isJsonResponse(resp)) {
     throw new Error(resp.statusText);
   }
-  const result2 = await resp.json();
-  if (!result2) {
+  const result = await resp.json();
+  if (!result) {
     throw new Error("Empty response");
   }
-  if (options.errorExtractor(result2)) {
-    throw new Error(options.errorExtractor(result2));
+  if (options.errorExtractor(result)) {
+    throw new Error(options.errorExtractor(result));
   }
   try {
-    if (result2.usage) {
-      context._info.step.setToken(result2.usage.prompt_tokens ?? 0, result2.usage.completion_tokens ?? 0);
+    if (result.usage) {
+      context._info.step.setToken(result.usage.prompt_tokens ?? 0, result.usage.completion_tokens ?? 0);
     }
-    return options.fullContentExtractor(result2);
+    return options.fullContentExtractor(result);
   } catch (e2) {
-    throw Error(JSON.stringify(result2));
+    throw Error(JSON.stringify(result));
   }
 }
 
@@ -1967,14 +1972,14 @@ var tools_default2 = {
   search: {
     prompt: "\u4F5C\u4E3A\u667A\u80FD\u52A9\u624B\uFF0C\u8BF7\u6309\u7167\u4EE5\u4E0B\u6B65\u9AA4\u6709\u6548\u5206\u6790\u5E76\u63D0\u53D6\u6211\u63D0\u4F9B\u7684\u641C\u7D22\u7ED3\u679C\uFF0C\u4EE5\u7B80\u6D01\u660E\u4E86\u7684\u65B9\u5F0F\u56DE\u7B54\u6211\u7684\u95EE\u9898\uFF1A\n\n1. \u9605\u8BFB\u548C\u8BC4\u4F30\uFF1A\u4ED4\u7EC6\u9605\u8BFB\u6240\u6709\u641C\u7D22\u7ED3\u679C\uFF0C\u8BC6\u522B\u5E76\u4F18\u5148\u83B7\u53D6\u6765\u81EA\u53EF\u9760\u548C\u6700\u65B0\u6765\u6E90\u7684\u4FE1\u606F\u3002\u8003\u8651\u56E0\u7D20\u5305\u62EC\u5B98\u65B9\u6765\u6E90\u3001\u77E5\u540D\u673A\u6784\u4EE5\u53CA\u4FE1\u606F\u7684\u66F4\u65B0\u65F6\u95F4\u3002\n\n2. \u63D0\u53D6\u5173\u952E\u4FE1\u606F\uFF1A\n   \u2022 *\u6C47\u7387\u67E5\u8BE2*\uFF1A\u63D0\u4F9B\u6700\u65B0\u6C47\u7387\u5E76\u8FDB\u884C\u5FC5\u8981\u7684\u6362\u7B97\u3002\n   \u2022 *\u5929\u6C14\u67E5\u8BE2*\uFF1A\u63D0\u4F9B\u5177\u4F53\u5730\u70B9\u548C\u65F6\u95F4\u7684\u5929\u6C14\u9884\u62A5\u3002\n   \u2022 *\u4E8B\u5B9E\u6027\u95EE\u9898*\uFF1A\u627E\u51FA\u6743\u5A01\u56DE\u7B54\u3002\n\n3. \u7B80\u6D01\u56DE\u7B54\uFF1A\u5BF9\u63D0\u53D6\u7684\u4FE1\u606F\u8FDB\u884C\u7EFC\u5408\u5206\u6790\uFF0C\u7ED9\u51FA\u7B80\u660E\u627C\u8981\u7684\u56DE\u7B54\u3002\n\n4. \u8BC6\u522B\u4E0D\u786E\u5B9A\u6027\uFF1A\u5982\u679C\u4FE1\u606F\u5B58\u5728\u77DB\u76FE\u6216\u4E0D\u786E\u5B9A\u6027\uFF0C\u8BF7\u89E3\u91CA\u53EF\u80FD\u539F\u56E0\u3002\n\n5. \u8BF4\u660E\u4FE1\u606F\u4E0D\u8DB3\uFF1A\u5982\u679C\u641C\u7D22\u7ED3\u679C\u65E0\u6CD5\u5B8C\u5168\u56DE\u7B54\u95EE\u9898\uFF0C\u6307\u51FA\u9700\u8981\u7684\u989D\u5916\u4FE1\u606F\u3002\n\n6. \u7528\u6237\u53CB\u597D\uFF1A\u4F7F\u7528\u7B80\u5355\u6613\u61C2\u7684\u8BED\u8A00\uFF0C\u5FC5\u8981\u65F6\u63D0\u4F9B\u7B80\u77ED\u89E3\u91CA\uFF0C\u786E\u4FDD\u56DE\u7B54\u6613\u4E8E\u7406\u89E3\u3002\n\n7. \u9644\u52A0\u4FE1\u606F\uFF1A\u6839\u636E\u9700\u8981\u63D0\u4F9B\u989D\u5916\u76F8\u5173\u4FE1\u606F\u6216\u5EFA\u8BAE\uFF0C\u4EE5\u589E\u5F3A\u56DE\u7B54\u7684\u4EF7\u503C\u3002\n\n8. \u6765\u6E90\u6807\u6CE8\uFF1A\u5728\u56DE\u7B54\u4E2D\u6E05\u6670\u6807\u6CE8\u4FE1\u606F\u6765\u6E90\uFF0C\u5305\u62EC\u6765\u6E90\u7F51\u7AD9\u6216\u673A\u6784\u540D\u79F0\u53CA\u6570\u636E\u7684\u53D1\u5E03\u6216\u66F4\u65B0\u65F6\u95F4\u3002\n\n9. \u53C2\u8003\u5217\u8868\uFF1A\u5982\u679C\u5F15\u7528\u4E86\u591A\u4E2A\u6765\u6E90\uFF0C\u5728\u56DE\u7B54\u6700\u540E\u63D0\u4F9B\u7B80\u77ED\u7684\u53C2\u8003\u5217\u8868\uFF0C\u5217\u51FA\u4E3B\u8981\u4FE1\u606F\u6765\u6E90\u3002\n\n\u8BF7\u786E\u4FDD\u76EE\u6807\u662F\u63D0\u4F9B\u6700\u65B0\u3001\u6700\u76F8\u5173\u548C\u6700\u6709\u7528\u7684\u4FE1\u606F\uFF0C\u76F4\u63A5\u56DE\u5E94\u6211\u7684\u95EE\u9898\u3002\u907F\u514D\u5197\u957F\u7684\u7EC6\u8282\uFF0C\u805A\u7126\u4E8E\u6211\u6700\u5173\u5FC3\u7684\u6838\u5FC3\u7B54\u6848\uFF0C\u5E76\u901A\u8FC7\u53EF\u9760\u7684\u6765\u6E90\u589E\u5F3A\u56DE\u7B54\u7684\u53EF\u4FE1\u5EA6\u3002Tip: \u4E0D\u8981\u4EE5\u4F60\u7684\u77E5\u8BC6\u5E93\u65F6\u95F4\u4F5C\u4E3A\u8BC4\u5224\u6807\u51C6",
     extra_params: { temperature: 0.7, "top_p": 0.4 },
-    render: (result2) => `\u641C\u7D22\u7ED3\u679C:
-${result2}`
+    render: (result) => `\u641C\u7D22\u7ED3\u679C:
+${result}`
   },
   web_crawler: {
     prompt: '\u4F5C\u4E3A\u4E00\u4E2A\u9AD8\u6548\u7684\u5185\u5BB9\u5206\u6790\u548C\u603B\u7ED3\u52A9\u624B\uFF0C\u4F60\u7684\u4EFB\u52A1\u662F\u5BF9\u7528\u6237\u63D0\u4F9B\u7684\u7F51\u9875\u6216PDF\u5185\u5BB9\u8FDB\u884C\u5168\u9762\u800C\u7B80\u6D01\u7684\u603B\u7ED3\u3002\u8BF7\u9075\u5FAA\u4EE5\u4E0B\u6307\u5357\uFF1A\n    1. \u4ED4\u7EC6\u9605\u8BFB\u7528\u6237\u63D0\u4F9B\u7684\u5168\u90E8\u5185\u5BB9\uFF0C\u786E\u4FDD\u7406\u89E3\u4E3B\u8981\u89C2\u70B9\u548C\u5173\u952E\u4FE1\u606F\u3002\n    2. \u8BC6\u522B\u5E76\u63D0\u70BC\u51FA\u5185\u5BB9\u7684\u6838\u5FC3\u4E3B\u9898\u548C\u4E3B\u8981\u8BBA\u70B9\u3002\n    3. \u603B\u7ED3\u65F6\u5E94\u5305\u62EC\u4EE5\u4E0B\u8981\u7D20\uFF1A\n      \u2022 \u5185\u5BB9\u7684\u4E3B\u8981\u76EE\u7684\u6216\u4E3B\u9898\n      \u2022 \u5173\u952E\u89C2\u70B9\u6216\u8BBA\u636E\n      \u2022 \u91CD\u8981\u7684\u6570\u636E\u6216\u7EDF\u8BA1\u4FE1\u606F\uFF08\u5982\u679C\u6709\uFF09\n      \u2022 \u4F5C\u8005\u7684\u7ED3\u8BBA\u6216\u5EFA\u8BAE\uFF08\u5982\u679C\u9002\u7528\uFF09\n    4. \u4FDD\u6301\u5BA2\u89C2\u6027\uFF0C\u51C6\u786E\u53CD\u6620\u539F\u6587\u7684\u89C2\u70B9\uFF0C\u4E0D\u6DFB\u52A0\u4E2A\u4EBA\u89E3\u91CA\u6216\u8BC4\u8BBA\u3002\n    5. \u4F7F\u7528\u6E05\u6670\u3001\u7B80\u6D01\u7684\u8BED\u8A00\uFF0C\u907F\u514D\u4F7F\u7528\u8FC7\u4E8E\u4E13\u4E1A\u6216\u6666\u6DA9\u7684\u672F\u8BED\u3002\n    6. \u603B\u7ED3\u7684\u957F\u5EA6\u5E94\u8BE5\u662F\u539F\u6587\u768410-15%\uFF0C\u9664\u975E\u7528\u6237\u7279\u522B\u6307\u5B9A\u5176\u4ED6\u957F\u5EA6\u8981\u6C42\u3002\n    7. \u5982\u679C\u5185\u5BB9\u5305\u542B\u591A\u4E2A\u90E8\u5206\u6216\u7AE0\u8282\uFF0C\u53EF\u4EE5\u4F7F\u7528\u7B80\u77ED\u7684\u5C0F\u6807\u9898\u6765\u7EC4\u7EC7\u4F60\u7684\u603B\u7ED3\u3002\n    8. \u5982\u679C\u539F\u6587\u5305\u542B\u56FE\u8868\u6216\u56FE\u50CF\u7684\u91CD\u8981\u4FE1\u606F\uFF0C\u8BF7\u5728\u603B\u7ED3\u4E2D\u63D0\u53CA\u8FD9\u4E00\u70B9\u3002\n    9. \u5982\u679C\u5185\u5BB9\u6D89\u53CA\u65F6\u95F4\u654F\u611F\u7684\u4FE1\u606F\uFF0C\u8BF7\u5728\u603B\u7ED3\u4E2D\u6CE8\u660E\u5185\u5BB9\u7684\u53D1\u5E03\u65E5\u671F\u6216\u7248\u672C\u3002\n    10. \u5982\u679C\u539F\u6587\u5B58\u5728\u660E\u663E\u7684\u504F\u89C1\u6216\u4E89\u8BAE\u6027\u89C2\u70B9\uFF0C\u8BF7\u5728\u603B\u7ED3\u4E2D\u5BA2\u89C2\u5730\u6307\u51FA\u8FD9\u4E00\u70B9\u3002\n    11. \u603B\u7ED3\u5B8C\u6210\u540E\uFF0C\u63D0\u4F9B1-3\u4E2A\u5173\u952E\u8BCD\u6216\u77ED\u8BED\uFF0C\u6982\u62EC\u5185\u5BB9\u7684\u6838\u5FC3\u4E3B\u9898\u3002\n    12. \u5982\u679C\u7528\u6237\u8981\u6C42\uFF0C\u53EF\u4EE5\u5728\u603B\u7ED3\u7684\u6700\u540E\u6DFB\u52A0\u4E00\u4E2A\u7B80\u77ED\u7684"\u8FDB\u4E00\u6B65\u9605\u8BFB\u5EFA\u8BAE"\u90E8\u5206, \u4EE5\u53CA\u5FC5\u8981\u7684\u5F15\u7528\u6765\u6E90\u3002\n    \u8BF7\u8BB0\u4F4F\uFF0C\u4F60\u7684\u76EE\u6807\u662F\u63D0\u4F9B\u4E00\u4E2A\u5168\u9762\u3001\u51C6\u786E\u3001\u6613\u4E8E\u7406\u89E3\u7684\u603B\u7ED3\uFF0C\u5E2E\u52A9\u7528\u6237\u5FEB\u901F\u628A\u63E1\u5185\u5BB9\u7684\u7CBE\u9AD3\u3002\u5982\u679C\u5185\u5BB9\u7279\u522B\u957F\u6216\u590D\u6742\uFF0C\u4F60\u53EF\u4EE5\u8BE2\u95EE\u7528\u6237\u662F\u5426\u9700\u8981\u66F4\u8BE6\u7EC6\u7684\u603B\u7ED3\u6216\u7279\u5B9A\u90E8\u5206\u7684\u6DF1\u5165\u5206\u6790\u3002\u8BF7\u5728\u6700\u540E\u9762\u6807\u6CE8\u5F15\u7528\u7684\u94FE\u63A5.',
     extra_params: { temperature: 0.7, "top_p": 0.4 },
-    render: (result2) => `\u7F51\u9875\u5185\u5BB9:
-${result2}`
+    render: (result) => `\u7F51\u9875\u5185\u5BB9:
+${result}`
   },
   default: {
     prompt: "\u4F60\u662F\u4E00\u4E2A\u667A\u80FD\u52A9\u624B\uFF0C\u5177\u5907\u5E7F\u6CDB\u7684\u77E5\u8BC6\u5E93\uFF0C\u64C5\u957F\u5206\u6790\u7528\u6237\u8BDD\u8BED\u903B\u8F91\uFF0C\u80FD\u6839\u636E\u7528\u6237\u95EE\u9898\u9009\u62E9\u5408\u9002\u7684\u51FD\u6570\u8C03\u7528\uFF0C\u5728\u65E0\u9700\u8C03\u7528\u51FD\u6570\u7684\u60C5\u51B5\u4E0B\uFF0C\u4E5F\u80FD\u5B8C\u7F8E\u89E3\u7B54\u7528\u6237\u7684\u95EE\u9898\u3002\u6CE8\u610F\uFF0C\u4F60\u6240\u77E5\u9053\u7684\u6700\u65B0\u65F6\u95F4\u662F\u8FC7\u65F6\u7684\u3002",
@@ -2313,12 +2318,12 @@ async function requestCompletionsFromOpenAI(params, context, onStream) {
     ...context.USER_CONFIG.ENABLE_SHOWTOKEN && { stream_options: { include_usage: true } }
   };
   if (message && !images && context.USER_CONFIG.USE_TOOLS?.length > 0) {
-    const result2 = await handleOpenaiFunctionCall({ url, header: header2, body, prompt: prompt2 }, context, onStream);
-    if (result2.llm_content && !Array.isArray(result2.llm_content) && context.USER_CONFIG.FUNCTION_REPLY_ASAP) {
-      return result2.llm_content;
+    const result = await handleOpenaiFunctionCall({ url, header: header2, body, prompt: prompt2 }, context, onStream);
+    if (result.llm_content && !Array.isArray(result.llm_content) && context.USER_CONFIG.FUNCTION_REPLY_ASAP) {
+      return result.llm_content;
     }
-    renderAfterCallPayload(context, body, result2.func_results, prompt2);
-    if (result2.func_results.length > 0) {
+    renderAfterCallPayload(context, body, result.func_results, prompt2);
+    if (result.func_results.length > 0) {
       const resp_obj = { q: body.messages.at(-1).content };
       resp_obj.a = await requestChatCompletions(url, header2, body, context, onStream);
       return resp_obj;
@@ -2543,11 +2548,11 @@ async function requestCompletionsFromCohereAI(params, context, onStream) {
   };
   let connectors = [];
   Object.entries(ENV2.COHERE_CONNECT_TRIGGER).forEach(([id, triggers]) => {
-    const result2 = triggers.some((trigger) => {
+    const result = triggers.some((trigger) => {
       const triggerRegex = new RegExp(trigger, "i");
       return triggerRegex.test(message);
     });
-    if (result2)
+    if (result)
       connectors.push({ id });
   });
   const body = {
@@ -3668,7 +3673,10 @@ async function requestText2Image(context, params) {
   if (!gen) {
     return sendMessageToTelegramWithContext(context)(`ERROR: Image generator not found`, "tip");
   }
-  setTimeout(() => sendChatActionToTelegramWithContext(context)("upload_photo").catch(console.error), 0);
+  setTimeout(() => {
+    sendMessageToTelegramWithContext(context)("It may take a longer time, please wait a moment.", "tip").catch(console.error);
+  }, 0);
+  console.log("start generate image.");
   const { url, header: header2, body } = await gen(params, context);
   const resp = fetch(url, {
     method: "POST",
@@ -3692,7 +3700,7 @@ async function renderText2PicResult(context, response) {
     case "azure":
       resp = await response.then((r) => r.json());
       if (resp.error?.message) {
-        throw new Error(result.error.message);
+        throw new Error(resp.error.message);
       }
       return {
         type: "image",
@@ -3702,7 +3710,7 @@ async function renderText2PicResult(context, response) {
     case "silicon":
       resp = await response.then((r) => r.json());
       if (resp.message) {
-        throw new Error(result.message);
+        throw new Error(resp.message);
       }
       return { type: "image", url: (await resp?.images)?.map((i) => i?.url) };
     case "worksai":
@@ -3820,7 +3828,12 @@ async function commandGenerateImg(message, command, subcommand, context) {
   }
   try {
     const img = await requestText2Image(context, { message: subcommand });
-    return sendTelegramMessage(context, img);
+    console.log(JSON.stringify(img));
+    const resp = await sendTelegramMessage(context, img);
+    if (!resp.ok) {
+      console.log(await resp.text());
+    }
+    return new Response("done");
   } catch (e2) {
     console.error(e2.message);
     return sendMessageToTelegramWithContext(context)(`ERROR: ${e2.message}`, "tip");
@@ -4206,10 +4219,10 @@ async function handleCommandMessage(message, context) {
       }
       const subcommand = commandLine.substring(key.length).trim();
       try {
-        const result2 = await command.fn(message, key, subcommand, context);
+        const result = await command.fn(message, key, subcommand, context);
         console.log("[DONE] Command: " + key + " " + subcommand);
-        if (result2 instanceof Response)
-          return result2;
+        if (result instanceof Response)
+          return result;
         if (message.text.length === 0)
           return new Response("None question");
       } catch (e2) {
@@ -4242,9 +4255,9 @@ async function bindCommandForTelegram(token) {
       }
     }
   }
-  const result2 = {};
+  const result = {};
   for (const scope in scopeCommandMap) {
-    result2[scope] = await fetch(
+    result[scope] = await fetch(
       `https://api.telegram.org/bot${token}/setMyCommands`,
       {
         method: "POST",
@@ -4263,7 +4276,7 @@ async function bindCommandForTelegram(token) {
       }
     ).then((res) => res.json());
   }
-  return { ok: true, result: result2 };
+  return { ok: true, result };
 }
 function commandsDocument() {
   return Object.keys(commandHandlers).map((key) => {
@@ -4598,14 +4611,14 @@ async function msgChatWithLLM(message, context) {
   const is_concurrent = context._info.is_concurrent;
   const llmPromises = [];
   try {
-    let result2 = null;
+    let result = null;
     for (let i = 0; i < context._info.chains.length; i++) {
       if (context.CURRENT_CHAT_CONTEXT.message_id && !ENV2.HIDE_MIDDLE_MESSAGE) {
         context.CURRENT_CHAT_CONTEXT.message_id = null;
         context.SHARE_CONTEXT.telegraphPath = null;
       }
-      context._info.initStep(i, result2 ?? context._info.file);
-      const file = result2 ?? context._info.file;
+      context._info.initStep(i, result ?? context._info.file);
+      const file = result ?? context._info.file;
       const params = { message: file.text, step_index: i };
       if (file.type !== "text") {
         const file_urls = await getTelegramFileUrl(file, context.SHARE_CONTEXT.currentBotToken);
@@ -4620,20 +4633,20 @@ async function msgChatWithLLM(message, context) {
         context.USER_CONFIG.ENABLE_SHOWTOKEN = false;
         llmPromises.push(chatLlmHander(context, params));
       } else {
-        result2 = await chatLlmHander(context, params);
-        if (result2 && result2 instanceof Response) {
-          return result2;
+        result = await chatLlmHander(context, params);
+        if (result && result instanceof Response) {
+          return result;
         }
         if (i + 1 === context._info.chains.length || !ENV2.HIDE_MIDDLE_MESSAGE) {
-          console.log(result2.text);
-          await sendTelegramMessage(context, result2);
+          console.log(result.text);
+          await sendTelegramMessage(context, result);
         }
       }
     }
     const results = await Promise.all(llmPromises);
-    results.forEach((result3, index) => {
-      if (result3.type === "text") {
-        context._info.steps[index].concurrent_content = result3.text;
+    results.forEach((result2, index) => {
+      if (result2.type === "text") {
+        context._info.steps[index].concurrent_content = result2.text;
       }
     });
     if (is_concurrent && results.filter((i) => i.type === "text").length > 0) {
@@ -4668,8 +4681,7 @@ async function sendInitMessage(context) {
     const chain_type = context._info.step.chain_type;
     let text = "...", type = "chat";
     if (["text:image", "image:image"].includes(chain_type)) {
-      text = "It may take a longer time, please wait a moment.";
-      type = "tip";
+      return;
     }
     const parseMode = context.CURRENT_CHAT_CONTEXT.parse_mode;
     context.CURRENT_CHAT_CONTEXT.parse_mode = null;
@@ -4779,8 +4791,8 @@ async function handleMessage(token, body) {
   const exitHanders = [msgTagNeedDelete, msgStoreWhiteListMessage];
   for (const handler of handlers) {
     try {
-      const result2 = await handler(message, context);
-      if (result2 && result2 instanceof Response) {
+      const result = await handler(message, context);
+      if (result && result instanceof Response) {
         break;
       }
     } catch (e2) {
@@ -4790,9 +4802,9 @@ async function handleMessage(token, body) {
   }
   for (const handler of exitHanders) {
     try {
-      const result2 = await handler(message, context);
-      if (result2 && result2 instanceof Response) {
-        return result2;
+      const result = await handler(message, context);
+      if (result && result instanceof Response) {
+        return result;
       }
     } catch (e2) {
       console.error(e2);
@@ -4950,13 +4962,13 @@ function buildKeyNotFoundHTML(key) {
   return `<p style="color: red">Please set the <strong>${key}</strong> environment variable in Cloudflare Workers.</p> `;
 }
 async function bindWebHookAction(request) {
-  const result2 = [];
+  const result = [];
   const domain = new URL(request.url).host;
   const hookMode = API_GUARD ? "safehook" : "webhook";
   for (const token of ENV2.TELEGRAM_AVAILABLE_TOKENS) {
     const url = `https://${domain}/telegram/${token.trim()}/${hookMode}`;
     const id = token.split(":")[0];
-    result2[id] = {
+    result[id] = {
       webhook: await bindTelegramWebHook(token, url).catch((e2) => errorToString(e2)),
       command: await bindCommandForTelegram(token).catch((e2) => errorToString(e2))
     };
@@ -4965,11 +4977,11 @@ async function bindWebHookAction(request) {
     <h1>ChatGPT-Telegram-Workers</h1>
     <h2>${domain}</h2>
     ${ENV2.TELEGRAM_AVAILABLE_TOKENS.length === 0 ? buildKeyNotFoundHTML("TELEGRAM_AVAILABLE_TOKENS") : ""}
-    ${Object.keys(result2).map((id) => `
+    ${Object.keys(result).map((id) => `
         <br/>
         <h4>Bot ID: ${id}</h4>
-        <p style="color: ${result2[id].webhook.ok ? "green" : "red"}">Webhook: ${JSON.stringify(result2[id].webhook)}</p>
-        <p style="color: ${result2[id].command.ok ? "green" : "red"}">Command: ${JSON.stringify(result2[id].command)}</p>
+        <p style="color: ${result[id].webhook.ok ? "green" : "red"}">Webhook: ${JSON.stringify(result[id].webhook)}</p>
+        <p style="color: ${result[id].command.ok ? "green" : "red"}">Command: ${JSON.stringify(result[id].command)}</p>
         `).join("")}
       ${footer}
     `);
@@ -5019,10 +5031,10 @@ async function defaultIndexAction() {
   return new Response(HTML, { status: 200, headers: { "Content-Type": "text/html" } });
 }
 async function loadBotInfo() {
-  const result2 = [];
+  const result = [];
   for (const token of ENV2.TELEGRAM_AVAILABLE_TOKENS) {
     const id = token.split(":")[0];
-    result2[id] = await getBot(token);
+    result[id] = await getBot(token);
   }
   const HTML = renderHTML(`
     <h1>ChatGPT-Telegram-Workers</h1>
@@ -5031,10 +5043,10 @@ async function loadBotInfo() {
     <p><strong>GROUP_CHAT_BOT_ENABLE:</strong> ${ENV2.GROUP_CHAT_BOT_ENABLE}</p>
     <p><strong>GROUP_CHAT_BOT_SHARE_MODE:</strong> ${ENV2.GROUP_CHAT_BOT_SHARE_MODE}</p>
     <p><strong>TELEGRAM_BOT_NAME:</strong> ${ENV2.TELEGRAM_BOT_NAME.join(",")}</p>
-    ${Object.keys(result2).map((id) => `
+    ${Object.keys(result).map((id) => `
             <br/>
             <h4>Bot ID: ${id}</h4>
-            <p style="color: ${result2[id].ok ? "green" : "red"}">${JSON.stringify(result2[id])}</p>
+            <p style="color: ${result[id].ok ? "green" : "red"}">${JSON.stringify(result[id])}</p>
             `).join("")}
     ${footer}
   `);
