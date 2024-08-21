@@ -10,14 +10,11 @@ import {requestChatCompletions} from "./request.js";
  * @returns {Promise<Response>} The response from the AI model.
  */
 async function run(model, body, id, token) {
-    return await fetch(
-        `https://api.cloudflare.com/client/v4/accounts/${id}/ai/run/${model}`,
-        {
-            headers: {Authorization: `Bearer ${token}`},
-            method: 'POST',
-            body: JSON.stringify(body),
-        },
-    );
+  return {
+    url: `https://api.cloudflare.com/client/v4/accounts/${id}/ai/run/${model}`,
+    header: { Authorization: `Bearer ${token}` },
+    body,
+  };
 }
 
 /**
@@ -89,11 +86,10 @@ export async function requestCompletionsFromWorkersAI(params, context, onStream)
  * @param {ContextType} context
  * @returns {Promise<Blob>}
  */
-export async function requestImageFromWorkersAI(prompt, context) {
+export async function requestImageFromWorkersAI(params, context) {
     const id = context.USER_CONFIG.CLOUDFLARE_ACCOUNT_ID;
     const token = context.USER_CONFIG.CLOUDFLARE_TOKEN;
     const model = context.USER_CONFIG.WORKERS_IMAGE_MODEL;
-    context._info.config('model', model);
-    const raw = await run(model, {prompt}, id, token);
-    return { url: await raw.blob() };
+    const { message, extra_params } = params;
+    return run(model, { prompt: message, ...(extra_params || {}) }, id, token);
 }

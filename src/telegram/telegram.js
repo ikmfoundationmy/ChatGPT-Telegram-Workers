@@ -1,6 +1,5 @@
 import {DATABASE, ENV, CONST} from '../config/env.js';
 import { escape } from "../utils/md2tgmd.js";
-// import { fetchWithRetry } from "../utils/utils.js";
 import { uploadImageToTelegraph } from "../utils/image.js";
 import "../types/context.js";
 
@@ -33,7 +32,6 @@ async function sendMessage(message, token, context) {
     });
   } catch (e) {
     console.error(e);
-    throw new Error('send telegram message failed, please see the log.');
   }
 }
 
@@ -53,8 +51,8 @@ export async function sendMessageToTelegram(message, token, context, _info = nul
   let origin_msg = message;
   let info = '';
   const escapeContent = (parse_mode = chatContext?.parse_mode) => {
-    info = _info?.message_title || '';
-    if ((!_info?.isLastStep && _info?.step_index > 0) || origin_msg.length > limit) {
+    info = _info.is_concurrent ? '' : _info?.step?.message_title || '';
+    if (!_info?.isLastStep && _info.steps.length !== 0 && parse_mode !== null || _info.is_concurrent || origin_msg.length > limit) {
       chatContext.parse_mode = null;
       message = (info && ( info + '\n\n' )) + origin_msg;
       chatContext.entities = [
@@ -142,8 +140,6 @@ export async function sendMessageToTelegram(message, token, context, _info = nul
  * @returns {function(string): Promise<Response>}
  */
 export function sendMessageToTelegramWithContext(context) {
-
-  const { sentMessageIds, chatType } = context.SHARE_CONTEXT;
   return async (message, msgType = 'chat') => {
       const resp = await sendMessageToTelegram(
         message,
@@ -151,23 +147,35 @@ export function sendMessageToTelegramWithContext(context) {
         context.CURRENT_CHAT_CONTEXT,
         context._info,
       );
-      if (sentMessageIds) {
-        const clone_resp = await resp.clone().json();
-        // 标记消息id
-        if (
-          !sentMessageIds.has(clone_resp.result.message_id) &&
-          ((CONST.GROUP_TYPES.includes(chatType) && ENV.SCHEDULE_GROUP_DELETE_TYPE.includes(msgType)) ||
-            (CONST.PRIVATE_TYPES.includes(chatType) && ENV.SCHEDULE_PRIVATE_DELETE_TYPE.includes(msgType)))
-        ) {
-          sentMessageIds.add(clone_resp.result.message_id);
-          if (msgType === 'tip') {
-            // 删除发送人的消息
-            sentMessageIds.add(context.SHARE_CONTEXT.messageId);
-          }
-        }
-      }
-      return resp;
+      return await checkIsNeedTagIds(context, msgType, resp);
   };
+}
+
+/**
+ * @description: 
+ * @param {*} context
+ * @param {*} msgType
+ * @param {*} resp
+ * @return {*}
+ */
+async function checkIsNeedTagIds(context, msgType, resp) {
+  const { sentMessageIds, chatType } = context.SHARE_CONTEXT;
+  if (sentMessageIds) {
+    const clone_resp = await resp.clone().json();
+    // 标记消息id
+    if (
+      !sentMessageIds.has(clone_resp.result.message_id) &&
+      ((CONST.GROUP_TYPES.includes(chatType) && ENV.SCHEDULE_GROUP_DELETE_TYPE.includes(msgType)) ||
+        (CONST.PRIVATE_TYPES.includes(chatType) && ENV.SCHEDULE_PRIVATE_DELETE_TYPE.includes(msgType)))
+    ) {
+      sentMessageIds.add(clone_resp.result.message_id);
+      if (msgType === 'tip') {
+        // 删除发送人的消息
+        sentMessageIds.add(context.SHARE_CONTEXT.messageId);
+      }
+    }
+  }
+  return resp;
 }
 
 /**
@@ -222,17 +230,17 @@ export async function sendPhotoToTelegram(photo, token, context, _info = null) {
     const url = `${ENV.TELEGRAM_API_DOMAIN}/bot${token}/sendPhoto`;
     let body;
     const headers = {};
-    if (typeof photo.url === 'string') {
+    if (typeof photo.url[0] === 'string') {
       if (ENV.TELEGRAPH_IMAGE_ENABLE) {
         try {
-          const new_url = await uploadImageToTelegraph(photo.url);
+          const new_url = await uploadImageToTelegraph(photo.url[0]);
           photo.url = new_url;
         } catch (e) {
           console.error(e.message);
         }
       }
       body = {
-        photo: photo.url,
+        photo: photo.url[0],
       };
       for (const key of Object.keys(context)) {
         if (context[key] !== undefined && context[key] !== null) {
@@ -240,10 +248,12 @@ export async function sendPhotoToTelegram(photo, token, context, _info = null) {
         }
       }
       body.parse_mode = 'MarkdownV2';
-      let info = _info?.message_title || '';
+      let info = _info?.step?.message_title || '';
 
-      photo.revised_prompt = (photo.revised_prompt && '\n\nrevised prompt: ' + photo.revised_prompt) || '';
-      body.caption = '>`' + escape(info + photo.revised_prompt) + '`' + `\n[原始图片](${photo.url})`;
+      if (photo.text) {
+        info = (info ? info + '\n\n' : '') + photo.text;
+      }
+      body.caption = '>`' + escape(info) + '`' + `\n[原始图片](${photo.url})`;
 
       body = JSON.stringify(body);
       headers['Content-Type'] = 'application/json';
@@ -263,7 +273,7 @@ export async function sendPhotoToTelegram(photo, token, context, _info = null) {
     });
   } catch (e) {
     console.error(e);
-    throw new Error('send telegram message failed, please see the log');
+    // throw new Error('send telegram message failed, please see the log');
   }
 }
 
@@ -295,15 +305,21 @@ export async function sendMediaGroupToTelegram(mediaGroup, token, context, _info
   }
 
   const body = {
-    media: mediaGroup.media.map((i) => ({ type: media_type, media: i.url })),
+    media: mediaGroup.url.map((i) => ({ type: media_type, media: i })),
+    chat_id: context.chat_id,
   };
-  for (const key of Object.keys(context)) {
-    if (context[key] !== undefined && context[key] !== null) {
-      body[key] = context[key];
+  if (context.reply_to_message_id) {
+    body.reply_parameters = {
+      message_id: context.reply_to_message_id,
+      chat_id: context.chat_id
     }
   }
 
-  const info = _info?.message_title || '';
+  let info = _info?.step.message_title;
+  if (mediaGroup.text) {
+    info += '\n\n' + mediaGroup.text;
+  }
+
   body.media[0].caption = info;
   body.media[0].caption_entities = [
     { type: 'code', offset: 0, length: info.length },
@@ -513,15 +529,20 @@ export async function getBot(token) {
  * @return {Promise<string>}
  */
 export async function getFileUrl(file_id, token) {
+  try {
     const resp = await fetch(`${ENV.TELEGRAM_API_DOMAIN}/bot${token}/getFile?file_id=${file_id}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-    }).then(r => r.json());
+    }).then((r) => r.json());
     if (resp.ok && resp.result.file_path) {
       return `${ENV.TELEGRAM_API_DOMAIN}/file/bot${token}/${resp.result.file_path}`;
     }
     return '';
+  } catch (e) {
+    console.error(e);
+    return '';
   }
+}
   

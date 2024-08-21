@@ -3,6 +3,7 @@ import '../types/context.js';
 import { ENV } from '../config/env.js';
 import { Stream } from './stream.js';
 import { loadChatLLM, currentChatModel } from "../agent/agents.js";
+import { sendChatActionToTelegramWithContext } from "../telegram/telegram.js";
 
 /**
  *
@@ -131,18 +132,18 @@ export async function requestChatCompletions(url, header, body, context, onStrea
     console.log(`url:\n${url}\nheader:\n${JSON.stringify(header)}\nbody:\n${JSON.stringify(body, null, 2)}`);
   }
   // 排除 function call耗时
-  context._info.updateStartTime();
+  context._info.step.updateStartTime();
   console.log('chat start.');
 
   if (body.model) {
-    context._info.config('model', body.model);
+    context._info.step.config('model', body.model);
   } else {
     const chatAgent = loadChatLLM(context)?.name;
     const model = currentChatModel(chatAgent, context);
-    context._info.config("model", model);
+    context._info.step.config("model", model);
   }
 
-
+  setTimeout(() => sendChatActionToTelegramWithContext(context)('typing').catch(console.error), 0);
   const resp = await fetch(url, {
     method: 'POST',
     headers: header,
@@ -155,9 +156,8 @@ export async function requestChatCompletions(url, header, body, context, onStrea
   }
 
   options = fixOpenAICompatibleOptions(options);
-  const immediatePromise = Promise.resolve();
+  const immediatePromise = Promise.resolve('ok');
   let isNeedToSend = true;
-  let nextUpdateTime = Date.now();
 
   if (onStream && resp.ok && isEventStreamResponse(resp)) {
     const stream = options.streamBuilder(resp, controller);
@@ -187,13 +187,7 @@ export async function requestChatCompletions(url, header, body, context, onStrea
         if (lastChunk && lengthDelta > updateStep) {
           lengthDelta = 0;
           updateStep += 25;
-
-          if (ENV.TELEGRAM_MIN_STREAM_INTERVAL > 0) {
-            if (nextUpdateTime > Date.now()) continue;
-            nextUpdateTime = Date.now() + ENV.TELEGRAM_MIN_STREAM_INTERVAL;
-          }
-
-          if (!msgPromise || !(await Promise.race([msgPromise, immediatePromise]))) {
+          if (!msgPromise || (await Promise.race([msgPromise, immediatePromise]) !== 'ok')) {
             msgPromise = onStream(`${contentFull}●`);
           }
         }
@@ -205,7 +199,7 @@ export async function requestChatCompletions(url, header, body, context, onStrea
     }
     if (usage) {
       // onResult?.(result);
-      context._info.setToken(usage?.prompt_tokens ?? 0, usage?.completion_tokens ?? 0);
+      context._info.step.setToken(usage?.prompt_tokens ?? 0, usage?.completion_tokens ?? 0);
     }
 
     await msgPromise;
@@ -246,7 +240,7 @@ export async function requestChatCompletions(url, header, body, context, onStrea
 
   try {
     if (result.usage) {
-      context._info.setToken(result.usage.prompt_tokens ?? 0, result.usage.completion_tokens ?? 0);
+      context._info.step.setToken(result.usage.prompt_tokens ?? 0, result.usage.completion_tokens ?? 0);
     }
     // return result;
     return options.fullContentExtractor(result);

@@ -40,19 +40,19 @@ var init_redis = __esm({
       }
       async get(key, info) {
         try {
-          const raw = await this.fetchFromRedis(`get/${key}`);
-          if (!raw) {
+          const raw2 = await this.fetchFromRedis(`get/${key}`);
+          if (!raw2) {
             return null;
           }
           switch (info?.type || "string") {
             case "string":
-              return raw.result;
+              return raw2.result;
             case "json":
-              return JSON.parse(raw.result);
+              return JSON.parse(raw2.result);
             case "arrayBuffer":
-              return new Uint8Array(raw).buffer;
+              return new Uint8Array(raw2).buffer;
             default:
-              return raw.result;
+              return raw2.result;
           }
         } catch (error) {
           console.error(`Error getting key ${key}:`, error);
@@ -111,7 +111,7 @@ var defaultOptions = {
   offset: 0,
   marketRegion: "us"
 };
-function decode(text2) {
+function decode(text) {
   const entities = {
     "&lt;": "<",
     "&gt;": ">",
@@ -119,7 +119,7 @@ function decode(text2) {
     "&quot;": '"',
     "&apos;": "'"
   };
-  return text2.replace(/&[a-zA-Z0-9#]+;/g, (match) => entities[match] || match);
+  return text.replace(/&[a-zA-Z0-9#]+;/g, (match) => entities[match] || match);
 }
 async function search(query, options) {
   if (!query)
@@ -347,13 +347,13 @@ var jina_reader = {
       throw new Error("url is null");
     }
     if (!Array.isArray(keys) || keys?.length === 0) {
-      throw new Error("JINA\\_API\\_KEY is null or all keys is expired.");
+      throw new Error("JINA_API_KEY is null or all keys is expired.");
     }
     const key_length = keys.length;
     const key = keys[Math.floor(Math.random() * key_length)];
     console.log("jina-reader:", url);
     const startTime = Date.now();
-    let result = await fetch("https://r.jina.ai/" + url, {
+    let result2 = await fetch("https://r.jina.ai/" + url, {
       headers: {
         "X-Return-Format": "text",
         "Authorization": `Bearer ${key}`
@@ -361,27 +361,27 @@ var jina_reader = {
       },
       ...signal && { signal } || {}
     });
-    if (!result.ok) {
-      if (result.status.toString().startsWith("4") && key_length > 1) {
+    if (!result2.ok) {
+      if (result2.status.toString().startsWith("4") && key_length > 1) {
         console.error(`jina key: ${key.slice(0, 10) + " ... " + key.slice(-5)} is expired`);
         keys.splice(keys.indexOf(key), 1);
         return jina_reader.func({ url, keys }, signal);
       }
       keys.pop();
-      throw new Error("All keys is unavailable. " + (await result.json()).message);
+      throw new Error("All keys is unavailable. " + (await result2.json()).message);
     }
     const time = ((Date.now() - startTime) / 1e3).toFixed(1) + "s";
-    return { content: await result.text(), time };
+    return { content: await result2.text(), time };
   },
   type: "web_crawler"
 };
 
 // src/utils/md2tgmd.js
 var escapeChars = /([\_\*\[\]\(\)\\\~\`\>\#\+\-\=\|\{\}\.\!])/g;
-function escape(text2) {
-  const lines = text2.split("\n");
+function escape(text) {
+  const lines = text.split("\n");
   const stack = [];
-  const result = [];
+  const result2 = [];
   let linetrim = "";
   for (const [i, line] of lines.entries()) {
     linetrim = line.trim();
@@ -393,7 +393,7 @@ function escape(text2) {
         startIndex = stack.pop();
         if (!stack.length) {
           const content = lines.slice(startIndex, i + 1).join("\n");
-          result.push(handleEscape(content, "code"));
+          result2.push(handleEscape(content, "code"));
           continue;
         }
       } else {
@@ -401,30 +401,30 @@ function escape(text2) {
       }
     }
     if (!stack.length) {
-      result.push(handleEscape(line));
+      result2.push(handleEscape(line));
     }
   }
   if (stack.length) {
     const last = lines.slice(stack[0]).join("\n") + "\n```";
-    result.push(handleEscape(last, "code"));
+    result2.push(handleEscape(last, "code"));
   }
-  return result.join("\n");
+  return result2.join("\n");
 }
-function handleEscape(text2, type = "text") {
-  if (!text2.trim()) {
-    return text2;
+function handleEscape(text, type = "text") {
+  if (!text.trim()) {
+    return text;
   }
   if (type === "text") {
-    text2 = text2.replace(escapeChars, "\\$1").replace(/([^\\]|)\\`([^\s].*?[^\\]|[^\\]|(\\\\)*)\\`/g, "$1`$2`").replace(/([^\\]|)\\\*\\\*([^\s].*?[^\\\s]|[^\\]|(\\\\)*)\\\*\\\*/g, "$1*$2*").replace(/([^\\]|)\\_\\_([^\s].*?[^\\\s]|[^\\]|(\\\\)*)\\_\\_/g, "$1__$2__").replace(/([^\\]|)\\_([^\s].*?[^\\\s]|[^\\]|(\\\\)*)\\_/g, "$1_$2_").replace(/([^\\]|)\\~\\~([^\s].*?[^\\\s]|[^\\]|(\\\\)*)\\~\\~/g, "$1~$2~").replace(/([^\\]|)\\\|\\\|([^\s].*?[^\\\s]|[^\\]|(\\\\)*)\\\|\\\|/g, "$1||$2||").replace(/\\\[([^\]]+?)\\\]\\\((.+?)\\\)/g, "[$1]($2)").replace(/\\\\\\([_*[]\(\)\\~`>#\+-=\|\{\}\.!])/g, "\\$1").replace(/^(\s*)\\(>.+\s*)$/, "$1$2").replace(/^(\s*)\\-\s*(.+)$/, "$1\u2022 $2").replace(/^((\\#){1,3}\s)(.+)/, "$1*$3*");
+    text = text.replace(escapeChars, "\\$1").replace(/([^\\]|)\\`([^\s].*?[^\\]|[^\\]|(\\\\)*)\\`/g, "$1`$2`").replace(/([^\\]|)\\\*\\\*([^\s].*?[^\\\s]|[^\\]|(\\\\)*)\\\*\\\*/g, "$1*$2*").replace(/([^\\]|)\\_\\_([^\s].*?[^\\\s]|[^\\]|(\\\\)*)\\_\\_/g, "$1__$2__").replace(/([^\\]|)\\_([^\s].*?[^\\\s]|[^\\]|(\\\\)*)\\_/g, "$1_$2_").replace(/([^\\]|)\\~\\~([^\s].*?[^\\\s]|[^\\]|(\\\\)*)\\~\\~/g, "$1~$2~").replace(/([^\\]|)\\\|\\\|([^\s].*?[^\\\s]|[^\\]|(\\\\)*)\\\|\\\|/g, "$1||$2||").replace(/\\\[([^\]]+?)\\\]\\\((.+?)\\\)/g, "[$1]($2)").replace(/\\\\\\([_*[]\(\)\\~`>#\+-=\|\{\}\.!])/g, "\\$1").replace(/^(\s*)\\(>.+\s*)$/, "$1$2").replace(/^(\s*)\\-\s*(.+)$/, "$1\u2022 $2").replace(/^((\\#){1,3}\s)(.+)/, "$1*$3*");
   } else {
-    const codeBlank = text2.length - text2.trimStart().length;
+    const codeBlank = text.length - text.trimStart().length;
     if (codeBlank > 0) {
       const blankReg = new RegExp(`^\\s{${codeBlank}}`, "gm");
-      text2 = text2.replace(blankReg, "");
+      text = text.replace(blankReg, "");
     }
-    text2 = text2.trimEnd().replace(/([\\\`])/g, "\\$1").replace(/^\\`\\`\\`([\s\S]+)\\`\\`\\`$/g, "```$1```");
+    text = text.trimEnd().replace(/([\\\`])/g, "\\$1").replace(/^\\`\\`\\`([\s\S]+)\\`\\`\\`$/g, "```$1```");
   }
-  return text2;
+  return text;
 }
 
 // src/utils/cache.js
@@ -485,20 +485,25 @@ async function fetchImage(url) {
   });
 }
 async function uploadImageToTelegraph(url) {
-  if (url.startsWith("https://telegra.ph")) {
+  try {
+    if (url.startsWith("https://telegra.ph")) {
+      return url;
+    }
+    const raw2 = await fetch(url).then((resp2) => resp2.blob());
+    const formData = new FormData();
+    formData.append("file", raw2, "blob");
+    const resp = await fetch("https://telegra.ph/upload", {
+      method: "POST",
+      body: formData
+    });
+    let [{ src }] = await resp.json();
+    src = `https://telegra.ph${src}`;
+    IMAGE_CACHE.set(url, raw2);
+    return src;
+  } catch (e2) {
+    console.error(e2);
     return url;
   }
-  const raw = await fetch(url).then((resp2) => resp2.blob());
-  const formData = new FormData();
-  formData.append("file", raw, "blob");
-  const resp = await fetch("https://telegra.ph/upload", {
-    method: "POST",
-    body: formData
-  });
-  let [{ src }] = await resp.json();
-  src = `https://telegra.ph${src}`;
-  IMAGE_CACHE.set(url, raw);
-  return src;
 }
 async function urlToBase64String(url) {
   try {
@@ -550,7 +555,7 @@ async function sendMessage(message, token, context) {
     if (context?.message_id) {
       method = "editMessageText";
     }
-    return await fetch(`${ENV.TELEGRAM_API_DOMAIN}/bot${token}/${method}`, {
+    return await fetch(`${ENV2.TELEGRAM_API_DOMAIN}/bot${token}/${method}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -559,7 +564,6 @@ async function sendMessage(message, token, context) {
     });
   } catch (e2) {
     console.error(e2);
-    throw new Error("send telegram message failed, please see the log.");
   }
 }
 async function sendMessageToTelegram(message, token, context, _info = null) {
@@ -571,8 +575,8 @@ async function sendMessageToTelegram(message, token, context, _info = null) {
   let origin_msg = message;
   let info = "";
   const escapeContent = (parse_mode = chatContext?.parse_mode) => {
-    info = _info?.message_title || "";
-    if (!_info?.isLastStep && _info?.step_index > 0 || origin_msg.length > limit) {
+    info = _info.is_concurrent ? "" : _info?.step?.message_title || "";
+    if (!_info?.isLastStep && _info.steps.length !== 0 && parse_mode !== null || _info.is_concurrent || origin_msg.length > limit) {
       chatContext.parse_mode = null;
       message = (info && info + "\n\n") + origin_msg;
       chatContext.entities = [
@@ -647,7 +651,6 @@ async function sendMessageToTelegram(message, token, context, _info = null) {
   return last_resp;
 }
 function sendMessageToTelegramWithContext(context) {
-  const { sentMessageIds, chatType } = context.SHARE_CONTEXT;
   return async (message, msgType = "chat") => {
     const resp = await sendMessageToTelegram(
       message,
@@ -655,22 +658,26 @@ function sendMessageToTelegramWithContext(context) {
       context.CURRENT_CHAT_CONTEXT,
       context._info
     );
-    if (sentMessageIds) {
-      const clone_resp = await resp.clone().json();
-      if (!sentMessageIds.has(clone_resp.result.message_id) && (CONST.GROUP_TYPES.includes(chatType) && ENV.SCHEDULE_GROUP_DELETE_TYPE.includes(msgType) || CONST.PRIVATE_TYPES.includes(chatType) && ENV.SCHEDULE_PRIVATE_DELETE_TYPE.includes(msgType))) {
-        sentMessageIds.add(clone_resp.result.message_id);
-        if (msgType === "tip") {
-          sentMessageIds.add(context.SHARE_CONTEXT.messageId);
-        }
+    return await checkIsNeedTagIds(context, msgType, resp);
+  };
+}
+async function checkIsNeedTagIds(context, msgType, resp) {
+  const { sentMessageIds, chatType } = context.SHARE_CONTEXT;
+  if (sentMessageIds) {
+    const clone_resp = await resp.clone().json();
+    if (!sentMessageIds.has(clone_resp.result.message_id) && (CONST.GROUP_TYPES.includes(chatType) && ENV2.SCHEDULE_GROUP_DELETE_TYPE.includes(msgType) || CONST.PRIVATE_TYPES.includes(chatType) && ENV2.SCHEDULE_PRIVATE_DELETE_TYPE.includes(msgType))) {
+      sentMessageIds.add(clone_resp.result.message_id);
+      if (msgType === "tip") {
+        sentMessageIds.add(context.SHARE_CONTEXT.messageId);
       }
     }
-    return resp;
-  };
+  }
+  return resp;
 }
 function deleteMessageFromTelegramWithContext(context) {
   return async (messageId) => {
     return await fetch(
-      `${ENV.TELEGRAM_API_DOMAIN}/bot${context.SHARE_CONTEXT.currentBotToken}/deleteMessage`,
+      `${ENV2.TELEGRAM_API_DOMAIN}/bot${context.SHARE_CONTEXT.currentBotToken}/deleteMessage`,
       {
         method: "POST",
         headers: {
@@ -686,7 +693,7 @@ function deleteMessageFromTelegramWithContext(context) {
 }
 async function deleteMessagesFromTelegram(chat_id, bot_token, message_ids) {
   return await fetch(
-    `${ENV.TELEGRAM_API_DOMAIN}/bot${bot_token}/deleteMessages`,
+    `${ENV2.TELEGRAM_API_DOMAIN}/bot${bot_token}/deleteMessages`,
     {
       method: "POST",
       headers: {
@@ -701,20 +708,20 @@ async function deleteMessagesFromTelegram(chat_id, bot_token, message_ids) {
 }
 async function sendPhotoToTelegram(photo, token, context, _info = null) {
   try {
-    const url = `${ENV.TELEGRAM_API_DOMAIN}/bot${token}/sendPhoto`;
+    const url = `${ENV2.TELEGRAM_API_DOMAIN}/bot${token}/sendPhoto`;
     let body;
     const headers = {};
-    if (typeof photo.url === "string") {
-      if (ENV.TELEGRAPH_IMAGE_ENABLE) {
+    if (typeof photo.url[0] === "string") {
+      if (ENV2.TELEGRAPH_IMAGE_ENABLE) {
         try {
-          const new_url = await uploadImageToTelegraph(photo.url);
+          const new_url = await uploadImageToTelegraph(photo.url[0]);
           photo.url = new_url;
         } catch (e2) {
           console.error(e2.message);
         }
       }
       body = {
-        photo: photo.url
+        photo: photo.url[0]
       };
       for (const key of Object.keys(context)) {
         if (context[key] !== void 0 && context[key] !== null) {
@@ -722,9 +729,11 @@ async function sendPhotoToTelegram(photo, token, context, _info = null) {
         }
       }
       body.parse_mode = "MarkdownV2";
-      let info = _info?.message_title || "";
-      photo.revised_prompt = photo.revised_prompt && "\n\nrevised prompt: " + photo.revised_prompt || "";
-      body.caption = ">`" + escape(info + photo.revised_prompt) + `\`
+      let info = _info?.step?.message_title || "";
+      if (photo.text) {
+        info = (info ? info + "\n\n" : "") + photo.text;
+      }
+      body.caption = ">`" + escape(info) + `\`
 [\u539F\u59CB\u56FE\u7247](${photo.url})`;
       body = JSON.stringify(body);
       headers["Content-Type"] = "application/json";
@@ -744,7 +753,6 @@ async function sendPhotoToTelegram(photo, token, context, _info = null) {
     });
   } catch (e2) {
     console.error(e2);
-    throw new Error("send telegram message failed, please see the log");
   }
 }
 function sendPhotoToTelegramWithContext(context) {
@@ -752,9 +760,49 @@ function sendPhotoToTelegramWithContext(context) {
     return sendPhotoToTelegram(img_info, context.SHARE_CONTEXT.currentBotToken, context.CURRENT_CHAT_CONTEXT, context._info);
   };
 }
+async function sendMediaGroupToTelegram(mediaGroup, token, context, _info) {
+  const url = `${ENV2.TELEGRAM_API_DOMAIN}/bot${token}/sendMediaGroup`;
+  const supported_type = ["photo", "audio", "document", "video"];
+  const media_type = mediaGroup.type;
+  if (!supported_type.includes(media_type)) {
+    throw new Error(`unsupported media type: ${mediaGroup.type}`);
+  }
+  const body = {
+    media: mediaGroup.url.map((i) => ({ type: media_type, media: i })),
+    chat_id: context.chat_id
+  };
+  if (context.reply_to_message_id) {
+    body.reply_parameters = {
+      message_id: context.reply_to_message_id,
+      chat_id: context.chat_id
+    };
+  }
+  let info = _info?.step.message_title;
+  if (mediaGroup.text) {
+    info += "\n\n" + mediaGroup.text;
+  }
+  body.media[0].caption = info;
+  body.media[0].caption_entities = [
+    { type: "code", offset: 0, length: info.length },
+    { type: "blockquote", offset: 0, length: info.length }
+  ];
+  const headers = {
+    "Content-Type": "application/json"
+  };
+  return fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body)
+  });
+}
+function sendMediaGroupToTelegramWithContext(context) {
+  return (mediaGroup) => {
+    return sendMediaGroupToTelegram(mediaGroup, context.SHARE_CONTEXT.currentBotToken, context.CURRENT_CHAT_CONTEXT, context._info);
+  };
+}
 async function sendChatActionToTelegram(action, token, chatId) {
   return await fetch(
-    `${ENV.TELEGRAM_API_DOMAIN}/bot${token}/sendChatAction`,
+    `${ENV2.TELEGRAM_API_DOMAIN}/bot${token}/sendChatAction`,
     {
       method: "POST",
       headers: {
@@ -774,7 +822,7 @@ function sendChatActionToTelegramWithContext(context) {
 }
 async function bindTelegramWebHook(token, url) {
   return await fetch(
-    `${ENV.TELEGRAM_API_DOMAIN}/bot${token}/setWebhook`,
+    `${ENV2.TELEGRAM_API_DOMAIN}/bot${token}/setWebhook`,
     {
       method: "POST",
       headers: {
@@ -822,7 +870,7 @@ function getChatRoleWithContext(context) {
 async function getChatAdminister(chatId, token) {
   try {
     const resp = await fetch(
-      `${ENV.TELEGRAM_API_DOMAIN}/bot${token}/getChatAdministrators`,
+      `${ENV2.TELEGRAM_API_DOMAIN}/bot${token}/getChatAdministrators`,
       {
         method: "POST",
         headers: {
@@ -841,7 +889,7 @@ async function getChatAdminister(chatId, token) {
 }
 async function getBot(token) {
   const resp = await fetch(
-    `${ENV.TELEGRAM_API_DOMAIN}/bot${token}/getMe`,
+    `${ENV2.TELEGRAM_API_DOMAIN}/bot${token}/getMe`,
     {
       method: "POST",
       headers: {
@@ -864,35 +912,40 @@ async function getBot(token) {
   }
 }
 async function getFileUrl(file_id, token) {
-  const resp = await fetch(`${ENV.TELEGRAM_API_DOMAIN}/bot${token}/getFile?file_id=${file_id}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
+  try {
+    const resp = await fetch(`${ENV2.TELEGRAM_API_DOMAIN}/bot${token}/getFile?file_id=${file_id}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      }
+    }).then((r) => r.json());
+    if (resp.ok && resp.result.file_path) {
+      return `${ENV2.TELEGRAM_API_DOMAIN}/file/bot${token}/${resp.result.file_path}`;
     }
-  }).then((r) => r.json());
-  if (resp.ok && resp.result.file_path) {
-    return `${ENV.TELEGRAM_API_DOMAIN}/file/bot${token}/${resp.result.file_path}`;
+    return "";
+  } catch (e2) {
+    console.error(e2);
+    return "";
   }
-  return "";
 }
 
 // src/tools/scheduleTask.js
-async function schedule_detele_message(ENV2) {
+async function schedule_detele_message(ENV3) {
   try {
     console.log("- Start task: schedule_detele_message");
-    const DATABASE2 = ENV2.DATABASE;
+    const DATABASE2 = ENV3.DATABASE;
     const scheduleDeteleKey = "schedule_detele_message";
     const scheduledData = JSON.parse(await DATABASE2.get(scheduleDeteleKey) || "{}");
     let botTokens = [];
     let botNames = [];
-    if (typeof ENV2.TELEGRAM_AVAILABLE_TOKENS === "string") {
-      botTokens = parseArray(ENV2.TELEGRAM_AVAILABLE_TOKENS);
+    if (typeof ENV3.TELEGRAM_AVAILABLE_TOKENS === "string") {
+      botTokens = parseArray(ENV3.TELEGRAM_AVAILABLE_TOKENS);
     } else
-      botTokens = ENV2.TELEGRAM_AVAILABLE_TOKENS;
-    if (typeof ENV2.TELEGRAM_BOT_NAME === "string") {
-      botNames = parseArray(ENV2.TELEGRAM_BOT_NAME);
+      botTokens = ENV3.TELEGRAM_AVAILABLE_TOKENS;
+    if (typeof ENV3.TELEGRAM_BOT_NAME === "string") {
+      botNames = parseArray(ENV3.TELEGRAM_BOT_NAME);
     } else
-      botNames = ENV2.TELEGRAM_BOT_NAME;
+      botNames = ENV3.TELEGRAM_BOT_NAME;
     const taskPromises = [];
     for (const [bot_name, chats] of Object.entries(scheduledData)) {
       const bot_index = botNames.indexOf(bot_name);
@@ -1028,8 +1081,8 @@ var UserConfig = class {
   // Anthropic api model
   ANTHROPIC_CHAT_MODEL = "claude-3-haiku-20240307";
   // -- OPENAI LIKE --
-  OPENAILIKE_IMAGE_MODEL = "black-forest-labs/FLUX.1-schnell";
-  OPENAILIKE_CHAT_MODEL = "deepseek-chat";
+  IMAGE_MODEL = "black-forest-labs/FLUX.1-schnell";
+  CHAT_MODEL = "deepseek-chat";
   // -- EXTRA 配置 --
   //
   // OpenAI Speech to text额外参数
@@ -1045,29 +1098,37 @@ var UserConfig = class {
   // 提供商来源 {"foo": { API_BASE: "https://xxxxxx", API_KEY: "xxxxxx" }}
   PROVIDERS = {};
   MODES = {
-    // process_type: 默认为'消息类型:text' ; 消息类型分为: text audio image
+    // chain_type: 默认为'消息类型:text' ; 消息类型分为: text audio image
     // provider: 默认为default
     // agent: 默认为openai, 与AI对话时使用openai风格接口
     // prompt: default
     // model: 不同类型下 不同默认值
-    // text:audio, TODO
+    // type: concurrent类型流程会并列执行
     default: {
-      text: [{}],
-      audio: [
-        // 后若出现模型能直接audio:text对话 可加上指定模型, 去掉text:text
-        {},
-        { process_type: "text:text" }
-      ],
-      image: [{}]
+      text: {},
+      audio: {
+        chains: [
+          // 后若出现模型能直接audio:text对话 可加上指定模型, 去掉text:text
+          {},
+          { chain_type: "text:text" }
+        ]
+      },
+      image: {}
     },
-    "dall-e": {
-      text: [{ prompt: "dall-e" }, { process_type: "text:image" }]
+    dalle: {
+      text: { chains: [{ prompt: "dall-e" }, { chain_type: "text:image" }] }
     }
+    // compete: {
+    //   text: {
+    //     type: 'concurrent',
+    //     chains: [{}, { model: 'gpt-4o-2024-08-06' }],
+    //   },
+    // },
   };
   // 历史最大长度 调整为用户配置
   MAX_HISTORY_LENGTH = 12;
   // /set 指令映射变量 | 分隔多个关系，:分隔映射
-  MAPPING_KEY = "-p:SYSTEM_INIT_MESSAGE|-n:MAX_HISTORY_LENGTH|-a:AI_PROVIDER|-ai:AI_IMAGE_PROVIDER|-m:CHAT_MODEL|-v:OPENAI_VISION_MODEL|-t:OPENAI_TTS_MODEL|-ex:OPENAI_API_EXTRA_PARAMS|-mk:MAPPING_KEY|-mv:MAPPING_VALUE|-asap:FUNCTION_REPLY_ASAP|-fm:FUNCTION_CALL_MODEL|-tool:USE_TOOLS|-oli:OPENAILIKE_IMAGE_MODEL";
+  MAPPING_KEY = "-p:SYSTEM_INIT_MESSAGE|-n:MAX_HISTORY_LENGTH|-a:AI_PROVIDER|-ai:AI_IMAGE_PROVIDER|-m:CHAT_MODEL|-v:OPENAI_VISION_MODEL|-t:OPENAI_TTS_MODEL|-ex:OPENAI_API_EXTRA_PARAMS|-mk:MAPPING_KEY|-mv:MAPPING_VALUE|-asap:FUNCTION_REPLY_ASAP|-fm:FUNCTION_CALL_MODEL|-tool:USE_TOOLS|-oli:IMAGE_MODEL";
   // /set 指令映射值  | 分隔多个关系，:分隔映射
   MAPPING_VALUE = "";
   // MAPPING_VALUE = "cson:claude-3-5-sonnet-20240620|haiku:claude-3-haiku-20240307|g4m:gpt-4o-mini|g4:gpt-4o|rp+:command-r-plus";
@@ -1091,9 +1152,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1724170465;
+  BUILD_TIMESTAMP = 1724239775;
   // 当前版本 commit id
-  BUILD_VERSION = "561ba79";
+  BUILD_VERSION = "1862214";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -1220,7 +1281,7 @@ var Environment = class {
   // 定时删除私人消息的类型 命令对话:command与普通对话:chat
   SCHEDULE_PRIVATE_DELETE_TYPE = ["tip"];
 };
-var ENV = new Environment();
+var ENV2 = new Environment();
 var DATABASE = null;
 var API_GUARD = null;
 var CUSTOM_COMMAND = {};
@@ -1247,18 +1308,18 @@ var ENV_KEY_MAPPER = {
   API_KEY: "OPENAI_API_KEY",
   WORKERS_AI_MODEL: "WORKERS_CHAT_MODEL"
 };
-function parseArray(raw) {
-  if (raw.trim() === "") {
+function parseArray(raw2) {
+  if (raw2.trim() === "") {
     return [];
   }
-  if (raw.startsWith("[") && raw.endsWith("]")) {
+  if (raw2.startsWith("[") && raw2.endsWith("]")) {
     try {
-      return JSON.parse(raw);
+      return JSON.parse(raw2);
     } catch (e2) {
       console.error(e2);
     }
   }
-  return raw.split(",");
+  return raw2.split(",");
 }
 function mergeEnvironment(target, source) {
   const sourceKeys = new Set(Object.keys(source));
@@ -1313,31 +1374,31 @@ function initEnv(env, i18n2) {
       CUSTOM_COMMAND_DESCRIPTION["/" + cmd] = env[customCommandDescriptionPrefix + cmd];
     }
   }
-  mergeEnvironment(ENV, env);
-  mergeEnvironment(ENV.USER_CONFIG, env);
-  ENV.USER_CONFIG.DEFINE_KEYS = [];
+  mergeEnvironment(ENV2, env);
+  mergeEnvironment(ENV2.USER_CONFIG, env);
+  ENV2.USER_CONFIG.DEFINE_KEYS = [];
   {
-    ENV.I18N = i18n2((ENV.LANGUAGE || "cn").toLowerCase());
-    if (env.TELEGRAM_TOKEN && !ENV.TELEGRAM_AVAILABLE_TOKENS.includes(env.TELEGRAM_TOKEN)) {
-      if (env.BOT_NAME && ENV.TELEGRAM_AVAILABLE_TOKENS.length === ENV.TELEGRAM_BOT_NAME.length) {
-        ENV.TELEGRAM_BOT_NAME.push(env.BOT_NAME);
+    ENV2.I18N = i18n2((ENV2.LANGUAGE || "cn").toLowerCase());
+    if (env.TELEGRAM_TOKEN && !ENV2.TELEGRAM_AVAILABLE_TOKENS.includes(env.TELEGRAM_TOKEN)) {
+      if (env.BOT_NAME && ENV2.TELEGRAM_AVAILABLE_TOKENS.length === ENV2.TELEGRAM_BOT_NAME.length) {
+        ENV2.TELEGRAM_BOT_NAME.push(env.BOT_NAME);
       }
-      ENV.TELEGRAM_AVAILABLE_TOKENS.push(env.TELEGRAM_TOKEN);
+      ENV2.TELEGRAM_AVAILABLE_TOKENS.push(env.TELEGRAM_TOKEN);
     }
-    if (env.OPENAI_API_DOMAIN && !ENV.OPENAI_API_BASE) {
-      ENV.USER_CONFIG.OPENAI_API_BASE = `${env.OPENAI_API_DOMAIN}/v1`;
+    if (env.OPENAI_API_DOMAIN && !ENV2.OPENAI_API_BASE) {
+      ENV2.USER_CONFIG.OPENAI_API_BASE = `${env.OPENAI_API_DOMAIN}/v1`;
     }
-    if (env.WORKERS_AI_MODEL && !ENV.USER_CONFIG.WORKERS_CHAT_MODEL) {
-      ENV.USER_CONFIG.WORKERS_CHAT_MODEL = env.WORKERS_AI_MODEL;
+    if (env.WORKERS_AI_MODEL && !ENV2.USER_CONFIG.WORKERS_CHAT_MODEL) {
+      ENV2.USER_CONFIG.WORKERS_CHAT_MODEL = env.WORKERS_AI_MODEL;
     }
-    if (env.API_KEY && ENV.USER_CONFIG.OPENAI_API_KEY.length === 0) {
-      ENV.USER_CONFIG.OPENAI_API_KEY = env.API_KEY.split(",");
+    if (env.API_KEY && ENV2.USER_CONFIG.OPENAI_API_KEY.length === 0) {
+      ENV2.USER_CONFIG.OPENAI_API_KEY = env.API_KEY.split(",");
     }
-    if (env.CHAT_MODEL && !ENV.USER_CONFIG.OPENAI_CHAT_MODEL) {
-      ENV.USER_CONFIG.OPENAI_CHAT_MODEL = env.CHAT_MODEL;
+    if (env.CHAT_MODEL && !ENV2.USER_CONFIG.OPENAI_CHAT_MODEL) {
+      ENV2.USER_CONFIG.OPENAI_CHAT_MODEL = env.CHAT_MODEL;
     }
-    if (!ENV.USER_CONFIG.SYSTEM_INIT_MESSAGE) {
-      ENV.USER_CONFIG.SYSTEM_INIT_MESSAGE = ENV.I18N?.env?.system_init_message || "You are a helpful assistant";
+    if (!ENV2.USER_CONFIG.SYSTEM_INIT_MESSAGE) {
+      ENV2.USER_CONFIG.SYSTEM_INIT_MESSAGE = ENV2.I18N?.env?.system_init_message || "You are a helpful assistant";
     }
   }
 }
@@ -1348,7 +1409,7 @@ function trimUserConfig(userConfig) {
     ...userConfig
   };
   const keysSet = new Set(userConfig.DEFINE_KEYS);
-  for (const key of ENV.LOCK_USER_CONFIG_KEYS) {
+  for (const key of ENV2.LOCK_USER_CONFIG_KEYS) {
     keysSet.delete(key);
   }
   keysSet.add("DEFINE_KEYS");
@@ -1382,11 +1443,11 @@ var ShareContext = class {
 var CurrentChatContext = class {
   chat_id = null;
   reply_to_message_id = null;
-  parse_mode = ENV.DEFAULT_PARSE_MODE;
+  parse_mode = ENV2.DEFAULT_PARSE_MODE;
   message_id = null;
   reply_markup = null;
   allow_sending_without_reply = null;
-  disable_web_page_preview = ENV.DISABLE_WEB_PREVIEW;
+  disable_web_page_preview = ENV2.DISABLE_WEB_PREVIEW;
 };
 var Context = class {
   // 用户配置
@@ -1414,7 +1475,7 @@ var Context = class {
   async _initUserConfig(storeKey) {
     try {
       this.USER_CONFIG = {
-        ...ENV.USER_CONFIG
+        ...ENV2.USER_CONFIG
       };
       const userConfig = JSON.parse(await DATABASE.get(storeKey) || "{}");
       mergeEnvironment(this.USER_CONFIG, trimUserConfig(userConfig));
@@ -1426,14 +1487,14 @@ var Context = class {
    * @param {string} token
    */
   initTelegramContext(token) {
-    const telegramIndex = ENV.TELEGRAM_AVAILABLE_TOKENS.indexOf(token);
+    const telegramIndex = ENV2.TELEGRAM_AVAILABLE_TOKENS.indexOf(token);
     if (telegramIndex === -1) {
       throw new Error("Token not allowed");
     }
     this.SHARE_CONTEXT.currentBotToken = token;
     this.SHARE_CONTEXT.currentBotId = token.split(":")[0];
-    if (ENV.TELEGRAM_BOT_NAME.length > telegramIndex) {
-      this.SHARE_CONTEXT.currentBotName = ENV.TELEGRAM_BOT_NAME[telegramIndex];
+    if (ENV2.TELEGRAM_BOT_NAME.length > telegramIndex) {
+      this.SHARE_CONTEXT.currentBotName = ENV2.TELEGRAM_BOT_NAME[telegramIndex];
     }
   }
   /**
@@ -1463,7 +1524,7 @@ var Context = class {
       }
     }
     if (CONST.GROUP_TYPES.includes(message.chat?.type)) {
-      if (!ENV.GROUP_CHAT_BOT_SHARE_MODE && message.from.id) {
+      if (!ENV2.GROUP_CHAT_BOT_SHARE_MODE && message.from.id) {
         historyKey += `:${message.from.id}`;
         configStoreKey += `:${message.from.id}`;
       }
@@ -1478,8 +1539,9 @@ var Context = class {
     this.SHARE_CONTEXT.chatId = message.chat.id;
     this.SHARE_CONTEXT.speakerId = message.from.id || message.chat.id;
     this.SHARE_CONTEXT.messageId = message.message_id;
-    if (ENV.EXPIRED_TIME > 0)
+    if (ENV2.EXPIRED_TIME > 0)
       this.SHARE_CONTEXT.sentMessageIds = /* @__PURE__ */ new Set();
+    this.SHARE_CONTEXT.storeMessageKey = `store_message:${message.chat.id}:${message.from.id || message.chat.id}`;
   }
   /**
    * @param {TelegramMessage} message
@@ -1488,7 +1550,7 @@ var Context = class {
   async initContext(message) {
     const chatId = message?.chat?.id;
     let replyId = CONST.GROUP_TYPES.includes(message.chat?.type) ? message.message_id : null;
-    if (ENV.EXTRA_MESSAGE_CONTEXT && ENV.ENABLE_REPLY_TO_MENTION && CONST.GROUP_TYPES.includes(message.chat?.type) && message?.reply_to_message && this.SHARE_CONTEXT.currentBotId !== `${message?.reply_to_message?.from?.id}`) {
+    if (ENV2.EXTRA_MESSAGE_CONTEXT && ENV2.ENABLE_REPLY_TO_MENTION && CONST.GROUP_TYPES.includes(message.chat?.type) && message?.reply_to_message && this.SHARE_CONTEXT.currentBotId !== `${message?.reply_to_message?.from?.id}`) {
       replyId = message.reply_to_message.message_id;
     }
     this._initChatContext(chatId, replyId);
@@ -1655,20 +1717,20 @@ var LineDecoder = class {
     this.trailingCR = false;
   }
   decode(chunk) {
-    let text2 = this.decodeText(chunk);
+    let text = this.decodeText(chunk);
     if (this.trailingCR) {
-      text2 = "\r" + text2;
+      text = "\r" + text;
       this.trailingCR = false;
     }
-    if (text2.endsWith("\r")) {
+    if (text.endsWith("\r")) {
       this.trailingCR = true;
-      text2 = text2.slice(0, -1);
+      text = text.slice(0, -1);
     }
-    if (!text2) {
+    if (!text) {
       return [];
     }
-    const trailingNewline = LineDecoder.NEWLINE_CHARS.has(text2[text2.length - 1] || "");
-    let lines = text2.split(LineDecoder.NEWLINE_REGEXP);
+    const trailingNewline = LineDecoder.NEWLINE_CHARS.has(text[text.length - 1] || "");
+    let lines = text.split(LineDecoder.NEWLINE_REGEXP);
     if (lines.length === 1 && !trailingNewline) {
       this.buffer.push(lines[0]);
       return [];
@@ -1779,14 +1841,14 @@ async function requestChatCompletions(url, header2, body, context, onStream, onR
   const controller = new AbortController();
   const { signal } = controller;
   let timeoutID = null;
-  if (ENV.CHAT_COMPLETE_API_TIMEOUT > 0) {
-    timeoutID = setTimeout(() => controller.abort(), ENV.CHAT_COMPLETE_API_TIMEOUT * 1e3);
+  if (ENV2.CHAT_COMPLETE_API_TIMEOUT > 0) {
+    timeoutID = setTimeout(() => controller.abort(), ENV2.CHAT_COMPLETE_API_TIMEOUT * 1e3);
   }
   let alltimeoutID = null;
-  if (ENV.ALL_COMPLETE_API_TIMEOUT > 0) {
-    alltimeoutID = setTimeout(() => controller.abort(), ENV.ALL_COMPLETE_API_TIMEOUT * 1e3);
+  if (ENV2.ALL_COMPLETE_API_TIMEOUT > 0) {
+    alltimeoutID = setTimeout(() => controller.abort(), ENV2.ALL_COMPLETE_API_TIMEOUT * 1e3);
   }
-  if (ENV.DEBUG_MODE) {
+  if (ENV2.DEBUG_MODE) {
     console.log(`url:
 ${url}
 header:
@@ -1794,15 +1856,16 @@ ${JSON.stringify(header2)}
 body:
 ${JSON.stringify(body, null, 2)}`);
   }
-  context._info.updateStartTime();
+  context._info.step.updateStartTime();
   console.log("chat start.");
   if (body.model) {
-    context._info.config("model", body.model);
+    context._info.step.config("model", body.model);
   } else {
     const chatAgent = loadChatLLM(context)?.name;
     const model = currentChatModel(chatAgent, context);
-    context._info.config("model", model);
+    context._info.step.config("model", model);
   }
+  setTimeout(() => sendChatActionToTelegramWithContext(context)("typing").catch(console.error), 0);
   const resp = await fetch(url, {
     method: "POST",
     headers: header2,
@@ -1813,9 +1876,8 @@ ${JSON.stringify(body, null, 2)}`);
     clearTimeout(timeoutID);
   }
   options = fixOpenAICompatibleOptions(options);
-  const immediatePromise = Promise.resolve();
+  const immediatePromise = Promise.resolve("ok");
   let isNeedToSend = true;
-  let nextUpdateTime = Date.now();
   if (onStream && resp.ok && isEventStreamResponse(resp)) {
     const stream = options.streamBuilder(resp, controller);
     let contentFull = "";
@@ -1847,12 +1909,7 @@ ${JSON.stringify(body, null, 2)}`);
         if (lastChunk && lengthDelta > updateStep) {
           lengthDelta = 0;
           updateStep += 25;
-          if (ENV.TELEGRAM_MIN_STREAM_INTERVAL > 0) {
-            if (nextUpdateTime > Date.now())
-              continue;
-            nextUpdateTime = Date.now() + ENV.TELEGRAM_MIN_STREAM_INTERVAL;
-          }
-          if (!msgPromise || !await Promise.race([msgPromise, immediatePromise])) {
+          if (!msgPromise || await Promise.race([msgPromise, immediatePromise]) !== "ok") {
             msgPromise = onStream(`${contentFull}\u25CF`);
           }
         }
@@ -1864,7 +1921,7 @@ ${JSON.stringify(body, null, 2)}`);
 ERROR: ${e2.message}`;
     }
     if (usage) {
-      context._info.setToken(usage?.prompt_tokens ?? 0, usage?.completion_tokens ?? 0);
+      context._info.step.setToken(usage?.prompt_tokens ?? 0, usage?.completion_tokens ?? 0);
     }
     await msgPromise;
     if (alltimeoutID) {
@@ -1881,27 +1938,27 @@ ERROR: ${e2.message}`;
   if (alltimeoutID) {
     clearTimeout(alltimeoutID);
   }
-  if (ENV.DEBUG_MODE) {
+  if (ENV2.DEBUG_MODE) {
     const r = await resp.clone().text();
     console.log("resp result: ", r);
   }
   if (!isJsonResponse(resp)) {
     throw new Error(resp.statusText);
   }
-  const result = await resp.json();
-  if (!result) {
+  const result2 = await resp.json();
+  if (!result2) {
     throw new Error("Empty response");
   }
-  if (options.errorExtractor(result)) {
-    throw new Error(options.errorExtractor(result));
+  if (options.errorExtractor(result2)) {
+    throw new Error(options.errorExtractor(result2));
   }
   try {
-    if (result.usage) {
-      context._info.setToken(result.usage.prompt_tokens ?? 0, result.usage.completion_tokens ?? 0);
+    if (result2.usage) {
+      context._info.step.setToken(result2.usage.prompt_tokens ?? 0, result2.usage.completion_tokens ?? 0);
     }
-    return options.fullContentExtractor(result);
+    return options.fullContentExtractor(result2);
   } catch (e2) {
-    throw Error(JSON.stringify(result));
+    throw Error(JSON.stringify(result2));
   }
 }
 
@@ -1910,14 +1967,14 @@ var tools_default2 = {
   search: {
     prompt: "\u4F5C\u4E3A\u667A\u80FD\u52A9\u624B\uFF0C\u8BF7\u6309\u7167\u4EE5\u4E0B\u6B65\u9AA4\u6709\u6548\u5206\u6790\u5E76\u63D0\u53D6\u6211\u63D0\u4F9B\u7684\u641C\u7D22\u7ED3\u679C\uFF0C\u4EE5\u7B80\u6D01\u660E\u4E86\u7684\u65B9\u5F0F\u56DE\u7B54\u6211\u7684\u95EE\u9898\uFF1A\n\n1. \u9605\u8BFB\u548C\u8BC4\u4F30\uFF1A\u4ED4\u7EC6\u9605\u8BFB\u6240\u6709\u641C\u7D22\u7ED3\u679C\uFF0C\u8BC6\u522B\u5E76\u4F18\u5148\u83B7\u53D6\u6765\u81EA\u53EF\u9760\u548C\u6700\u65B0\u6765\u6E90\u7684\u4FE1\u606F\u3002\u8003\u8651\u56E0\u7D20\u5305\u62EC\u5B98\u65B9\u6765\u6E90\u3001\u77E5\u540D\u673A\u6784\u4EE5\u53CA\u4FE1\u606F\u7684\u66F4\u65B0\u65F6\u95F4\u3002\n\n2. \u63D0\u53D6\u5173\u952E\u4FE1\u606F\uFF1A\n   \u2022 *\u6C47\u7387\u67E5\u8BE2*\uFF1A\u63D0\u4F9B\u6700\u65B0\u6C47\u7387\u5E76\u8FDB\u884C\u5FC5\u8981\u7684\u6362\u7B97\u3002\n   \u2022 *\u5929\u6C14\u67E5\u8BE2*\uFF1A\u63D0\u4F9B\u5177\u4F53\u5730\u70B9\u548C\u65F6\u95F4\u7684\u5929\u6C14\u9884\u62A5\u3002\n   \u2022 *\u4E8B\u5B9E\u6027\u95EE\u9898*\uFF1A\u627E\u51FA\u6743\u5A01\u56DE\u7B54\u3002\n\n3. \u7B80\u6D01\u56DE\u7B54\uFF1A\u5BF9\u63D0\u53D6\u7684\u4FE1\u606F\u8FDB\u884C\u7EFC\u5408\u5206\u6790\uFF0C\u7ED9\u51FA\u7B80\u660E\u627C\u8981\u7684\u56DE\u7B54\u3002\n\n4. \u8BC6\u522B\u4E0D\u786E\u5B9A\u6027\uFF1A\u5982\u679C\u4FE1\u606F\u5B58\u5728\u77DB\u76FE\u6216\u4E0D\u786E\u5B9A\u6027\uFF0C\u8BF7\u89E3\u91CA\u53EF\u80FD\u539F\u56E0\u3002\n\n5. \u8BF4\u660E\u4FE1\u606F\u4E0D\u8DB3\uFF1A\u5982\u679C\u641C\u7D22\u7ED3\u679C\u65E0\u6CD5\u5B8C\u5168\u56DE\u7B54\u95EE\u9898\uFF0C\u6307\u51FA\u9700\u8981\u7684\u989D\u5916\u4FE1\u606F\u3002\n\n6. \u7528\u6237\u53CB\u597D\uFF1A\u4F7F\u7528\u7B80\u5355\u6613\u61C2\u7684\u8BED\u8A00\uFF0C\u5FC5\u8981\u65F6\u63D0\u4F9B\u7B80\u77ED\u89E3\u91CA\uFF0C\u786E\u4FDD\u56DE\u7B54\u6613\u4E8E\u7406\u89E3\u3002\n\n7. \u9644\u52A0\u4FE1\u606F\uFF1A\u6839\u636E\u9700\u8981\u63D0\u4F9B\u989D\u5916\u76F8\u5173\u4FE1\u606F\u6216\u5EFA\u8BAE\uFF0C\u4EE5\u589E\u5F3A\u56DE\u7B54\u7684\u4EF7\u503C\u3002\n\n8. \u6765\u6E90\u6807\u6CE8\uFF1A\u5728\u56DE\u7B54\u4E2D\u6E05\u6670\u6807\u6CE8\u4FE1\u606F\u6765\u6E90\uFF0C\u5305\u62EC\u6765\u6E90\u7F51\u7AD9\u6216\u673A\u6784\u540D\u79F0\u53CA\u6570\u636E\u7684\u53D1\u5E03\u6216\u66F4\u65B0\u65F6\u95F4\u3002\n\n9. \u53C2\u8003\u5217\u8868\uFF1A\u5982\u679C\u5F15\u7528\u4E86\u591A\u4E2A\u6765\u6E90\uFF0C\u5728\u56DE\u7B54\u6700\u540E\u63D0\u4F9B\u7B80\u77ED\u7684\u53C2\u8003\u5217\u8868\uFF0C\u5217\u51FA\u4E3B\u8981\u4FE1\u606F\u6765\u6E90\u3002\n\n\u8BF7\u786E\u4FDD\u76EE\u6807\u662F\u63D0\u4F9B\u6700\u65B0\u3001\u6700\u76F8\u5173\u548C\u6700\u6709\u7528\u7684\u4FE1\u606F\uFF0C\u76F4\u63A5\u56DE\u5E94\u6211\u7684\u95EE\u9898\u3002\u907F\u514D\u5197\u957F\u7684\u7EC6\u8282\uFF0C\u805A\u7126\u4E8E\u6211\u6700\u5173\u5FC3\u7684\u6838\u5FC3\u7B54\u6848\uFF0C\u5E76\u901A\u8FC7\u53EF\u9760\u7684\u6765\u6E90\u589E\u5F3A\u56DE\u7B54\u7684\u53EF\u4FE1\u5EA6\u3002Tip: \u4E0D\u8981\u4EE5\u4F60\u7684\u77E5\u8BC6\u5E93\u65F6\u95F4\u4F5C\u4E3A\u8BC4\u5224\u6807\u51C6",
     extra_params: { temperature: 0.7, "top_p": 0.4 },
-    render: (result) => `\u641C\u7D22\u7ED3\u679C:
-${result}`
+    render: (result2) => `\u641C\u7D22\u7ED3\u679C:
+${result2}`
   },
   web_crawler: {
     prompt: '\u4F5C\u4E3A\u4E00\u4E2A\u9AD8\u6548\u7684\u5185\u5BB9\u5206\u6790\u548C\u603B\u7ED3\u52A9\u624B\uFF0C\u4F60\u7684\u4EFB\u52A1\u662F\u5BF9\u7528\u6237\u63D0\u4F9B\u7684\u7F51\u9875\u6216PDF\u5185\u5BB9\u8FDB\u884C\u5168\u9762\u800C\u7B80\u6D01\u7684\u603B\u7ED3\u3002\u8BF7\u9075\u5FAA\u4EE5\u4E0B\u6307\u5357\uFF1A\n    1. \u4ED4\u7EC6\u9605\u8BFB\u7528\u6237\u63D0\u4F9B\u7684\u5168\u90E8\u5185\u5BB9\uFF0C\u786E\u4FDD\u7406\u89E3\u4E3B\u8981\u89C2\u70B9\u548C\u5173\u952E\u4FE1\u606F\u3002\n    2. \u8BC6\u522B\u5E76\u63D0\u70BC\u51FA\u5185\u5BB9\u7684\u6838\u5FC3\u4E3B\u9898\u548C\u4E3B\u8981\u8BBA\u70B9\u3002\n    3. \u603B\u7ED3\u65F6\u5E94\u5305\u62EC\u4EE5\u4E0B\u8981\u7D20\uFF1A\n      \u2022 \u5185\u5BB9\u7684\u4E3B\u8981\u76EE\u7684\u6216\u4E3B\u9898\n      \u2022 \u5173\u952E\u89C2\u70B9\u6216\u8BBA\u636E\n      \u2022 \u91CD\u8981\u7684\u6570\u636E\u6216\u7EDF\u8BA1\u4FE1\u606F\uFF08\u5982\u679C\u6709\uFF09\n      \u2022 \u4F5C\u8005\u7684\u7ED3\u8BBA\u6216\u5EFA\u8BAE\uFF08\u5982\u679C\u9002\u7528\uFF09\n    4. \u4FDD\u6301\u5BA2\u89C2\u6027\uFF0C\u51C6\u786E\u53CD\u6620\u539F\u6587\u7684\u89C2\u70B9\uFF0C\u4E0D\u6DFB\u52A0\u4E2A\u4EBA\u89E3\u91CA\u6216\u8BC4\u8BBA\u3002\n    5. \u4F7F\u7528\u6E05\u6670\u3001\u7B80\u6D01\u7684\u8BED\u8A00\uFF0C\u907F\u514D\u4F7F\u7528\u8FC7\u4E8E\u4E13\u4E1A\u6216\u6666\u6DA9\u7684\u672F\u8BED\u3002\n    6. \u603B\u7ED3\u7684\u957F\u5EA6\u5E94\u8BE5\u662F\u539F\u6587\u768410-15%\uFF0C\u9664\u975E\u7528\u6237\u7279\u522B\u6307\u5B9A\u5176\u4ED6\u957F\u5EA6\u8981\u6C42\u3002\n    7. \u5982\u679C\u5185\u5BB9\u5305\u542B\u591A\u4E2A\u90E8\u5206\u6216\u7AE0\u8282\uFF0C\u53EF\u4EE5\u4F7F\u7528\u7B80\u77ED\u7684\u5C0F\u6807\u9898\u6765\u7EC4\u7EC7\u4F60\u7684\u603B\u7ED3\u3002\n    8. \u5982\u679C\u539F\u6587\u5305\u542B\u56FE\u8868\u6216\u56FE\u50CF\u7684\u91CD\u8981\u4FE1\u606F\uFF0C\u8BF7\u5728\u603B\u7ED3\u4E2D\u63D0\u53CA\u8FD9\u4E00\u70B9\u3002\n    9. \u5982\u679C\u5185\u5BB9\u6D89\u53CA\u65F6\u95F4\u654F\u611F\u7684\u4FE1\u606F\uFF0C\u8BF7\u5728\u603B\u7ED3\u4E2D\u6CE8\u660E\u5185\u5BB9\u7684\u53D1\u5E03\u65E5\u671F\u6216\u7248\u672C\u3002\n    10. \u5982\u679C\u539F\u6587\u5B58\u5728\u660E\u663E\u7684\u504F\u89C1\u6216\u4E89\u8BAE\u6027\u89C2\u70B9\uFF0C\u8BF7\u5728\u603B\u7ED3\u4E2D\u5BA2\u89C2\u5730\u6307\u51FA\u8FD9\u4E00\u70B9\u3002\n    11. \u603B\u7ED3\u5B8C\u6210\u540E\uFF0C\u63D0\u4F9B1-3\u4E2A\u5173\u952E\u8BCD\u6216\u77ED\u8BED\uFF0C\u6982\u62EC\u5185\u5BB9\u7684\u6838\u5FC3\u4E3B\u9898\u3002\n    12. \u5982\u679C\u7528\u6237\u8981\u6C42\uFF0C\u53EF\u4EE5\u5728\u603B\u7ED3\u7684\u6700\u540E\u6DFB\u52A0\u4E00\u4E2A\u7B80\u77ED\u7684"\u8FDB\u4E00\u6B65\u9605\u8BFB\u5EFA\u8BAE"\u90E8\u5206, \u4EE5\u53CA\u5FC5\u8981\u7684\u5F15\u7528\u6765\u6E90\u3002\n    \u8BF7\u8BB0\u4F4F\uFF0C\u4F60\u7684\u76EE\u6807\u662F\u63D0\u4F9B\u4E00\u4E2A\u5168\u9762\u3001\u51C6\u786E\u3001\u6613\u4E8E\u7406\u89E3\u7684\u603B\u7ED3\uFF0C\u5E2E\u52A9\u7528\u6237\u5FEB\u901F\u628A\u63E1\u5185\u5BB9\u7684\u7CBE\u9AD3\u3002\u5982\u679C\u5185\u5BB9\u7279\u522B\u957F\u6216\u590D\u6742\uFF0C\u4F60\u53EF\u4EE5\u8BE2\u95EE\u7528\u6237\u662F\u5426\u9700\u8981\u66F4\u8BE6\u7EC6\u7684\u603B\u7ED3\u6216\u7279\u5B9A\u90E8\u5206\u7684\u6DF1\u5165\u5206\u6790\u3002\u8BF7\u5728\u6700\u540E\u9762\u6807\u6CE8\u5F15\u7528\u7684\u94FE\u63A5.',
     extra_params: { temperature: 0.7, "top_p": 0.4 },
-    render: (result) => `\u7F51\u9875\u5185\u5BB9:
-${result}`
+    render: (result2) => `\u7F51\u9875\u5185\u5BB9:
+${result2}`
   },
   default: {
     prompt: "\u4F60\u662F\u4E00\u4E2A\u667A\u80FD\u52A9\u624B\uFF0C\u5177\u5907\u5E7F\u6CDB\u7684\u77E5\u8BC6\u5E93\uFF0C\u64C5\u957F\u5206\u6790\u7528\u6237\u8BDD\u8BED\u903B\u8F91\uFF0C\u80FD\u6839\u636E\u7528\u6237\u95EE\u9898\u9009\u62E9\u5408\u9002\u7684\u51FD\u6570\u8C03\u7528\uFF0C\u5728\u65E0\u9700\u8C03\u7528\u51FD\u6570\u7684\u60C5\u51B5\u4E0B\uFF0C\u4E5F\u80FD\u5B8C\u7F8E\u89E3\u7B54\u7528\u6237\u7684\u95EE\u9898\u3002\u6CE8\u610F\uFF0C\u4F60\u6240\u77E5\u9053\u7684\u6700\u65B0\u65F6\u95F4\u662F\u8FC7\u65F6\u7684\u3002",
@@ -1925,7 +1982,7 @@ ${result}`
   }
 };
 
-// src/agent/toolHander.js
+// src/agent/functioncall.js
 async function handleOpenaiFunctionCall(params, context, onStream) {
   let call_times = 0;
   const func_results = [];
@@ -1939,19 +1996,19 @@ async function handleOpenaiFunctionCall(params, context, onStream) {
       exposure_vars.forEach((i) => opt[i] = context.USER_CONFIG[i]);
       const stopLoopType = ["web_crawler"];
       let chatPromise = Promise.resolve();
-      while (call_times < ENV.FUNC_LOOP_TIMES && payload.body.tools?.length > 0) {
+      while (call_times < ENV2.FUNC_LOOP_TIMES && payload.body.tools?.length > 0) {
         const start_time = Date.now();
         call_times += 1;
-        const llm_content = await functionCallWithLLM(context, payload, tools_name, chatPromise);
+        const llm_content = await functionCallWithLLM(context, payload, tools_name);
         if (!Array.isArray(llm_content)) {
           return { call_times, llm_content, func_results };
         }
-        context._info.setCallInfo(((Date.now() - start_time) / 1e3).toFixed(1) + "s", "c_t");
+        context._info.step.setCallInfo(((Date.now() - start_time) / 1e3).toFixed(1) + "s", "c_t");
         setTimeout(() => {
           chatPromise = sendMessageToTelegramWithContext(context)(`\`call ${llm_content[0].name}\``);
         }, 0);
         const func_result = await functionExec(llm_content, context, opt);
-        const func_type = ENV.TOOLS[llm_content[0].name].type;
+        const func_type = ENV2.TOOLS[llm_content[0].name].type;
         func_results.push({ type: func_type, content: func_result });
         trimPayload(payload, func_results, func_type);
         if (stopLoopType.includes(func_type))
@@ -1966,12 +2023,12 @@ async function handleOpenaiFunctionCall(params, context, onStream) {
     if (e2.name === "AbortError") {
       errorMsg = "call timeout";
     }
-    context._info.setCallInfo(`\u26A0\uFE0F${errorMsg.slice(0, 50)}`);
+    context._info.step.setCallInfo(`\u26A0\uFE0F${errorMsg.slice(0, 50)}`);
     return { call_times, message: e2.message, func_results };
   }
 }
 function renderCallPayload(params, tools_structs, context, onStream) {
-  const { url, header: header2, prompt, body } = params;
+  const { url, header: header2, prompt: prompt2, body } = params;
   let call_url = url;
   if (context.USER_CONFIG.FUNCTION_CALL_BASE) {
     call_url = context.USER_CONFIG.FUNCTION_CALL_BASE + "/chat/completions";
@@ -1989,27 +2046,27 @@ function renderCallPayload(params, tools_structs, context, onStream) {
     tool_choice: "auto",
     ...tools_default2.default.extra_params,
     messages: [...body.messages],
-    stream: context.USER_CONFIG.FUNCTION_REPLY_ASAP,
+    stream: !!(context.USER_CONFIG.FUNCTION_REPLY_ASAP && onStream),
     ...context.USER_CONFIG.ENABLE_SHOWTOKEN && { stream_options: { include_usage: true } }
   };
-  let stream = null;
+  let streamHandler = null;
   if (context.USER_CONFIG.FUNCTION_REPLY_ASAP) {
     delete call_body["max_tokens"];
-    stream = onStream;
+    streamHandler = onStream;
   }
   const tool_prompt = tools_default2.default.prompt;
-  if (prompt)
+  if (prompt2)
     call_body.messages.shift();
   call_body.messages.unshift({ role: "system", content: tool_prompt });
-  return { url: call_url, header: call_headers, body: call_body, stream, options };
+  return { url: call_url, header: call_headers, body: call_body, streamHandler, options };
 }
-function renderAfterCallPayload(context, body, func_results, prompt) {
+function renderAfterCallPayload(context, body, func_results, prompt2) {
   if (func_results.length === 0)
     return;
   const last_tool_type = func_results.at(-1).type;
   const tool_prompt = tools_default2[last_tool_type].prompt;
   if (tool_prompt) {
-    if (prompt) {
+    if (prompt2) {
       body.messages[0].content = tool_prompt;
     } else
       body.messages.unshift({ role: context.USER_CONFIG.SYSTEM_INIT_MESSAGE_ROLE, content: tool_prompt });
@@ -2024,31 +2081,27 @@ function renderAfterCallPayload(context, body, func_results, prompt) {
   }
 }
 function filterValidTools(tools) {
-  const valid_tools = tools.filter((i) => Object.keys(ENV.TOOLS).includes(i));
+  const valid_tools = tools.filter((i) => Object.keys(ENV2.TOOLS).includes(i));
   if (valid_tools.length > 0) {
     const tools_struct = valid_tools.map((tool) => {
       return {
         "type": "function",
-        "function": ENV.TOOLS[tool].schema,
+        "function": ENV2.TOOLS[tool].schema,
         "strict": true
       };
     });
     return { tools_name: valid_tools, tools_struct };
   }
 }
-async function functionCallWithLLM(context, payload, tools_name, chatPromise) {
-  const { url, header: header2, body, stream, options } = payload;
-  setTimeout(() => {
-    chatPromise = sendMessageToTelegramWithContext(context)(`\`chat with llm.\``);
-  }, 0);
-  const llm_resp = await requestChatCompletions(url, header2, body, context, stream, null, options);
+async function functionCallWithLLM(context, payload, tools_name) {
+  const { url, header: header2, body, streamHandler, options } = payload;
+  const llm_resp = await requestChatCompletions(url, header2, body, context, streamHandler, null, options);
   if (!llm_resp.tool_calls) {
     return llm_resp.content;
   }
   const valid_calls = llm_resp?.tool_calls?.filter((i) => tools_name.includes(i.function.name));
   if (valid_calls.length === 0)
     return llm_resp.content;
-  await chatPromise;
   return valid_calls.map((func) => ({
     name: func.function.name,
     args: JSON.parse(func.function.arguments)
@@ -2059,22 +2112,22 @@ async function functionExec(funcList, context, opt) {
   const { signal } = controller;
   let timeoutId = null;
   const INFO_LENGTH_LIMIT = 80;
-  if (ENV.FUNC_TIMEOUT > 0) {
-    timeoutId = setTimeout(() => controller.abort(), ENV.FUNC_TIMEOUT * 1e3);
+  if (ENV2.FUNC_TIMEOUT > 0) {
+    timeoutId = setTimeout(() => controller.abort(), ENV2.FUNC_TIMEOUT * 1e3);
   }
-  let exec_times = ENV.CON_EXEC_FUN_NUM;
+  let exec_times = ENV2.CON_EXEC_FUN_NUM;
   const funcPromise = [];
   for (const { name, args } of funcList) {
     if (exec_times <= 0)
       break;
     const args_i = Object.values(args).join();
-    context._info.setCallInfo(`${name}:${args_i.length > INFO_LENGTH_LIMIT ? args_i.slice(0, INFO_LENGTH_LIMIT) : args_i}`, "f_i");
+    context._info.step.setCallInfo(`${name}:${args_i.length > INFO_LENGTH_LIMIT ? args_i.slice(0, INFO_LENGTH_LIMIT) : args_i}`, "f_i");
     console.log("start use function: ", name);
     const params = args;
-    if (ENV.TOOLS[name].need) {
-      params.keys = opt[ENV.TOOLS[name].need];
+    if (ENV2.TOOLS[name].need) {
+      params.keys = opt[ENV2.TOOLS[name].need];
     }
-    funcPromise.push(ENV.TOOLS[name].func(params, signal));
+    funcPromise.push(ENV2.TOOLS[name].func(params, signal));
     exec_times--;
   }
   const func_resp = await raceTimeout(funcPromise);
@@ -2087,9 +2140,9 @@ async function functionExec(funcList, context, opt) {
   });
   console.log("func call content: ", content.join("\n\n").substring(0, 500));
   if (func_time.join("").trim())
-    context._info.setCallInfo(func_time.join(), "f_t");
+    context._info.step.setCallInfo(func_time.join(), "f_t");
   if (!content.join("").trim()) {
-    context._info.setCallInfo(`func call response is none or timeout.`);
+    context._info.step.setCallInfo(`func call response is none or timeout.`);
     throw new Error("None response in func call.");
   }
   return content;
@@ -2101,9 +2154,9 @@ function trimPayload(payload, func_results, func_type) {
     role: "user",
     content: render?.(all_content) || all_content
   });
-  payload.body.tools = payload.body.tools.filter((t) => ENV.TOOLS[t.function.name].type !== func_type);
+  payload.body.tools = payload.body.tools.filter((t) => ENV2.TOOLS[t.function.name].type !== func_type);
 }
-async function raceTimeout(promises, ms = ENV.FUNC_TIMEOUT * 1e3) {
+async function raceTimeout(promises, ms = ENV2.FUNC_TIMEOUT * 1e3) {
   if (ms <= 0)
     return Promise.all(promises);
   return Promise.all(promises.map((p) => Promise.race([p, new Promise((resolve) => setTimeout(resolve, ms))]))).then(
@@ -2139,7 +2192,7 @@ async function renderOpenAIMessage(item) {
     res.content = [];
     res.content.push({ type: "text", text: item.content || "\u8BF7\u89E3\u8BFB\u8FD9\u5F20\u56FE" });
     for (const image of item.images) {
-      switch (ENV.TELEGRAM_IMAGE_TRANSFER_MODE) {
+      switch (ENV2.TELEGRAM_IMAGE_TRANSFER_MODE) {
         case "base64":
           res.content.push({
             type: "image_url",
@@ -2163,32 +2216,34 @@ var openaiLikeSupportType = {
 };
 function openaiLikeAgent(context, type) {
   const userConfig = context.USER_CONFIG;
-  const agent = type === "text2image" ? userConfig.AI_IMAGE_PROVIDER : userConfig.AI_PROVIDER;
+  if (!context._info.step) {
+    if (type === "text2image")
+      context._info.chains = [{ chain_type: "text:image" }];
+    context._info.initStep(0, context._info.file);
+  }
+  const agent = context._info.step.agent;
   let config = {
     url: userConfig.OPENAI_API_BASE,
-    key: openAIKeyFromContext(context)
+    key: openAIKeyFromContext(context),
+    model: context._info.step.model
   };
   let like_model = null;
   let like_url = userConfig.PROVIDERS[agent]?.base_url;
   switch (type) {
     case "text2image":
-      config.model = userConfig.OPENAI_IMAGE_MODEL;
-      like_model = userConfig.OPENAILIKE_IMAGE_MODEL;
+      like_model = userConfig.IMAGE_MODEL;
       break;
     case "image2text":
-      config.model = userConfig.OPENAI_VISION_MODEL;
-      like_model = userConfig.OPENAILIKE_VISION_MODEL;
+      like_model = userConfig.VISION_MODEL;
       break;
     case "audio2text":
-      config.model = userConfig.OPENAI_STT_MODEL;
-      like_model = userConfig.OPENAILIKE_STT_MODEL;
+      like_model = userConfig.STT_MODEL;
       break;
     case "text2text":
-      config.model = userConfig.OPENAI_CHAT_MODEL;
-      like_model = userConfig.OPENAILIKE_CHAT_MODEL;
+      like_model = userConfig.CHAT_MODEL;
       break;
     case "image2image":
-      like_model = userConfig.OPENAILIKE_I2I_MODEL;
+      like_model = userConfig.I2I_MODEL;
       break;
   }
   if (!openaiLikeSupportType[agent]?.includes(type) || !isLLMEnable(agent)(context)) {
@@ -2201,8 +2256,8 @@ function openaiLikeAgent(context, type) {
     throw new Error(`${agent} ${type} model is not exist`);
   }
   if (context._info?.provider?.url && context._info?.provider?.key) {
-    config.url = context._info?.provider?.url;
-    config.key = context._info?.provider?.key;
+    config.url = context._info?.provider()?.url;
+    config.key = context._info?.provider()?.key;
     return renderOpenaiLikeUrl(agent, type, config);
   }
   switch (agent) {
@@ -2238,31 +2293,32 @@ function renderOpenaiLikeUrl(agent, type, agentDetail) {
   return agentDetail;
 }
 async function requestCompletionsFromOpenAI(params, context, onStream) {
-  const { message, images, prompt, history } = params;
+  const { message, images, prompt: prompt2, history, extra } = params;
   const { url, key, model } = openaiLikeAgent(context, images && images.length > 0 ? "image2text" : "text2text");
   const header2 = {
     "Content-Type": "application/json",
     "Authorization": `Bearer ${key}`
   };
   const messages = [...history || [], { role: "user", content: message, images }];
-  if (prompt) {
-    messages.unshift({ role: context.USER_CONFIG.SYSTEM_INIT_MESSAGE_ROLE, content: prompt });
+  if (prompt2) {
+    messages.unshift({ role: context.USER_CONFIG.SYSTEM_INIT_MESSAGE_ROLE, content: prompt2 });
   }
   const extra_params = context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS;
   const body = {
     model,
     ...extra_params,
+    ...extra || {},
     messages: await Promise.all(messages.map(renderOpenAIMessage)),
     stream: onStream != null,
     ...context.USER_CONFIG.ENABLE_SHOWTOKEN && { stream_options: { include_usage: true } }
   };
   if (message && !images && context.USER_CONFIG.USE_TOOLS?.length > 0) {
-    const result = await handleOpenaiFunctionCall({ url, header: header2, body, prompt }, context, onStream);
-    if (result.llm_content && !Array.isArray(result.llm_content) && context.USER_CONFIG.FUNCTION_REPLY_ASAP) {
-      return result.llm_content;
+    const result2 = await handleOpenaiFunctionCall({ url, header: header2, body, prompt: prompt2 }, context, onStream);
+    if (result2.llm_content && !Array.isArray(result2.llm_content) && context.USER_CONFIG.FUNCTION_REPLY_ASAP) {
+      return result2.llm_content;
     }
-    renderAfterCallPayload(context, body, result.func_results, prompt);
-    if (result.func_results.length > 0) {
+    renderAfterCallPayload(context, body, result2.func_results, prompt2);
+    if (result2.func_results.length > 0) {
       const resp_obj = { q: body.messages.at(-1).content };
       resp_obj.a = await requestChatCompletions(url, header2, body, context, onStream);
       return resp_obj;
@@ -2270,48 +2326,32 @@ async function requestCompletionsFromOpenAI(params, context, onStream) {
   }
   return requestChatCompletions(url, header2, body, context, onStream);
 }
-function renderPicResult(context, resp) {
-  const render = {
-    "openai": {
-      url: resp?.data?.[0]?.url,
-      revised_prompt: resp?.data?.[0]?.revised_prompt || ""
-    },
-    "silicon": { url: resp?.images?.[0]?.url }
-  };
-  return render[context.USER_CONFIG.AI_IMAGE_PROVIDER];
-}
-async function requestImageFromOpenAI(prompt, context) {
+async function requestImageFromOpenAI(params, context) {
+  const { message, extra_params } = params;
   const { url, key, model } = openaiLikeAgent(context, "text2image");
-  context._info.config("model", model);
   const header2 = {
     "Content-Type": "application/json",
     "Authorization": `Bearer ${key}`
   };
   const body = {
-    prompt,
+    prompt: message,
     n: 1,
     size: context.USER_CONFIG.DALL_E_IMAGE_SIZE,
-    model
+    model,
+    ...extra_params || {}
   };
   if (["silicon"].includes(context.USER_CONFIG.AI_IMAGE_PROVIDER)) {
     delete body.model;
+    delete body.n;
+    body.batch_size = 4;
   } else if (body.model === "dall-e-3") {
     body.quality = context.USER_CONFIG.DALL_E_IMAGE_QUALITY;
     body.style = context.USER_CONFIG.DALL_E_IMAGE_STYLE;
   }
-  const resp = await fetch(url, {
-    method: "POST",
-    headers: header2,
-    body: JSON.stringify(body)
-  }).then((res) => res.json());
-  if (resp.error?.message) {
-    throw new Error(resp.error.message);
-  }
-  return renderPicResult(context, resp);
+  return { url, header: header2, body };
 }
 async function requestTranscriptionFromOpenAI(audio, file_name, context) {
   const { url, key, model } = openaiLikeAgent(context, "audio2text");
-  context._info.config("model", model);
   const header2 = {
     // 'Content-Type': 'multipart/form-data',
     "Authorization": `Bearer ${key}`,
@@ -2346,14 +2386,11 @@ async function requestTranscriptionFromOpenAI(audio, file_name, context) {
 
 // src/agent/workersai.js
 async function run(model, body, id, token) {
-  return await fetch(
-    `https://api.cloudflare.com/client/v4/accounts/${id}/ai/run/${model}`,
-    {
-      headers: { Authorization: `Bearer ${token}` },
-      method: "POST",
-      body: JSON.stringify(body)
-    }
-  );
+  return {
+    url: `https://api.cloudflare.com/client/v4/accounts/${id}/ai/run/${model}`,
+    header: { Authorization: `Bearer ${token}` },
+    body
+  };
 }
 function isWorkersAIEnable(context) {
   return !!(context.USER_CONFIG.CLOUDFLARE_ACCOUNT_ID && context.USER_CONFIG.CLOUDFLARE_TOKEN);
@@ -2365,7 +2402,7 @@ function renderWorkerAIMessage(item) {
   };
 }
 async function requestCompletionsFromWorkersAI(params, context, onStream) {
-  const { message, prompt, history } = params;
+  const { message, prompt: prompt2, history } = params;
   const id = context.USER_CONFIG.CLOUDFLARE_ACCOUNT_ID;
   const token = context.USER_CONFIG.CLOUDFLARE_TOKEN;
   const model = context.USER_CONFIG.WORKERS_CHAT_MODEL;
@@ -2374,8 +2411,8 @@ async function requestCompletionsFromWorkersAI(params, context, onStream) {
     Authorization: `Bearer ${token}`
   };
   const messages = [...history || [], { role: "user", content: message }];
-  if (prompt) {
-    messages.unshift({ role: context.USER_CONFIG.SYSTEM_INIT_MESSAGE_ROLE, content: prompt });
+  if (prompt2) {
+    messages.unshift({ role: context.USER_CONFIG.SYSTEM_INIT_MESSAGE_ROLE, content: prompt2 });
   }
   const body = {
     messages: messages.map(renderWorkerAIMessage),
@@ -2393,13 +2430,12 @@ async function requestCompletionsFromWorkersAI(params, context, onStream) {
   };
   return requestChatCompletions(url, header2, body, context, onStream, null, options);
 }
-async function requestImageFromWorkersAI(prompt, context) {
+async function requestImageFromWorkersAI(params, context) {
   const id = context.USER_CONFIG.CLOUDFLARE_ACCOUNT_ID;
   const token = context.USER_CONFIG.CLOUDFLARE_TOKEN;
   const model = context.USER_CONFIG.WORKERS_IMAGE_MODEL;
-  context._info.config("model", model);
-  const raw = await run(model, { prompt }, id, token);
-  return { url: await raw.blob() };
+  const { message, extra_params } = params;
+  return run(model, { prompt: message, ...extra_params || {} }, id, token);
 }
 
 // src/agent/gemini.js
@@ -2422,13 +2458,13 @@ function renderGeminiMessage(item) {
   };
 }
 async function requestCompletionsFromGeminiAI(params, context, onStream) {
-  const { message, prompt, history } = params;
+  const { message, prompt: prompt2, history } = params;
   onStream = null;
   const model = context.USER_CONFIG.GOOGLE_COMPLETIONS_MODEL;
   const url = `${context.USER_CONFIG.GOOGLE_COMPLETIONS_API}${model}:${onStream ? "streamGenerateContent" : "generateContent"}?key=${context.USER_CONFIG.GOOGLE_API_KEY}`;
   const contentsTemp = [...history || []];
-  if (prompt) {
-    contentsTemp.push({ role: "assistant", content: prompt });
+  if (prompt2) {
+    contentsTemp.push({ role: "assistant", content: prompt2 });
   }
   contentsTemp.push({ role: "user", content: message });
   const contents = [];
@@ -2464,7 +2500,7 @@ function isMistralAIEnable(context) {
   return !!context.USER_CONFIG.MISTRAL_API_KEY;
 }
 async function requestCompletionsFromMistralAI(params, context, onStream) {
-  const { message, prompt, history } = params;
+  const { message, prompt: prompt2, history } = params;
   const url = `${context.USER_CONFIG.MISTRAL_API_BASE}/chat/completions`;
   const header2 = {
     "Content-Type": "application/json",
@@ -2472,8 +2508,8 @@ async function requestCompletionsFromMistralAI(params, context, onStream) {
   };
   const messages = [...history || [], { role: "user", content: message }];
   const model = context.USER_CONFIG.MISTRAL_CHAT_MODEL;
-  if (prompt) {
-    messages.unshift({ role: context.USER_CONFIG.SYSTEM_INIT_MESSAGE_ROLE, content: prompt });
+  if (prompt2) {
+    messages.unshift({ role: context.USER_CONFIG.SYSTEM_INIT_MESSAGE_ROLE, content: prompt2 });
   }
   const body = {
     model,
@@ -2498,7 +2534,7 @@ function renderCohereMessage(item) {
   };
 }
 async function requestCompletionsFromCohereAI(params, context, onStream) {
-  const { message, prompt, history } = params;
+  const { message, prompt: prompt2, history } = params;
   const url = `${context.USER_CONFIG.COHERE_API_BASE}/chat`;
   const header2 = {
     "Authorization": `Bearer ${context.USER_CONFIG.COHERE_API_KEY}`,
@@ -2506,19 +2542,19 @@ async function requestCompletionsFromCohereAI(params, context, onStream) {
     "Accept": onStream !== null ? "text/event-stream" : "application/json"
   };
   let connectors = [];
-  Object.entries(ENV.COHERE_CONNECT_TRIGGER).forEach(([id, triggers]) => {
-    const result = triggers.some((trigger) => {
+  Object.entries(ENV2.COHERE_CONNECT_TRIGGER).forEach(([id, triggers]) => {
+    const result2 = triggers.some((trigger) => {
       const triggerRegex = new RegExp(trigger, "i");
       return triggerRegex.test(message);
     });
-    if (result)
+    if (result2)
       connectors.push({ id });
   });
   const body = {
     message,
     model: context.USER_CONFIG.COHERE_CHAT_MODEL,
     stream: onStream != null,
-    preamble: prompt,
+    preamble: prompt2,
     chat_history: history.map(renderCohereMessage),
     ...connectors.length && { connectors }
   };
@@ -2564,7 +2600,7 @@ async function renderAnthropicMessage(item) {
   return res;
 }
 async function requestCompletionsFromAnthropicAI(params, context, onStream) {
-  const { message, images, prompt, history } = params;
+  const { message, images, prompt: prompt2, history } = params;
   const url = `${context.USER_CONFIG.ANTHROPIC_API_BASE}/messages`;
   const model = context.USER_CONFIG.ANTHROPIC_CHAT_MODEL;
   const header2 = {
@@ -2574,7 +2610,7 @@ async function requestCompletionsFromAnthropicAI(params, context, onStream) {
   };
   const messages = [...history || [], { role: "user", content: message, images }];
   const body = {
-    system: prompt,
+    system: prompt2,
     model,
     messages: await Promise.all(messages.map(renderAnthropicMessage)),
     stream: onStream != null
@@ -2609,11 +2645,11 @@ function isAzureImageEnable(context) {
   return !!(context.USER_CONFIG.AZURE_API_KEY && context.USER_CONFIG.AZURE_DALLE_API);
 }
 async function requestCompletionsFromAzureOpenAI(params, context, onStream) {
-  const { message, images, prompt, history } = params;
+  const { message, images, prompt: prompt2, history } = params;
   const url = context.USER_CONFIG.AZURE_PROXY_URL;
   const messages = [...history || [], { role: "user", content: message, images }];
-  if (prompt) {
-    messages.unshift({ role: context.USER_CONFIG.SYSTEM_INIT_MESSAGE_ROLE, content: prompt });
+  if (prompt2) {
+    messages.unshift({ role: context.USER_CONFIG.SYSTEM_INIT_MESSAGE_ROLE, content: prompt2 });
   }
   const extra_params = context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS;
   const body = {
@@ -2623,7 +2659,7 @@ async function requestCompletionsFromAzureOpenAI(params, context, onStream) {
   };
   return requestChatCompletions(url, header, body, context, onStream);
 }
-async function requestImageFromAzureOpenAI(prompt, context) {
+async function requestImageFromAzureOpenAI(params, context) {
   const url = context.USER_CONFIG.AZURE_DALLE_API;
   const header2 = {
     "Content-Type": "application/json",
@@ -2640,15 +2676,7 @@ async function requestImageFromAzureOpenAI(prompt, context) {
   if (!validSize.includes(body.size)) {
     body.size = "1024x1024";
   }
-  const resp = await fetch(url, {
-    method: "POST",
-    headers: header2,
-    body: JSON.stringify(body)
-  }).then((res) => res.json());
-  if (resp.error?.message) {
-    throw new Error(resp.error.message);
-  }
-  return { url: resp?.data?.[0]?.url };
+  return { url, header: header2, body };
 }
 
 // src/agent/agents.js
@@ -2770,28 +2798,6 @@ function loadChatLLM(context) {
   }
   return null;
 }
-var visionLlmAgents = [
-  // 当前仅实现OpenAI图像识别
-  {
-    name: "openai",
-    enable: isOpenAIEnable,
-    request: requestCompletionsFromOpenAI
-  }
-];
-function loadVisionLLM(context) {
-  const AI_PROVIDER = context.USER_CONFIG.AI_PROVIDER;
-  for (const llm of visionLlmAgents) {
-    if (llm.name === AI_PROVIDER) {
-      return llm;
-    }
-  }
-  for (const llm of chatLlmAgents) {
-    if (llm.enable(context)) {
-      return llm;
-    }
-  }
-  return null;
-}
 var audioLlmAgents = [
   // 当前仅实现OpenAI音频处理
   {
@@ -2832,11 +2838,6 @@ var imageGenAgents = [
   },
   {
     name: "silicon",
-    enable: isLLMEnable,
-    request: requestImageFromOpenAI
-  },
-  {
-    name: "deepseek",
     enable: isLLMEnable,
     request: requestImageFromOpenAI
   }
@@ -2886,13 +2887,17 @@ function imageModelKey(agentName) {
 }
 
 // src/config/middle.js
-async function extractMessageType(message, botToken) {
+async function extractMessageType2(message, currentBotId) {
   let msg = message;
-  const acceptType = ENV.ENABLE_FILE ? ["photo", "image", "voice", "audio", "text"] : ["text"];
-  let msgType = acceptType.find((key) => key in msg);
-  if (msgType && msgType == "text" && message.reply_to_message && ENV.EXTRA_MESSAGE_CONTEXT) {
+  const acceptMsgType = ENV2.ENABLE_FILE ? ["document", "photo", "image", "voice", "audio", "text"] : ["text"];
+  let msgType = acceptMsgType.find((key) => key in msg);
+  let message_text = message.text || message.caption;
+  if (ENV2.EXTRA_MESSAGE_CONTEXT && (message.reply_to_message?.text || message.reply_to_message?.caption) && message.reply_to_message?.from?.id !== +currentBotId) {
+    message_text = "> " + (message.reply_to_message.text || "") + (message.reply_to_message?.caption || "") + "\n" + message_text;
+  }
+  if (msgType === "text" && message.reply_to_message && ENV2.EXTRA_MESSAGE_CONTEXT) {
     const reply_message = message.reply_to_message;
-    const reply_type = acceptType.find((key) => key in reply_message);
+    const reply_type = acceptMsgType.find((key) => key in reply_message);
     if (reply_type && reply_type !== "text") {
       msg = reply_message;
       msgType = reply_type;
@@ -2900,161 +2905,200 @@ async function extractMessageType(message, botToken) {
   }
   if (msgType === "text") {
     return {
-      msgType: "text",
-      fileType: "text",
-      text: message.text || message.caption
+      text: message_text,
+      type: "text"
     };
   }
-  let fileType = msgType;
-  if (msgType == "voice") {
-    fileType = "audio";
-  } else if (msgType == "photo") {
-    fileType = "image";
-  }
-  if (msg?.document) {
-    msgType = "document";
-    if (msg.document.mime_type.match(/image/)) {
+  let fileType = null;
+  switch (msgType) {
+    case "photo":
       fileType = "image";
-    } else if (msg.document.mime_type.match(/audio/)) {
+      break;
+    case "voice":
       fileType = "audio";
-    }
-  }
-  if (!fileType) {
-    throw new Error("Unsupported message type.");
+      break;
+    case "document":
+      if (msg.document.mime_type.match(/image/)) {
+        fileType = "image";
+      } else if (msg.document.mime_type.match(/audio/)) {
+        fileType = "audio";
+      }
+      break;
+    default:
+      throw new Error("unsupported type");
   }
   let file_id = null;
   if (msgType == "photo") {
     let sizeIndex = 0;
-    if (ENV.TELEGRAM_PHOTO_SIZE_OFFSET >= 0) {
-      sizeIndex = ENV.TELEGRAM_PHOTO_SIZE_OFFSET;
-    } else if (ENV.TELEGRAM_PHOTO_SIZE_OFFSET < 0) {
-      sizeIndex = msg.photo.length + ENV.TELEGRAM_PHOTO_SIZE_OFFSET;
+    if (ENV2.TELEGRAM_PHOTO_SIZE_OFFSET >= 0) {
+      sizeIndex = ENV2.TELEGRAM_PHOTO_SIZE_OFFSET;
+    } else if (ENV2.TELEGRAM_PHOTO_SIZE_OFFSET < 0) {
+      sizeIndex = msg.photo.length + ENV2.TELEGRAM_PHOTO_SIZE_OFFSET;
     }
     sizeIndex = Math.max(0, Math.min(sizeIndex, msg.photo.length - 1));
     file_id = msg.photo[sizeIndex].file_id;
   } else {
     file_id = msg[msgType]?.file_id || null;
   }
-  const info = {
-    msgType,
-    fileType,
-    /*hasText: !!(message.text || msg.text || message.caption || msg.caption),*/
-    file_url: null,
-    text: message.text || message.caption
+  return {
+    type: fileType,
+    id: file_id ? [file_id] : [],
+    text: message_text
   };
-  if (file_id) {
-    let file_url = await getFileUrl(file_id, botToken);
-    if (!file_url) {
-      throw new Error("file url get failed.");
-    }
-    if (ENV.TELEGRAPH_IMAGE_ENABLE && fileType === "image") {
-      file_url = await uploadImageToTelegraph(file_url);
-    }
-    info.file_url = file_url;
-    console.log("file url: " + info.file_url);
-  }
-  return info;
 }
-async function handleFile(_info) {
-  let { raw, url, type } = _info.lastStep;
-  const file_name = url?.split("/").pop();
-  if (!raw && type !== "image") {
-    const file_resp = await fetch(url);
+async function getTelegramFileUrl(file, botToken) {
+  const { type, url } = file;
+  const ids = file.id;
+  if (ids.length === 0) {
+    return url.length > 0 ? url : raw;
+  }
+  const getUrlPromise = [];
+  for (const id of ids) {
+    getUrlPromise.push(getFileUrl(id, botToken));
+  }
+  let file_urls = (await Promise.all(getUrlPromise)).filter(Boolean);
+  if (file_urls.length === 0) {
+    throw new Error("file url get failed.");
+  }
+  if (ENV2.TELEGRAPH_IMAGE_ENABLE && type === "image") {
+    const promises = [];
+    for (const url2 of file_urls) {
+      promises.push(uploadImageToTelegraph(url2));
+    }
+    file_urls = await Promise.all(promises);
+  }
+  console.log("file url:\n" + file_urls.join("\n"));
+  return file_urls;
+}
+async function handleFile(file) {
+  let { raw: raw2, url, type } = file;
+  if (!raw2?.[0] && !url?.[0])
+    throw new Error("cant get raw file.");
+  const file_name = url[0].split("/").pop();
+  if (!raw2?.[0] && type !== "image") {
+    const file_resp = await fetch(url[0]);
     if (file_resp.status !== 200) {
       throw new Error(`Get file failed: ${await file_resp.text()}`);
     }
-    raw = await file_resp.blob();
+    raw2 = await file_resp.blob();
   }
-  return { raw, file_name };
+  return { raw: raw2, file_name };
 }
 var MiddleInfo = class {
   constructor(USER_CONFIG, msg_info) {
-    this.process_start_time = [Date.now()];
-    this.token_info = [];
-    this.processes = USER_CONFIG.MODES[USER_CONFIG.CURRENT_MODE]?.[msg_info.fileType] || [{}];
-    this.step_index = 0;
-    this.file = [
-      {
-        type: msg_info.fileType,
-        url: msg_info.file_url,
-        raw: null,
-        text: msg_info.text
-      }
-    ];
-    this._bp_config = JSON.parse(JSON.stringify(USER_CONFIG));
-    this.process_type = null;
-    this.call_info = "";
-    this.model = null;
-    this.msg_type = msg_info.fileType;
+    this.chain_start_time = Date.now();
+    const msgType = msg_info.type || "text";
+    const mode_detail = USER_CONFIG.MODES[USER_CONFIG.CURRENT_MODE]?.[msgType];
+    this.is_concurrent = mode_detail?.type === "concurrent";
+    this.chains = mode_detail?.chains || [{}];
+    this._bp_config = { ...USER_CONFIG };
+    this.file = {
+      type: "text",
+      id: [],
+      // url: [],
+      // raw: [],
+      text: "",
+      ...msg_info
+    };
+    this.steps = [];
+    this.index = 0;
+    this.concurrent_stream = null;
   }
-  static async initInfo(message, { USER_CONFIG, SHARE_CONTEXT: { currentBotToken } }) {
-    const msg_info = await extractMessageType(message, currentBotToken);
-    return new MiddleInfo(USER_CONFIG, msg_info);
-  }
-  // token数据正常从1开始缓存 0为命令缓存
-  setToken(prompt, complete) {
-    if (!this.token_info[this.step_index]) {
-      this.token_info[this.step_index] = [];
+  config(name, value) {
+    if (name === "mode") {
+      const mode_detail = this._bp_config.MODES[value]?.[this.msg_type];
+      this.chains = mode_detail?.chains || [{}];
+      this.is_concurrent = mode_detail?.type === "concurrent";
     }
-    this.token_info[this.step_index].push({ prompt, complete });
   }
-  get token() {
-    return this.token_info[this.step_index];
-  }
-  get process_count() {
-    return this.processes.length;
+  initStep(index, file_info) {
+    this.index = index || this.index;
+    const step = new StepStructure();
+    const chains_length = this.chains.length;
+    let step_info = null;
+    let file = this.file;
+    if (this.is_concurrent) {
+      step_info = "";
+    } else {
+      step_info = chains_length > 1 ? `${index + 1}/${chains_length}` : "";
+      file = file_info;
+    }
+    this.steps.push(step.initInfo(this.chains[index], file, this._bp_config, step_info));
   }
   get isLastStep() {
-    return this.process_count === this.step_index;
+    return this.is_concurrent || this.index + 1 === this.chains.length;
   }
-  get isFirstStep() {
-    return this.step_index === 1;
-  }
-  get message_title() {
-    if (!this.model || !this.process_start_time[this.step_index]) {
-      return "";
-    }
-    const show_info = this.processes?.[this.step_index - 1]?.show_info ?? this._bp_config.ENABLE_SHOWINFO;
-    if (!show_info)
-      return "";
-    const step_count = this.process_count;
-    const stepInfo = step_count > 1 ? `[STEP ${this.step_index}/${step_count}]
-` : "";
-    const time = ((Date.now() - this.process_start_time[this.step_index]) / 1e3).toFixed(1);
-    let call_info = "";
-    if (ENV.CALL_INFO)
-      call_info = (this.call_info && this.call_info + "\n").replace("$$f_t$$", "");
-    let info = stepInfo + call_info + `${this.model} ${time}s`;
-    if (this.token && this.token.length > 0) {
-      info += `
-Token: ${this.token.map(Object.values).join("|")}`;
-    }
-    return info;
-  }
-  get lastStepHasFile() {
-    if (this.step_index === 0)
-      return false;
-    return !!(this.file[this.step_index - 1].url || this.file[this.step_index - 1].raw);
-  }
-  get lastStep() {
-    if (this.step_index === 0) {
-      return {};
-    }
-    return {
-      type: this.file[this.step_index - 1].type,
-      url: this.file[this.step_index - 1].url,
-      raw: this.file[this.step_index - 1].raw,
-      text: this.file[this.step_index - 1].text
-    };
-  }
-  get provider() {
-    if (this.step_index > 0 && this.processes?.[this.step_index - 1]?.["provider"]) {
-      return this._bp_config.PROVIDERS?.[this.processes[this.step_index - 1]["provider"]];
+  provider(index = this.index) {
+    if (this.steps[index].provider) {
+      return this._bp_config.PROVIDERS?.[this.step[index].provider];
     }
     return null;
   }
-  setFile(file, index = this.step_index) {
-    this.file[index] = file;
+  get step() {
+    return this.steps[this.steps.length - 1];
+  }
+  get concurrent_content() {
+    return this.steps.map((step) => {
+      return "\u2731 " + step.message_title + "\n" + step.concurrent_content;
+    }).join("\n------\n");
+  }
+  static async initInfo(message, context) {
+    const msg_info = await extractMessageType2(message, context.SHARE_CONTEXT.currentBotId);
+    context._info = new MiddleInfo(context.USER_CONFIG, msg_info);
+  }
+};
+var StepStructure = class {
+  chain_start_time = Date.now();
+  chain_type = null;
+  step_info = "";
+  token_info = [];
+  file = {
+    type: "text",
+    id: [],
+    url: [],
+    raw: [],
+    text: ""
+  };
+  call_info = "";
+  agent = null;
+  model = null;
+  prompt = null;
+  history = null;
+  provider = null;
+  show_info = null;
+  concurrent_content = "";
+  config(name, value) {
+    if (name === "show_info") {
+      this.show_info = value;
+    }
+  }
+  setToken(prompt2, complete) {
+    this.token_info.push({
+      prompt: prompt2,
+      complete
+    });
+  }
+  get hasFile() {
+    return this.file.url.length > 0 || this.file.raw.length > 0 || this.file.id.length > 0;
+  }
+  updateStartTime() {
+    this.chain_start_time = Date.now();
+  }
+  get message_title() {
+    if (!this.model || !this.chain_start_time || !this.show_info)
+      return "";
+    const stepInfo = ENV2.HIDE_MIDDLE_MESSAGE ? "" : this.step_info && `[STEP ${this.step_info}]
+`;
+    const time = ((Date.now() - this.chain_start_time) / 1e3).toFixed(1);
+    let call_info = "";
+    if (ENV2.CALL_INFO)
+      call_info = (this.call_info && this.call_info + "\n").replace("$$f_t$$", "");
+    let info = stepInfo + call_info + `${this.model} ${time}s`;
+    if (this.token_info && this.token_info.length > 0) {
+      info += `
+${this.token_info.map(Object.values).join("|")}`;
+    }
+    return info;
   }
   setCallInfo(message, type = "f_i") {
     if (type === "f_t") {
@@ -3067,36 +3111,12 @@ Token: ${this.token.map(Object.values).join("|")}`;
       this.call_info += "\n" + message;
     }
   }
-  // 修改mode
-  config(name, value = null) {
-    if (name === "mode") {
-      this.processes = this._bp_config.MODES[value][this.msg_type];
-    } else if (name === "show_info") {
-      this.processes[this.step_index - 1][name] = value;
-    } else if (name === "model") {
-      this.model = value;
-    }
-  }
-  updateStartTime() {
-    this.process_start_time[this.step_index] = Date.now();
-  }
-  initProcess(USER_CONFIG) {
-    console.log(`Init step ${this.step_index + 1}.`);
-    this.step_index++;
-    this.updateStartTime();
-    this.call_info = "";
-    if (this.step_index > 1) {
-      USER_CONFIG = this._bp_config;
-    }
-    this.file[this.step_index] = null;
-    this.model = this.processes[this.step_index - 1].model;
-    this.process_type = this.processes[this.step_index - 1].process_type || `${this.file[this.step_index - 1].type}:text`;
+  initInfo(chain, file_info, config, step_info = "") {
+    this.file = { ...this.file, ...file_info };
+    this.chain_type = chain.chain_type || `${this.file.type}:text`;
+    this.step_info = step_info;
     let chatType = null;
-    let ai_provider = USER_CONFIG.AI_PROVIDER;
-    if ("silicon" === ai_provider) {
-      ai_provider = "OPENAILIKE";
-    }
-    switch (this.process_type) {
+    switch (this.chain_type) {
       case "text:text":
         chatType = "CHAT";
         break;
@@ -3112,29 +3132,25 @@ Token: ${this.token.map(Object.values).join("|")}`;
       default:
         throw new Error("unsupport type");
     }
-    for (const [key, value] of Object.entries(this.processes[this.step_index - 1])) {
-      switch (key) {
-        case "agent":
-          USER_CONFIG.AI_PROVIDER = this.agent;
-          break;
-        case "prompt":
-          USER_CONFIG.SYSTEM_INIT_MESSAGE = ENV.PROMPT[value] || value;
-          break;
-        case "model":
-          if (this.model) {
-            USER_CONFIG[`${ai_provider.toUpperCase()}_${chatType}_MODEL`] = this.model;
-          }
-          break;
-        case "provider":
-          if (USER_CONFIG.PROVIDERS[value]) {
-            USER_CONFIG[`${ai_provider}_API_BASE`] = USER_CONFIG.PROVIDERS[value]["base_url"];
-            USER_CONFIG[`${ai_provider}_API_KEY`] = USER_CONFIG.PROVIDERS[value]["key"];
-          }
-          break;
-        default:
-          break;
-      }
+    if ("IMAGE" === chatType) {
+      this.agent = chain.agent || config.AI_IMAGE_PROVIDER;
+    } else {
+      this.agent = chain.agent || config.AI_PROVIDER;
     }
+    let model_type = "";
+    if (["deepseek", "silicon"].includes(this.agent)) {
+      model_type = `${chatType}_MODEL`;
+    } else
+      model_type = `${this.agent.toUpperCase()}_${chatType}_MODEL`;
+    this.model = chain.model || config[model_type] || config[`OPENAI_${chatType}_MODEL`];
+    if (chain.prompt) {
+      this.prompt = ENV2.PROMPT[chain.prompt] || chain.prompt;
+    } else
+      this.prompt = config.SYSTEM_INIT_MESSAGE;
+    this.provider = chain.provider;
+    this.history = chain.history || config.MAX_HISTORY_LENGTH;
+    this.show_info = chain.show_info || config.ENABLE_SHOWINFO;
+    return this;
   }
 };
 
@@ -3177,11 +3193,11 @@ function markdownToTelegraphNodes(markdown) {
     if (_line.startsWith("#")) {
       let level = line.match(/^#+/)[0].length;
       level = level <= 2 ? 3 : 4;
-      const text2 = line.replace(/^#+\s*/, "");
-      nodes.push({ tag: `h${level}`, children: processInlineElements(text2) });
+      const text = line.replace(/^#+\s*/, "");
+      nodes.push({ tag: `h${level}`, children: processInlineElements(text) });
     } else if (_line.startsWith("> ")) {
-      const text2 = line.slice(2);
-      nodes.push({ tag: "blockquote", children: processInlineElements(text2) });
+      const text = line.slice(2);
+      nodes.push({ tag: "blockquote", children: processInlineElements(text) });
     } else if (_line === "---" || _line === "***") {
       nodes.push({ tag: "hr" });
     } else {
@@ -3206,7 +3222,7 @@ function markdownToTelegraphNodes(markdown) {
   }
   return nodes;
 }
-function processInlineElementsHelper(text2) {
+function processInlineElementsHelper(text) {
   let children = [];
   const boldRegex = /\*\*(.+?)\*\*/g;
   const underlineRegex = /__(.+?)__/g;
@@ -3214,9 +3230,9 @@ function processInlineElementsHelper(text2) {
   const strikethroughRegex = /~~(.+?)~~/g;
   let tagMatch = null;
   let lastIndex = 0;
-  while ((tagMatch = boldRegex.exec(text2) || underlineRegex.exec(text2) || italicRegex.exec(text2) || strikethroughRegex.exec(text2)) !== null) {
+  while ((tagMatch = boldRegex.exec(text) || underlineRegex.exec(text) || italicRegex.exec(text) || strikethroughRegex.exec(text)) !== null) {
     if (tagMatch.index > lastIndex) {
-      children.push(text2.slice(lastIndex, tagMatch.index));
+      children.push(text.slice(lastIndex, tagMatch.index));
     }
     let tag = "";
     if (tagMatch[0].startsWith("**")) {
@@ -3235,8 +3251,8 @@ function processInlineElementsHelper(text2) {
     lastIndex = tagMatch.index + tagMatch[0].length;
     boldRegex.lastIndex = underlineRegex.lastIndex = italicRegex.lastIndex = strikethroughRegex.lastIndex = lastIndex;
   }
-  if (lastIndex < text2.length) {
-    children.push(text2.slice(lastIndex));
+  if (lastIndex < text.length) {
+    children.push(text.slice(lastIndex));
   }
   children = children.map((child) => {
     if (typeof child === "string") {
@@ -3264,14 +3280,14 @@ function processInlineElementsHelper(text2) {
   });
   return children.flat();
 }
-function processInlineElements(text2) {
+function processInlineElements(text) {
   let children = [];
   const codeRegex = /`([^`]+)`/g;
   let codeMatch;
   let lastIndex = 0;
-  while ((codeMatch = codeRegex.exec(text2)) !== null) {
+  while ((codeMatch = codeRegex.exec(text)) !== null) {
     if (codeMatch.index > lastIndex) {
-      children.push(...processInlineElementsHelper(text2.slice(lastIndex, codeMatch.index)));
+      children.push(...processInlineElementsHelper(text.slice(lastIndex, codeMatch.index)));
     }
     children.push({
       tag: "code",
@@ -3279,8 +3295,8 @@ function processInlineElements(text2) {
     });
     lastIndex = codeMatch.index + codeMatch[0].length;
   }
-  if (lastIndex < text2.length) {
-    children.push(...processInlineElementsHelper(text2.slice(lastIndex)));
+  if (lastIndex < text.length) {
+    children.push(...processInlineElementsHelper(text.slice(lastIndex)));
   }
   return children.flat();
 }
@@ -3348,11 +3364,11 @@ function sendTelegraphWithContext(context) {
 
 // src/agent/llm.js
 function tokensCounter() {
-  return (text2) => {
-    return text2.length;
+  return (text) => {
+    return text.length;
   };
 }
-async function loadHistory(key) {
+async function loadHistory(key, MAX_HISTORY_LENGTH = ENV2.MAX_HISTORY_LENGTH) {
   let history = [];
   try {
     history = JSON.parse(await DATABASE.get(key) || "[]");
@@ -3386,38 +3402,37 @@ async function loadHistory(key) {
     }
     return list;
   };
-  if (ENV.AUTO_TRIM_HISTORY && ENV.MAX_HISTORY_LENGTH > 0) {
-    history = trimHistory(history, 0, ENV.MAX_HISTORY_LENGTH, ENV.MAX_TOKEN_LENGTH);
+  if (ENV2.AUTO_TRIM_HISTORY && MAX_HISTORY_LENGTH > 0) {
+    history = trimHistory(history, 0, MAX_HISTORY_LENGTH, ENV2.MAX_TOKEN_LENGTH);
   }
   return history;
 }
 async function requestCompletionsFromLLM(params, context, llm, modifier, onStream) {
-  const historyDisable = ENV.AUTO_TRIM_HISTORY && ENV.MAX_HISTORY_LENGTH <= 0;
+  const historyDisable = ENV2.AUTO_TRIM_HISTORY && ENV2.MAX_HISTORY_LENGTH <= 0;
   const historyKey = context.SHARE_CONTEXT.chatHistoryKey;
   const readStartTime = performance.now();
   let history = [];
-  let { message, images } = params;
-  if (!images) {
-    history = await loadHistory(historyKey);
+  if (!params?.images) {
+    history = await loadHistory(historyKey, context._info.step.history || ENV2.MAX_HISTORY_LENGTH);
   }
   const readTime = ((performance.now() - readStartTime) / 1e3).toFixed(2);
   console.log(`readHistoryTime: ${readTime}s`);
   if (modifier) {
-    const modifierData = modifier(history, message);
+    const modifierData = modifier(history, params?.message);
     history = modifierData.history;
     params.message = modifierData.message;
   }
   const llmParams = {
     ...params,
     history,
-    prompt: context.USER_CONFIG.SYSTEM_INIT_MESSAGE
+    prompt: context._info.step.prompt
   };
   let answer = await llm(llmParams, context, onStream);
-  if (images) {
+  if (params.images) {
     params.message = "[A IMAGE] " + params.message;
   }
   if (typeof answer === "object") {
-    message = answer.q;
+    params.message = answer.q;
     answer = answer.a;
   }
   if (!historyDisable && answer) {
@@ -3427,82 +3442,33 @@ async function requestCompletionsFromLLM(params, context, llm, modifier, onStrea
   }
   return answer;
 }
-async function chatWithLLM(params, context, modifier, pointerLLM = loadChatLLM) {
+async function chatWithLLM(params, context, modifier) {
   try {
-    if (!params)
-      params = { message: "" };
-    params.message = context._info.isFirstStep ? params.message : context._info.lastStep.text;
-    const parseMode = context.CURRENT_CHAT_CONTEXT.parse_mode;
-    try {
-      if (!context.CURRENT_CHAT_CONTEXT.message_id) {
-        context.CURRENT_CHAT_CONTEXT.parse_mode = null;
-        const msg = await sendMessageToTelegramWithContext(context)("...").then((r) => r.json());
-        context.CURRENT_CHAT_CONTEXT.message_id = msg.result.message_id;
-      }
-      context.CURRENT_CHAT_CONTEXT.parse_mode = parseMode;
-      context.CURRENT_CHAT_CONTEXT.reply_markup = null;
-    } catch (e2) {
-      console.error(e2);
+    const llm = loadChatLLM(context)?.request;
+    if (llm === null) {
+      return sendMessageToTelegramWithContext(context)(`LLM is not enable`);
     }
-    setTimeout(() => sendChatActionToTelegramWithContext(context)("typing").catch(console.error), 0);
+    const parseMode = context.CURRENT_CHAT_CONTEXT.parse_mode;
     let onStream = null;
     let nextEnableTime = null;
-    const sendHandler = (() => {
-      const question = params?.message || "Redo";
-      const prefix = `#Question
-\`\`\`
-${question?.length > 400 ? question.slice(0, 200) + "..." + question.slice(-200) : question}
-\`\`\`
----`;
-      let first_time_than = true;
-      const author = {
-        short_name: context.SHARE_CONTEXT.currentBotName,
-        author_name: context.SHARE_CONTEXT.currentBotName,
-        author_url: ENV.TELEGRAPH_AUTHOR_URL
-      };
-      return async (text2) => {
-        if (ENV.TELEGRAPH_NUM_LIMIT > 0 && text2.length > ENV.TELEGRAPH_NUM_LIMIT && CONST.GROUP_TYPES.includes(context.SHARE_CONTEXT.chatType)) {
-          const telegraph_prefix = prefix + `
-#Answer
-\u{1F916} _${context._info.model}_
-`;
-          const debug_info = `debug info:${ENV.CALL_INFO ? "" : "\n" + context._info.call_info.replace("$$f_t$$", "") + "\n"}`;
-          const telegraph_suffix = `
----
-\`\`\`
-${debug_info}
-${context._info.message_title}
-\`\`\``;
-          if (first_time_than) {
-            const resp = await sendTelegraphWithContext(context)(
-              null,
-              telegraph_prefix + text2 + telegraph_suffix,
-              author
-            );
-            const url = `https://telegra.ph/${context.SHARE_CONTEXT.telegraphPath}`;
-            const msg = `\u56DE\u7B54\u5DF2\u7ECF\u8F6C\u6362\u6210\u5B8C\u6574\u6587\u7AE0~
-[\u{1F517}\u70B9\u51FB\u8FDB\u884C\u67E5\u770B](${url})`;
-            const show_info_tag = context.USER_CONFIG.ENABLE_SHOWINFO;
-            context._info.config("show_info", false);
-            await sendMessageToTelegramWithContext(context)(msg);
-            context._info.config("show_info", show_info_tag);
-            first_time_than = false;
-            return resp;
-          }
-          return sendTelegraphWithContext(context)(null, telegraph_prefix + text2 + telegraph_suffix, author);
-        } else
-          return sendMessageToTelegramWithContext(context)(text2);
-      };
-    })();
-    if (ENV.STREAM_MODE) {
-      onStream = async (text2) => {
-        if (ENV.HIDE_MIDDLE_MESSAGE && !context._info.isLastStep)
+    const sendMessage2 = sendTextMessageHandler(context);
+    if (ENV2.STREAM_MODE) {
+      onStream = async (text) => {
+        if (ENV2.HIDE_MIDDLE_MESSAGE && !context._info.isLastStep)
           return;
         try {
           if (nextEnableTime && nextEnableTime > Date.now()) {
             return;
           }
-          const resp = await sendHandler(text2);
+          if (ENV2.TELEGRAM_MIN_STREAM_INTERVAL > 0) {
+            nextEnableTime = Date.now() + ENV2.TELEGRAM_MIN_STREAM_INTERVAL;
+          }
+          let send_content = text;
+          if (context._info.is_concurrent) {
+            context._info.steps[params.index ?? 0].concurrent_content = text;
+            send_content = context._info.concurrent_content;
+          }
+          const resp = await sendMessage2(send_content);
           if (resp.status === 429) {
             const retryAfter = parseInt(resp.headers.get("Retry-After"));
             if (retryAfter) {
@@ -3516,20 +3482,17 @@ ${context._info.message_title}
         }
       };
     }
-    const llm = pointerLLM(context)?.request;
-    if (llm === null) {
-      return sendMessageToTelegramWithContext(context)(`LLM is not enable`);
+    if (context._info.is_concurrent && !context._info.concurrent_stream) {
+      context._info.concurrent_stream = onStream;
     }
+    const onStreamSelect = context._info.concurrent_stream || onStream;
     console.log(`[START] Chat via ${llm.name}`);
-    const answer = await requestCompletionsFromLLM(params, context, llm, modifier, onStream);
+    const answer = await requestCompletionsFromLLM(params, context, llm, modifier, onStreamSelect);
     if (!answer) {
       return sendMessageToTelegramWithContext(context)("None response", "tip");
     }
-    if (answer instanceof Response) {
-      return answer;
-    }
     context.CURRENT_CHAT_CONTEXT.parse_mode = parseMode;
-    if (ENV.SHOW_REPLY_BUTTON && context.CURRENT_CHAT_CONTEXT.message_id) {
+    if (ENV2.SHOW_REPLY_BUTTON && context.CURRENT_CHAT_CONTEXT.message_id) {
       try {
         await deleteMessageFromTelegramWithContext(context)(context.CURRENT_CHAT_CONTEXT.message_id);
         context.CURRENT_CHAT_CONTEXT.message_id = null;
@@ -3547,14 +3510,8 @@ ${context._info.message_title}
       console.log(`The last message need wait:${((nextEnableTime - Date.now()) / 1e3).toFixed(1)}s`);
       await new Promise((resolve) => setTimeout(resolve, nextEnableTime - Date.now()));
     }
-    if (!ENV.HIDE_MIDDLE_MESSAGE || context._info.isLastStep) {
-      await sendHandler(answer);
-    }
-    if (!context._info.isLastStep) {
-      context._info.setFile({ text: answer });
-    }
     console.log(`[DONE] Chat via ${llm.name}`);
-    return null;
+    return { type: "text", text: answer };
   } catch (e2) {
     let errMsg = `Error: ${e2.message}`;
     console.error(errMsg);
@@ -3565,51 +3522,200 @@ ${context._info.message_title}
     return sendMessageToTelegramWithContext(context)(errMsg, "tip");
   }
 }
-async function chatViaFileWithLLM(context) {
+function sendTextMessageHandler(context) {
+  const question = context._info.step?.file.text || "Redo";
+  const prefix = `#Question
+\`\`\`
+${question?.length > 400 ? question.slice(0, 200) + "..." + question.slice(-200) : question}
+\`\`\`
+---`;
+  const author = {
+    short_name: context.SHARE_CONTEXT.currentBotName,
+    author_name: context.SHARE_CONTEXT.currentBotName,
+    author_url: ENV2.TELEGRAPH_AUTHOR_URL
+  };
+  return async (text) => {
+    if (ENV2.TELEGRAPH_NUM_LIMIT > 0 && text.length > ENV2.TELEGRAPH_NUM_LIMIT && CONST.GROUP_TYPES.includes(context.SHARE_CONTEXT.chatType)) {
+      const telegraph_prefix = prefix + `
+#Answer
+\u{1F916} _${context._info.step.model}_
+`;
+      const debug_info = `debug info:${ENV2.CALL_INFO ? "" : "\n" + context._info.step.call_info.replace("$$f_t$$", "") + "\n"}`;
+      const telegraph_suffix = `
+---
+\`\`\`
+${debug_info}
+${context._info.step.message_title}
+\`\`\``;
+      if (!context.SHARE_CONTEXT.telegraphPath) {
+        const resp = await sendTelegraphWithContext(context)(
+          null,
+          telegraph_prefix + text + telegraph_suffix,
+          author
+        );
+        const url = `https://telegra.ph/${context.SHARE_CONTEXT.telegraphPath}`;
+        const msg = `\u56DE\u7B54\u5DF2\u7ECF\u8F6C\u6362\u6210\u5B8C\u6574\u6587\u7AE0~
+[\u{1F517}\u70B9\u51FB\u8FDB\u884C\u67E5\u770B](${url})`;
+        const show_info_tag = context.USER_CONFIG.ENABLE_SHOWINFO;
+        context._info.step.config("show_info", false);
+        await sendMessageToTelegramWithContext(context)(msg);
+        context._info.step.config("show_info", show_info_tag);
+        return resp;
+      }
+      return sendTelegraphWithContext(context)(null, telegraph_prefix + text + telegraph_suffix, author);
+    } else
+      return sendMessageToTelegramWithContext(context)(text);
+  };
+}
+async function chatViaFileWithLLM(context, params) {
   try {
-    if (!context.CURRENT_CHAT_CONTEXT.message_id) {
-      const msg = await sendMessageToTelegramWithContext(context)("...").then((r) => r.json());
-      context.CURRENT_CHAT_CONTEXT.message_id = msg.result.message_id;
-      context.CURRENT_CHAT_CONTEXT.reply_markup = null;
-    }
-    const { raw, file_name } = await handleFile(context._info);
-    if (context._info.step_index === 1)
-      context._info.setFile({ raw }, 0);
+    const { raw: raw2, file_name } = await handleFile(params.files);
     const llm = loadAudioLLM(context)?.request;
     if (llm === null) {
       return sendMessageToTelegramWithContext(context)(`LLM is not enable`);
     }
     const startTime = performance.now();
-    context._info.updateStartTime();
-    const answer = await llm(raw, file_name, context);
+    context._info.step.updateStartTime();
+    const answer = await llm(raw2, file_name, context);
     if (!answer.ok) {
       console.error(answer.message);
       return sendMessageToTelegramWithContext(context)("Chat via file failed.", "tip");
     }
     console.log(`[FILE DONE] ${llm.name}: ${((performance.now() - startTime) / 1e3).toFixed(1)}s`);
-    if (!context._info.isLastStep) {
-      if (answer.type === "text") {
-        context._info.setFile({ text: answer.content });
-      } else if (typeof answer.content === "string") {
-        context._info.setFile({ url: answer.content });
-      } else
-        context._info.lastStep.raw = answer.content;
-    }
-    if (!ENV.HIDE_MIDDLE_MESSAGE || context._info.isLastStep) {
-      let resp = null;
-      const sendHandler = { "text": sendMessageToTelegramWithContext, "image": sendPhotoToTelegramWithContext };
-      resp = await sendHandler[answer.type]?.(context)(answer.content).then((r) => r.json()) || {
-        ok: false,
-        message: "cannot find handler"
-      };
-      if (!resp.ok) {
-        console.error(`[FILE FAILED] Send data failed: ${resp.message}`);
-      }
-    }
-    return null;
+    const file_result = { type: answer.type };
+    if (answer.type === "text") {
+      file_result.text = answer.content;
+    } else if (typeof answer.content === "string") {
+      file_result.url = [answer.content];
+    } else
+      file_result.raw = [answer.content];
+    return file_result;
   } catch (e2) {
     context.CURRENT_CHAT_CONTEXT.disable_web_page_preview = true;
     return sendMessageToTelegramWithContext(context)(e2.substring(2048), "tip");
+  }
+}
+
+// src/agent/imagerequest.js
+async function requestI2IHander(context, params) {
+  const agent = context.USER_CONFIG.AI_IMAGE_PROVIDER;
+  const handlers = {
+    "silicon": requestImage2ImageFromSilicon
+  };
+  return await (handlers[agent] || handlers["silicon"])(params, context);
+}
+async function requestImage2ImageFromSilicon(params, context) {
+  const { prompt: prompt2, images, batch_size, size, extra_params = {} } = params;
+  const { style_name, num_inference_steps } = extra_params;
+  const { url, key, model } = openaiLikeAgent(context, "image2image");
+  const body = {
+    prompt: prompt2,
+    image: images[0],
+    image_size: size,
+    num_inference_steps: num_inference_steps || defaultParams.num_inference_steps,
+    batch_size: batch_size || defaultParams.batch_size
+  };
+  const header2 = {
+    "Content-Type": "application/json",
+    "Authorization": `Bearer ${key}`
+  };
+  if (model.startsWith("stabilityai") || model.startsWith("ByteDance")) {
+    body.guidance_scale = 7.5;
+  } else if (model.startsWith("InstantX")) {
+    delete body.image;
+    delete body.image_size;
+    delete body.batch_size;
+    body.face_image = images[0];
+    body.pose_image = images[1];
+    body.style_name = style_name || "Film Noir";
+  } else if (model.startsWith("TencentARC")) {
+    body.style_name = style_name || "Photographic";
+    body.guidance_scale = 5;
+  } else if (model.startsWith("BeijingUltimatech")) {
+    delete body.image;
+    body.room_image = images[0];
+    body.reference_style_image = images[1];
+  } else
+    throw new Error("unsupported model");
+  return await requestImage2Image(url, header2, body, context);
+}
+async function requestImage2Image(url, header2, body, context) {
+  const controller = new AbortController();
+  const { signal } = controller;
+  let timeoutID = null;
+  if (ENV.CHAT_COMPLETE_API_TIMEOUT > 0) {
+    timeoutID = setTimeout(() => controller.abort(), ENV.CHAT_COMPLETE_API_TIMEOUT * 1e3);
+  }
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: header2,
+    body,
+    signal
+  }).then((r) => r.json());
+  if (timeoutID) {
+    clearTimeout(timeoutID);
+  }
+  if (resp.images && resp.images.length > 0) {
+    return renderPic2PicResult(context, resp);
+  } else {
+    console.log(JSON.stringify(resp));
+    throw new Error("No images return");
+  }
+  ;
+}
+async function requestText2Image(context, params) {
+  const gen = loadImageGen(context)?.request;
+  if (!gen) {
+    return sendMessageToTelegramWithContext(context)(`ERROR: Image generator not found`, "tip");
+  }
+  setTimeout(() => sendChatActionToTelegramWithContext(context)("upload_photo").catch(console.error), 0);
+  const { url, header: header2, body } = await gen(params, context);
+  const resp = fetch(url, {
+    method: "POST",
+    headers: header2,
+    body: JSON.stringify(body)
+  });
+  return await renderText2PicResult(context, resp);
+}
+var defaultParams = {
+  batch_size: 1,
+  num_inference_steps: 20,
+  stabilityai: {
+    image_size: ["1024x1024", "1024x2048", "1536x1024", "1536x2048", "1152x2048", "2048x1152"]
+  }
+};
+async function renderText2PicResult(context, response) {
+  let resp = null;
+  switch (context.USER_CONFIG.AI_IMAGE_PROVIDER) {
+    case "openai":
+    case "auto":
+    case "azure":
+      resp = await response.then((r) => r.json());
+      if (resp.error?.message) {
+        throw new Error(result.error.message);
+      }
+      return {
+        type: "image",
+        url: resp?.data?.map((i) => i?.url),
+        text: resp?.data?.[0]?.revised_prompt || ""
+      };
+    case "silicon":
+      resp = await response.then((r) => r.json());
+      if (resp.message) {
+        throw new Error(result.message);
+      }
+      return { type: "image", url: (await resp?.images)?.map((i) => i?.url) };
+    case "worksai":
+      resp = await resp.then((r) => r.blob());
+      return { type: "image", url: [resp] };
+    default:
+      return sendMessageToTelegramWithContext(context)("unsupported agent");
+  }
+}
+function renderPic2PicResult(context, resp) {
+  switch (context.USER_CONFIG.AI_IMAGE_PROVIDER) {
+    case "silicon":
+      return { type: "image", url: resp?.images?.map((i) => i?.url), message: resp.message };
   }
 }
 
@@ -3623,7 +3729,7 @@ var commandAuthCheck = {
   },
   shareModeGroup: function(chatType) {
     if (CONST.GROUP_TYPES.includes(chatType)) {
-      if (!ENV.GROUP_CHAT_BOT_SHARE_MODE) {
+      if (!ENV2.GROUP_CHAT_BOT_SHARE_MODE) {
         return false;
       }
       return ["administrator", "creator"];
@@ -3710,27 +3816,19 @@ var commandHandlers = {
 };
 async function commandGenerateImg(message, command, subcommand, context) {
   if (!subcommand.trim()) {
-    return sendMessageToTelegramWithContext(context)(ENV.I18N.command.help.img, "tip");
+    return sendMessageToTelegramWithContext(context)(ENV2.I18N.command.help.img, "tip");
   }
   try {
-    if (!context.CURRENT_CHAT_CONTEXT) {
-      context.CURRENT_CHAT_CONTEXT = {};
-    }
-    const gen = loadImageGen(context)?.request;
-    if (!gen) {
-      return sendMessageToTelegramWithContext(context)(`ERROR: Image generator not found`, "tip");
-    }
-    setTimeout(() => sendChatActionToTelegramWithContext(context)("upload_photo").catch(console.error), 0);
-    const img = await gen(subcommand, context);
-    return sendPhotoToTelegramWithContext(context)(img);
+    const img = await requestText2Image(context, { message: subcommand });
+    return sendTelegramMessage(context, img);
   } catch (e2) {
     console.error(e2.message);
     return sendMessageToTelegramWithContext(context)(`ERROR: ${e2.message}`, "tip");
   }
 }
 async function commandGetHelp(message, command, subcommand, context) {
-  let helpMsg = ENV.I18N.command.help.summary + "\n";
-  helpMsg += Object.keys(commandHandlers).map((key) => `${key}\uFF1A${ENV.I18N.command.help[key.substring(1)]}`).join("\n");
+  let helpMsg = ENV2.I18N.command.help.summary + "\n";
+  helpMsg += Object.keys(commandHandlers).map((key) => `${key}\uFF1A${ENV2.I18N.command.help[key.substring(1)]}`).join("\n");
   helpMsg += "\n" + Object.keys(CUSTOM_COMMAND).filter((key) => !!CUSTOM_COMMAND_DESCRIPTION[key]).map((key) => `${key}\uFF1A${CUSTOM_COMMAND_DESCRIPTION[key]}`).join("\n");
   context.CURRENT_CHAT_CONTEXT.parse_mode = null;
   context.CURRENT_CHAT_CONTEXT.entities = [
@@ -3747,9 +3845,9 @@ async function commandCreateNewChatContext(message, command, subcommand, context
       selective: true
     });
     if (command === "/new") {
-      return sendMessageToTelegramWithContext(context)(ENV.I18N.command.new.new_chat_start, "tip");
+      return sendMessageToTelegramWithContext(context)(ENV2.I18N.command.new.new_chat_start, "tip");
     } else {
-      return sendMessageToTelegramWithContext(context)(`${ENV.I18N.command.new.new_chat_start}(${context.CURRENT_CHAT_CONTEXT.chat_id})`, "tip");
+      return sendMessageToTelegramWithContext(context)(`${ENV2.I18N.command.new.new_chat_start}(${context.CURRENT_CHAT_CONTEXT.chat_id})`, "tip");
     }
   } catch (e2) {
     return sendMessageToTelegramWithContext(context)(`ERROR: ${e2.message}`, "tip");
@@ -3763,7 +3861,7 @@ async function commandUpdateUserConfig(message, command, subcommand, context, pr
       context.CURRENT_CHAT_CONTEXT.parse_mode = "HTML";
       return sendMessageToTelegramWithContext(context)(msg, "tip");
     } else if (!subcommand) {
-      return sendMessageToTelegramWithContext(context)(ENV.I18N.command.help.mode, "tip");
+      return sendMessageToTelegramWithContext(context)(ENV2.I18N.command.help.mode, "tip");
     }
     if (!context.USER_CONFIG.MODES?.[subcommand]) {
       const msg = `mode \`${subcommand}\` not exist`;
@@ -3773,12 +3871,12 @@ async function commandUpdateUserConfig(message, command, subcommand, context, pr
   }
   const kv = subcommand.indexOf("=");
   if (kv === -1) {
-    return sendMessageToTelegramWithContext(context)(ENV.I18N.command.help.setenv, "tip");
+    return sendMessageToTelegramWithContext(context)(ENV2.I18N.command.help.setenv, "tip");
   }
   let key = subcommand.slice(0, kv);
   const value = subcommand.slice(kv + 1);
   key = ENV_KEY_MAPPER[key] || key;
-  if (ENV.LOCK_USER_CONFIG_KEYS.includes(key)) {
+  if (ENV2.LOCK_USER_CONFIG_KEYS.includes(key)) {
     return sendMessageToTelegramWithContext(context)(`Key ${key} is locked`, "tip");
   }
   if (!Object.keys(context.USER_CONFIG).includes(key)) {
@@ -3790,9 +3888,9 @@ async function commandUpdateUserConfig(message, command, subcommand, context, pr
     });
     if (processUpdate) {
       if (key.endsWith("_MODEL")) {
-        context._info.config("model", value);
+        context._info.step.config("model", value);
       } else if (key === "CURRENT_MODE") {
-        context._info.config("mode", value);
+        context._info.step.config("mode", value);
       }
       return null;
     }
@@ -3807,14 +3905,14 @@ async function commandUpdateUserConfig(message, command, subcommand, context, pr
 async function commandUpdateUserConfigs(message, command, subcommand, context, processUpdate = false) {
   try {
     if (!subcommand) {
-      return sendMessageToTelegramWithContext(context)(ENV.I18N.command.help.setenvs, "tip");
+      return sendMessageToTelegramWithContext(context)(ENV2.I18N.command.help.setenvs, "tip");
     }
     const values = JSON.parse(subcommand);
     const configKeys = Object.keys(context.USER_CONFIG);
     for (const ent of Object.entries(values)) {
       let [key, value] = ent;
       key = ENV_KEY_MAPPER[key] || key;
-      if (ENV.LOCK_USER_CONFIG_KEYS.includes(key)) {
+      if (ENV2.LOCK_USER_CONFIG_KEYS.includes(key)) {
         return sendMessageToTelegramWithContext(context)(`Key ${key} is locked`, "tip");
       }
       if (!configKeys.includes(key)) {
@@ -3825,9 +3923,9 @@ async function commandUpdateUserConfigs(message, command, subcommand, context, p
       });
       if (processUpdate) {
         if (key.endsWith("_MODEL")) {
-          context._info.config("model", value);
+          context._info.step.config("model", value);
         } else if (key === "CURRENT_MODE") {
-          context._info.config("mode", value);
+          context._info.step.config("mode", value);
         }
         continue;
       }
@@ -3850,7 +3948,7 @@ async function commandUpdateUserConfigs(message, command, subcommand, context, p
 async function commandSetUserConfigs(message, command, subcommand, context) {
   try {
     if (!subcommand) {
-      return sendMessageToTelegramWithContext(context)("```plaintext\n" + ENV.I18N.command.detail.set + "\n```", "tip");
+      return sendMessageToTelegramWithContext(context)("```plaintext\n" + ENV2.I18N.command.detail.set + "\n```", "tip");
     }
     const keys = Object.fromEntries(context.USER_CONFIG.MAPPING_KEY.split("|").map((k) => k.split(":")));
     if (keys["-u"]) {
@@ -3869,18 +3967,18 @@ async function commandSetUserConfigs(message, command, subcommand, context) {
     for (const [, k, v] of msgCommand) {
       let key = keys[k], value = values[v];
       if (key) {
-        if (ENV.LOCK_USER_CONFIG_KEYS.includes(key)) {
+        if (ENV2.LOCK_USER_CONFIG_KEYS.includes(key)) {
           return sendMessageToTelegramWithContext(context)(`Key ${key} is locked`, "tip");
         }
         const role_perfix = "~";
         switch (key) {
           case "SYSTEM_INIT_MESSAGE":
             if (v?.startsWith(role_perfix)) {
-              value = ENV.PROMPT[v.substring(1)];
+              value = ENV2.PROMPT[v.substring(1)];
               if (!value) {
                 msg += `>\`${v} is not exist, will use default prompt\`
 `;
-                value = ENV.I18N?.env?.system_init_message || "You are a helpful assistant";
+                value = ENV2.I18N?.env?.system_init_message || "You are a helpful assistant";
               }
             }
             break;
@@ -3901,7 +3999,7 @@ async function commandSetUserConfigs(message, command, subcommand, context) {
             break;
           case "USE_TOOLS":
             if (v === "on") {
-              value = Object.keys(ENV.TOOLS);
+              value = Object.keys(ENV2.TOOLS);
             } else if (v === "off") {
               value = [];
             }
@@ -3914,7 +4012,7 @@ async function commandSetUserConfigs(message, command, subcommand, context) {
         }
         context.USER_CONFIG[key] = value ?? v;
         context.USER_CONFIG.DEFINE_KEYS.push(key);
-        console.log(`/set ${key || "unknown"} ${(JSON.stringify(value) || v).substring(0, 20)}`);
+        console.log(`/set ${key || "unknown"} ${(JSON.stringify(value) || v).substring(0, 100)}`);
       } else
         return sendMessageToTelegramWithContext(context)(`Mapping Key ${k} is not exist`, "tip");
       if (!hasKey)
@@ -3937,9 +4035,9 @@ async function commandSetUserConfigs(message, command, subcommand, context) {
 }
 async function commandDeleteUserConfig(message, command, subcommand, context) {
   if (!subcommand) {
-    return sendMessageToTelegramWithContext(context)(ENV.I18N.command.help.delenv, "tip");
+    return sendMessageToTelegramWithContext(context)(ENV2.I18N.command.help.delenv, "tip");
   }
-  if (ENV.LOCK_USER_CONFIG_KEYS.includes(subcommand)) {
+  if (ENV2.LOCK_USER_CONFIG_KEYS.includes(subcommand)) {
     const msg = `Key ${subcommand} is locked`;
     return sendMessageToTelegramWithContext(context)(msg, "tip");
   }
@@ -3971,11 +4069,11 @@ async function commandClearUserConfig(message, command, subcommand, context) {
 }
 async function commandFetchUpdate(message, command, subcommand, context) {
   const current = {
-    ts: ENV.BUILD_TIMESTAMP,
-    sha: ENV.BUILD_VERSION
+    ts: ENV2.BUILD_TIMESTAMP,
+    sha: ENV2.BUILD_VERSION
   };
   try {
-    const info = `https://raw.githubusercontent.com/adolphnov/ChatGPT-Telegram-Workers/${ENV.UPDATE_BRANCH}/dist/buildinfo.json`;
+    const info = `https://raw.githubusercontent.com/adolphnov/ChatGPT-Telegram-Workers/${ENV2.UPDATE_BRANCH}/dist/buildinfo.json`;
     const online = await fetch(info).then((r) => r.json());
     const timeFormat = (ts) => {
       return new Date(ts * 1e3).toLocaleString("en-US", {});
@@ -4008,7 +4106,7 @@ async function commandSystem(message, command, subcommand, context) {
   let msg = `<pre>AGENT: ${JSON.stringify(agent, null, 2)}
 others: ${customInfo(context.USER_CONFIG)}
 </pre>`;
-  if (ENV.DEV_MODE) {
+  if (ENV2.DEV_MODE) {
     const shareCtx = { ...context.SHARE_CONTEXT };
     shareCtx.currentBotToken = "******";
     context.USER_CONFIG.OPENAI_API_KEY = ["******"];
@@ -4035,8 +4133,8 @@ others: ${customInfo(context.USER_CONFIG)}
   return sendMessageToTelegramWithContext(context)(msg, "tip");
 }
 async function commandRegenerate(message, command, subcommand, context) {
-  const mf = (history, text2) => {
-    let nextText = text2;
+  const mf = (history, text) => {
+    let nextText = text;
     if (!(history && Array.isArray(history) && history.length > 0)) {
       throw new Error("History not found");
     }
@@ -4046,7 +4144,7 @@ async function commandRegenerate(message, command, subcommand, context) {
       if (data === void 0 || data === null) {
         break;
       } else if (data.role === "user") {
-        if (text2 === "" || text2 === void 0 || text2 === null) {
+        if (text === "" || text === void 0 || text === null) {
           nextText = data.content;
         }
         break;
@@ -4070,7 +4168,7 @@ async function handleCommandMessage(message, context) {
   if (!message.text) {
     return null;
   }
-  if (ENV.DEV_MODE) {
+  if (ENV2.DEV_MODE) {
     commandHandlers["/echo"] = {
       help: "[DEBUG ONLY] echo message",
       scopes: ["all_private_chats", "all_chat_administrators"],
@@ -4108,10 +4206,10 @@ async function handleCommandMessage(message, context) {
       }
       const subcommand = commandLine.substring(key.length).trim();
       try {
-        const result = await command.fn(message, key, subcommand, context);
+        const result2 = await command.fn(message, key, subcommand, context);
         console.log("[DONE] Command: " + key + " " + subcommand);
-        if (result instanceof Response)
-          return result;
+        if (result2 instanceof Response)
+          return result2;
         if (message.text.length === 0)
           return new Response("None question");
       } catch (e2) {
@@ -4132,7 +4230,7 @@ async function bindCommandForTelegram(token) {
     all_chat_administrators: []
   };
   for (const key of commandSortList) {
-    if (ENV.HIDE_COMMAND_BUTTONS.includes(key)) {
+    if (ENV2.HIDE_COMMAND_BUTTONS.includes(key)) {
       continue;
     }
     if (Object.prototype.hasOwnProperty.call(commandHandlers, key) && commandHandlers[key].scopes) {
@@ -4144,9 +4242,9 @@ async function bindCommandForTelegram(token) {
       }
     }
   }
-  const result = {};
+  const result2 = {};
   for (const scope in scopeCommandMap) {
-    result[scope] = await fetch(
+    result2[scope] = await fetch(
       `https://api.telegram.org/bot${token}/setMyCommands`,
       {
         method: "POST",
@@ -4156,7 +4254,7 @@ async function bindCommandForTelegram(token) {
         body: JSON.stringify({
           commands: scopeCommandMap[scope].map((command) => ({
             command,
-            description: ENV.I18N.command.help[command.substring(1)] || ""
+            description: ENV2.I18N.command.help[command.substring(1)] || ""
           })),
           scope: {
             type: scope
@@ -4165,13 +4263,13 @@ async function bindCommandForTelegram(token) {
       }
     ).then((res) => res.json());
   }
-  return { ok: true, result };
+  return { ok: true, result: result2 };
 }
 function commandsDocument() {
   return Object.keys(commandHandlers).map((key) => {
     return {
       command: key,
-      description: ENV.I18N.command.help[key.substring(1)]
+      description: ENV2.I18N.command.help[key.substring(1)]
     };
   });
 }
@@ -4308,14 +4406,14 @@ async function msgInitChatContext(message, context) {
   return null;
 }
 async function msgSaveLastMessage(message, context) {
-  if (ENV.DEBUG_MODE) {
+  if (ENV2.DEBUG_MODE) {
     const lastMessageKey = `last_message:${context.SHARE_CONTEXT.chatHistoryKey}`;
     await DATABASE.put(lastMessageKey, JSON.stringify(message), { expirationTtl: 3600 });
   }
   return null;
 }
 async function msgIgnoreOldMessage(message, context) {
-  if (ENV.SAFE_MODE) {
+  if (ENV2.SAFE_MODE) {
     let idList = [];
     try {
       idList = JSON.parse(await DATABASE.get(context.SHARE_CONTEXT.chatLastMessageIdKey) || "[]");
@@ -4341,11 +4439,11 @@ async function msgCheckEnvIsReady(message, context) {
   return null;
 }
 async function msgFilterWhiteList(message, context) {
-  if (ENV.I_AM_A_GENEROUS_PERSON) {
+  if (ENV2.I_AM_A_GENEROUS_PERSON) {
     return null;
   }
   if (context.SHARE_CONTEXT.chatType === "private") {
-    if (!ENV.CHAT_WHITE_LIST.includes(`${context.CURRENT_CHAT_CONTEXT.chat_id}`)) {
+    if (!ENV2.CHAT_WHITE_LIST.includes(`${context.CURRENT_CHAT_CONTEXT.chat_id}`)) {
       return sendMessageToTelegramWithContext(context)(
         `You are not in the white list, please contact the administrator to add you to the white list. Your chat_id: ${context.CURRENT_CHAT_CONTEXT.chat_id}`
       );
@@ -4353,10 +4451,10 @@ async function msgFilterWhiteList(message, context) {
     return null;
   }
   if (CONST.GROUP_TYPES.includes(context.SHARE_CONTEXT.chatType)) {
-    if (!ENV.GROUP_CHAT_BOT_ENABLE) {
+    if (!ENV2.GROUP_CHAT_BOT_ENABLE) {
       throw new Error("Not support");
     }
-    if (!ENV.CHAT_GROUP_WHITE_LIST.includes(`${context.CURRENT_CHAT_CONTEXT.chat_id}`)) {
+    if (!ENV2.CHAT_GROUP_WHITE_LIST.includes(`${context.CURRENT_CHAT_CONTEXT.chat_id}`)) {
       return sendMessageToTelegramWithContext(context)(
         `Your group are not in the white list, please contact the administrator to add you to the white list. Your chat_id: ${context.CURRENT_CHAT_CONTEXT.chat_id}`
       );
@@ -4368,10 +4466,10 @@ async function msgFilterWhiteList(message, context) {
   );
 }
 async function msgFilterUnsupportedMessage(message, context) {
-  if (message.text || ENV.EXTRA_MESSAGE_CONTEXT && message.reply_to_message?.text) {
+  if (message.text || ENV2.EXTRA_MESSAGE_CONTEXT && message.reply_to_message?.text) {
     return null;
   }
-  if (ENV.ENABLE_FILE && (message.voice || message.audio || message.photo || message.image || message.document)) {
+  if (ENV2.ENABLE_FILE && (message.voice || message.audio || message.photo || message.image || message.document)) {
     return null;
   }
   throw new Error("Unsupported message");
@@ -4383,17 +4481,17 @@ async function msgHandlePrivateMessage(message, context) {
   if (!message.text && !message.caption) {
     return null;
   }
-  if (!message.text && !ENV.ENABLE_FILE) {
+  if (!message.text && !ENV2.ENABLE_FILE) {
     return new Response("Non text message", { "status": 200 });
   }
-  const chatMsgKey = Object.keys(ENV.CHAT_MESSAGE_TRIGGER).find(
+  const chatMsgKey = Object.keys(ENV2.CHAT_MESSAGE_TRIGGER).find(
     (key) => (message?.text || message?.caption || "").startsWith(key)
   );
   if (chatMsgKey) {
     if (message.text) {
-      message.text = message.text.replace(chatMsgKey, ENV.CHAT_MESSAGE_TRIGGER[chatMsgKey]);
+      message.text = message.text.replace(chatMsgKey, ENV2.CHAT_MESSAGE_TRIGGER[chatMsgKey]);
     } else
-      message.caption = message.caption.replace(chatMsgKey, ENV.CHAT_MESSAGE_TRIGGER[chatMsgKey]);
+      message.caption = message.caption.replace(chatMsgKey, ENV2.CHAT_MESSAGE_TRIGGER[chatMsgKey]);
   }
   return null;
 }
@@ -4402,19 +4500,19 @@ async function msgHandleGroupMessage(message, context) {
     return null;
   }
   let botName = context.SHARE_CONTEXT.currentBotName;
-  const chatMsgKey = Object.keys(ENV.CHAT_MESSAGE_TRIGGER).find(
+  const chatMsgKey = Object.keys(ENV2.CHAT_MESSAGE_TRIGGER).find(
     (key) => (message?.text || message?.caption || "").startsWith(key)
   );
   if (chatMsgKey) {
     if (message?.text) {
-      message.text = message.text.replace(chatMsgKey, ENV.CHAT_MESSAGE_TRIGGER[chatMsgKey]);
+      message.text = message.text.replace(chatMsgKey, ENV2.CHAT_MESSAGE_TRIGGER[chatMsgKey]);
     } else
-      message.caption = message.caption.replace(chatMsgKey, ENV.CHAT_MESSAGE_TRIGGER[chatMsgKey]);
+      message.caption = message.caption.replace(chatMsgKey, ENV2.CHAT_MESSAGE_TRIGGER[chatMsgKey]);
   }
   if (message.reply_to_message) {
     if (`${message.reply_to_message.from.id}` === context.SHARE_CONTEXT.currentBotId) {
       return null;
-    } else if (ENV.EXTRA_MESSAGE_CONTEXT) {
+    } else if (ENV2.EXTRA_MESSAGE_CONTEXT) {
       context.SHARE_CONTEXT.extraMessageContext = message.reply_to_message;
     }
   }
@@ -4479,18 +4577,14 @@ async function msgInitUserConfig(message, context) {
   }
 }
 async function msgIgnoreSpecificMessage(message) {
-  if (ENV.IGNORE_TEXT && message?.text?.startsWith(ENV.IGNORE_TEXT)) {
+  if (ENV2.IGNORE_TEXT && message?.text?.startsWith(ENV2.IGNORE_TEXT)) {
     return new Response("ignore specific text", { status: 200 });
   }
   return null;
 }
 async function msgInitMiddleInfo(message, context) {
   try {
-    context._info = await MiddleInfo.initInfo(message, context);
-    if (!message.text && !message.reply_to_message?.text) {
-      const msg = await sendMessageToTelegramWithContext(context)("file info get successful.").then((r) => r.json());
-      context.CURRENT_CHAT_CONTEXT.message_id = msg.result.message_id;
-    }
+    await MiddleInfo.initInfo(message, context);
     return null;
   } catch (e2) {
     console.log(e2.message);
@@ -4501,63 +4595,106 @@ async function msgHandleCommand(message, context) {
   return await handleCommandMessage(message, context);
 }
 async function msgChatWithLLM(message, context) {
-  let content = (message.text || message.caption || "").trim();
-  if (ENV.EXTRA_MESSAGE_CONTEXT && (context.SHARE_CONTEXT.extraMessageContext?.text || context.SHARE_CONTEXT.extraMessageContext?.caption)) {
-    content = "> " + (context.SHARE_CONTEXT.extraMessageContext?.text || "") + (context.SHARE_CONTEXT.extraMessageContext?.caption || "") + "\n" + content;
-  }
-  const params = { message: content };
+  const is_concurrent = context._info.is_concurrent;
+  const llmPromises = [];
   try {
-    let result = null;
-    for (let i = 0; i < context._info.process_count; i++) {
-      if (result && result instanceof Response) {
-        return result;
-      }
-      context._info.initProcess(context.USER_CONFIG);
-      if (context._info.file[i].type === "image") {
-        params.images = [context._info.file[i].url];
-      }
-      switch (context._info.process_type) {
-        case "text:text":
-          result = await chatWithLLM(params, context, null);
-          break;
-        case "text:image":
-          {
-            const gen = loadImageGen(context)?.request;
-            if (!gen) {
-              return sendMessageToTelegramWithContext(context)(`ERROR: Image generator not found`, "tip");
-            }
-            setTimeout(() => sendChatActionToTelegramWithContext(context)("upload_photo").catch(console.error), 0);
-            result = await gen(context._info.lastStep.text || text, context);
-            if (!context._info.isLastStep) {
-              context._info.setFile(typeof result === "string" ? { url: result } : { raw: result });
-            }
-            const response = await sendPhotoToTelegramWithContext(context)(result);
-            if (response.status != 200) {
-              console.error(await response.text());
-            }
-          }
-          break;
-        case "audio:text":
-          result = await chatViaFileWithLLM(context);
-          break;
-        case "image:text":
-          result = await chatWithLLM(params, context, null, loadVisionLLM);
-          break;
-        case "audio:audio":
-        case "text:audio":
-        default:
-          return sendMessageToTelegramWithContext(context)("unsupported type", "tip");
-      }
-      if (context.CURRENT_CHAT_CONTEXT.message_id && !ENV.HIDE_MIDDLE_MESSAGE) {
+    let result2 = null;
+    for (let i = 0; i < context._info.chains.length; i++) {
+      if (context.CURRENT_CHAT_CONTEXT.message_id && !ENV2.HIDE_MIDDLE_MESSAGE) {
         context.CURRENT_CHAT_CONTEXT.message_id = null;
+        context.SHARE_CONTEXT.telegraphPath = null;
       }
-      delete params.images;
+      context._info.initStep(i, result2 ?? context._info.file);
+      const file = result2 ?? context._info.file;
+      const params = { message: file.text, step_index: i };
+      if (file.type !== "text") {
+        const file_urls = await getTelegramFileUrl(file, context.SHARE_CONTEXT.currentBotToken);
+        if (file.type === "image") {
+          params.images = file_urls;
+        } else
+          params.files = { type: file.type, url: file_urls, raw: file.raw };
+      }
+      if (is_concurrent && i === 0 || !is_concurrent)
+        await sendInitMessage(context);
+      if (is_concurrent) {
+        context.USER_CONFIG.ENABLE_SHOWTOKEN = false;
+        llmPromises.push(chatLlmHander(context, params));
+      } else {
+        result2 = await chatLlmHander(context, params);
+        if (result2 && result2 instanceof Response) {
+          return result2;
+        }
+        if (i + 1 === context._info.chains.length || !ENV2.HIDE_MIDDLE_MESSAGE) {
+          console.log(result2.text);
+          await sendTelegramMessage(context, result2);
+        }
+      }
     }
+    const results = await Promise.all(llmPromises);
+    results.forEach((result3, index) => {
+      if (result3.type === "text") {
+        context._info.steps[index].concurrent_content = result3.text;
+      }
+    });
+    if (is_concurrent && results.filter((i) => i.type === "text").length > 0) {
+      await sendTextMessageHandler(context)(context._info.concurrent_content);
+    }
+    return new Response("success", { status: 200 });
   } catch (e2) {
     console.error(e2);
     return sendMessageToTelegramWithContext(context)(`ERROR: ${e2.message}`, "tip");
   }
-  return new Response("success", { status: 200 });
+}
+async function chatLlmHander(context, params) {
+  const chain_type = context._info.step.chain_type;
+  switch (chain_type) {
+    case "text:text":
+    case "image:text":
+      return chatWithLLM(params, context);
+    case "text:image":
+      return requestText2Image(context, params);
+    case "audio:text":
+      return chatViaFileWithLLM(context, params);
+    case "image:image":
+      return requestI2IHander(context, params);
+    case "audio:audio":
+    case "text:audio":
+    default:
+      return sendMessageToTelegramWithContext(context)("unsupported type", "tip");
+  }
+}
+async function sendInitMessage(context) {
+  try {
+    const chain_type = context._info.step.chain_type;
+    let text = "...", type = "chat";
+    if (["text:image", "image:image"].includes(chain_type)) {
+      text = "It may take a longer time, please wait a moment.";
+      type = "tip";
+    }
+    const parseMode = context.CURRENT_CHAT_CONTEXT.parse_mode;
+    context.CURRENT_CHAT_CONTEXT.parse_mode = null;
+    const msg = await sendMessageToTelegramWithContext(context)(text, type).then((r) => r.json());
+    context.CURRENT_CHAT_CONTEXT.message_id = msg.result.message_id;
+    context.CURRENT_CHAT_CONTEXT.parse_mode = parseMode;
+    context.CURRENT_CHAT_CONTEXT.reply_markup = null;
+  } catch (e2) {
+    console.error(e2);
+  }
+}
+function sendTelegramMessage(context, file) {
+  switch (file.type) {
+    case "text":
+      return sendTextMessageHandler(context)(file.text);
+    case "image":
+      file.type = "photo";
+      if (file.url?.length > 1) {
+        return sendMediaGroupToTelegramWithContext(context)(file);
+      } else if (file.url?.length > 0 || file.raw?.length > 0) {
+        return sendPhotoToTelegramWithContext(context)(file);
+      }
+    default:
+      return sendMessageToTelegramWithContext(context)(`Not supported type`);
+  }
 }
 function loadMessage(body) {
   if (body?.edited_message) {
@@ -4569,30 +4706,43 @@ function loadMessage(body) {
     throw new Error("Invalid message");
   }
 }
-async function scheduledDeleteMessage(request, context) {
+async function scheduledDeleteMessage(message, context) {
   const { sentMessageIds } = context.SHARE_CONTEXT;
   if (!sentMessageIds || sentMessageIds.size === 0)
     return new Response("success", { status: 200 });
   const chatId = context.SHARE_CONTEXT.chatId;
   const botName = context.SHARE_CONTEXT.currentBotName;
-  const scheduledData = JSON.parse(await DATABASE.get(context.SHARE_CONTEXT.scheduleDeteleKey) || "{}");
+  const scheduleDeteleKey = context.SHARE_CONTEXT.scheduleDeteleKey;
+  const scheduledData = JSON.parse(await DATABASE.get(scheduleDeteleKey) || "{}");
   if (!scheduledData[botName]) {
     scheduledData[botName] = {};
   }
   if (!scheduledData[botName][chatId]) {
     scheduledData[botName][chatId] = [];
   }
-  const offsetInMillisenconds = ENV.EXPIRED_TIME * 60 * 1e3;
+  const offsetInMillisenconds = ENV2.EXPIRED_TIME * 60 * 1e3;
   scheduledData[botName][chatId].push({
     id: [...sentMessageIds],
     ttl: Date.now() + offsetInMillisenconds
   });
-  await DATABASE.put(context.SHARE_CONTEXT.scheduleDeteleKey, JSON.stringify(scheduledData));
-  console.log(`message need delete: ${chatId} - ${[...sentMessageIds]}`);
+  await DATABASE.put(scheduleDeteleKey, JSON.stringify(scheduledData));
+  console.log(`Record message id: ${chatId} - ${[...sentMessageIds]}`);
   return new Response("success", { status: 200 });
 }
-async function msgTagNeedDelete(request, context) {
-  return await scheduledDeleteMessage(request, context);
+async function msgTagNeedDelete(message, context) {
+  return await scheduledDeleteMessage(message, context);
+}
+async function msgStoreWhiteListMessage(message, context) {
+  if (ENV2.STORE_MESSAGE_WHITELIST.includes(message.message.from.id) && ENV2.STORE_MESSAGE_NUM > 0) {
+    const storeMessageKey = context.SHARE_CONTEXT.storeMessageKey;
+    const data = JSON.parse(await DATABASE.get(storeMessageKey) || "[]");
+    data.push(await extractMessageType(message));
+    if (data.length > ENV2.STORE_MESSAGE_NUM) {
+      data.splice(0, data.length - ENV2.STORE_MESSAGE_NUM);
+    }
+    await DATABASE.put(storeMessageKey, JSON.stringify(data));
+  }
+  return new Response("ok");
 }
 async function handleMessage(token, body) {
   const context = new Context();
@@ -4626,11 +4776,11 @@ async function handleMessage(token, body) {
     // 与llm聊天
     msgChatWithLLM
   ];
-  const exitHanders = [msgTagNeedDelete];
+  const exitHanders = [msgTagNeedDelete, msgStoreWhiteListMessage];
   for (const handler of handlers) {
     try {
-      const result = await handler(message, context);
-      if (result && result instanceof Response) {
+      const result2 = await handler(message, context);
+      if (result2 && result2 instanceof Response) {
         break;
       }
     } catch (e2) {
@@ -4640,9 +4790,9 @@ async function handleMessage(token, body) {
   }
   for (const handler of exitHanders) {
     try {
-      const result = await handler(message, context);
-      if (result && result instanceof Response) {
-        return result;
+      const result2 = await handler(message, context);
+      if (result2 && result2 instanceof Response) {
+        return result2;
       }
     } catch (e2) {
       console.error(e2);
@@ -4800,13 +4950,13 @@ function buildKeyNotFoundHTML(key) {
   return `<p style="color: red">Please set the <strong>${key}</strong> environment variable in Cloudflare Workers.</p> `;
 }
 async function bindWebHookAction(request) {
-  const result = [];
+  const result2 = [];
   const domain = new URL(request.url).host;
   const hookMode = API_GUARD ? "safehook" : "webhook";
-  for (const token of ENV.TELEGRAM_AVAILABLE_TOKENS) {
+  for (const token of ENV2.TELEGRAM_AVAILABLE_TOKENS) {
     const url = `https://${domain}/telegram/${token.trim()}/${hookMode}`;
     const id = token.split(":")[0];
-    result[id] = {
+    result2[id] = {
       webhook: await bindTelegramWebHook(token, url).catch((e2) => errorToString(e2)),
       command: await bindCommandForTelegram(token).catch((e2) => errorToString(e2))
     };
@@ -4814,12 +4964,12 @@ async function bindWebHookAction(request) {
   const HTML = renderHTML(`
     <h1>ChatGPT-Telegram-Workers</h1>
     <h2>${domain}</h2>
-    ${ENV.TELEGRAM_AVAILABLE_TOKENS.length === 0 ? buildKeyNotFoundHTML("TELEGRAM_AVAILABLE_TOKENS") : ""}
-    ${Object.keys(result).map((id) => `
+    ${ENV2.TELEGRAM_AVAILABLE_TOKENS.length === 0 ? buildKeyNotFoundHTML("TELEGRAM_AVAILABLE_TOKENS") : ""}
+    ${Object.keys(result2).map((id) => `
         <br/>
         <h4>Bot ID: ${id}</h4>
-        <p style="color: ${result[id].webhook.ok ? "green" : "red"}">Webhook: ${JSON.stringify(result[id].webhook)}</p>
-        <p style="color: ${result[id].command.ok ? "green" : "red"}">Command: ${JSON.stringify(result[id].command)}</p>
+        <p style="color: ${result2[id].webhook.ok ? "green" : "red"}">Webhook: ${JSON.stringify(result2[id].webhook)}</p>
+        <p style="color: ${result2[id].command.ok ? "green" : "red"}">Command: ${JSON.stringify(result2[id].command)}</p>
         `).join("")}
       ${footer}
     `);
@@ -4855,7 +5005,7 @@ async function defaultIndexAction() {
     <h1>ChatGPT-Telegram-Workers</h1>
     <br/>
     <p>Deployed Successfully!</p>
-    <p> Version (ts:${ENV.BUILD_TIMESTAMP},sha:${ENV.BUILD_VERSION})</p>
+    <p> Version (ts:${ENV2.BUILD_TIMESTAMP},sha:${ENV2.BUILD_VERSION})</p>
     <br/>
     <p>You must <strong><a href="${initLink}"> >>>>> click here <<<<< </a></strong> to bind the webhook.</p>
     <br/>
@@ -4869,22 +5019,22 @@ async function defaultIndexAction() {
   return new Response(HTML, { status: 200, headers: { "Content-Type": "text/html" } });
 }
 async function loadBotInfo() {
-  const result = [];
-  for (const token of ENV.TELEGRAM_AVAILABLE_TOKENS) {
+  const result2 = [];
+  for (const token of ENV2.TELEGRAM_AVAILABLE_TOKENS) {
     const id = token.split(":")[0];
-    result[id] = await getBot(token);
+    result2[id] = await getBot(token);
   }
   const HTML = renderHTML(`
     <h1>ChatGPT-Telegram-Workers</h1>
     <br/>
     <h4>Environment About Bot</h4>
-    <p><strong>GROUP_CHAT_BOT_ENABLE:</strong> ${ENV.GROUP_CHAT_BOT_ENABLE}</p>
-    <p><strong>GROUP_CHAT_BOT_SHARE_MODE:</strong> ${ENV.GROUP_CHAT_BOT_SHARE_MODE}</p>
-    <p><strong>TELEGRAM_BOT_NAME:</strong> ${ENV.TELEGRAM_BOT_NAME.join(",")}</p>
-    ${Object.keys(result).map((id) => `
+    <p><strong>GROUP_CHAT_BOT_ENABLE:</strong> ${ENV2.GROUP_CHAT_BOT_ENABLE}</p>
+    <p><strong>GROUP_CHAT_BOT_SHARE_MODE:</strong> ${ENV2.GROUP_CHAT_BOT_SHARE_MODE}</p>
+    <p><strong>TELEGRAM_BOT_NAME:</strong> ${ENV2.TELEGRAM_BOT_NAME.join(",")}</p>
+    ${Object.keys(result2).map((id) => `
             <br/>
             <h4>Bot ID: ${id}</h4>
-            <p style="color: ${result[id].ok ? "green" : "red"}">${JSON.stringify(result[id])}</p>
+            <p style="color: ${result2[id].ok ? "green" : "red"}">${JSON.stringify(result2[id])}</p>
             `).join("")}
     ${footer}
   `);
@@ -4896,7 +5046,7 @@ async function handleRequest(request) {
   router.get("/init", bindWebHookAction);
   router.post("/telegram/:token/webhook", telegramWebhook);
   router.post("/telegram/:token/safehook", telegramSafeHook);
-  if (ENV.DEV_MODE || ENV.DEBUG_MODE) {
+  if (ENV2.DEV_MODE || ENV2.DEBUG_MODE) {
     router.get("/telegram/:token/bot", loadBotInfo);
   }
   router.all("*", () => new Response("Not Found", { status: 404 }));

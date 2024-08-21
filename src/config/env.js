@@ -100,12 +100,12 @@ export class UserConfig {
   // Anthropic api base
   ANTHROPIC_API_BASE = 'https://api.anthropic.com/v1';
   // Anthropic api model
-    ANTHROPIC_CHAT_MODEL = 'claude-3-haiku-20240307';
+  ANTHROPIC_CHAT_MODEL = 'claude-3-haiku-20240307';
 
   // -- OPENAI LIKE --
-    
-  OPENAILIKE_IMAGE_MODEL = 'black-forest-labs/FLUX.1-schnell';
-  OPENAILIKE_CHAT_MODEL = 'deepseek-chat';
+
+  IMAGE_MODEL = 'black-forest-labs/FLUX.1-schnell';
+  CHAT_MODEL = 'deepseek-chat';
 
   // -- EXTRA 配置 --
   //
@@ -122,30 +122,38 @@ export class UserConfig {
   // 提供商来源 {"foo": { API_BASE: "https://xxxxxx", API_KEY: "xxxxxx" }}
   PROVIDERS = {};
   MODES = {
-    // process_type: 默认为'消息类型:text' ; 消息类型分为: text audio image
-    // provider: 默认为default
-    // agent: 默认为openai, 与AI对话时使用openai风格接口
-    // prompt: default
-    // model: 不同类型下 不同默认值
-    // text:audio, TODO
+    // chain_type: 默认为'消息类型:text' ; 消息类型分为: text audio image
+        // provider: 默认为default
+        // agent: 默认为openai, 与AI对话时使用openai风格接口
+        // prompt: default
+        // model: 不同类型下 不同默认值
+    // type: concurrent类型流程会并列执行
     default: {
-      text: [{}],
-      audio: [
-        // 后若出现模型能直接audio:text对话 可加上指定模型, 去掉text:text
-        {},
-        { process_type: 'text:text' },
-      ],
-      image: [{}],
+      text: {},
+      audio: {
+        chains: [
+          // 后若出现模型能直接audio:text对话 可加上指定模型, 去掉text:text
+          {},
+          { chain_type: 'text:text' },
+        ],
+      },
+      image: {},
     },
-    'dall-e': {
-      text: [{ prompt: 'dall-e' }, { process_type: 'text:image' }],
+    dalle: {
+      text: { chains: [{ prompt: 'dall-e' }, { chain_type: 'text:image' }] },
     },
+    // compete: {
+    //   text: {
+    //     type: 'concurrent',
+    //     chains: [{}, { model: 'gpt-4o-2024-08-06' }],
+    //   },
+    // },
   };
   // 历史最大长度 调整为用户配置
   MAX_HISTORY_LENGTH = 12;
   // /set 指令映射变量 | 分隔多个关系，:分隔映射
   MAPPING_KEY =
-    '-p:SYSTEM_INIT_MESSAGE|-n:MAX_HISTORY_LENGTH|-a:AI_PROVIDER|-ai:AI_IMAGE_PROVIDER|-m:CHAT_MODEL|-v:OPENAI_VISION_MODEL|-t:OPENAI_TTS_MODEL|-ex:OPENAI_API_EXTRA_PARAMS|-mk:MAPPING_KEY|-mv:MAPPING_VALUE|-asap:FUNCTION_REPLY_ASAP|-fm:FUNCTION_CALL_MODEL|-tool:USE_TOOLS|-oli:OPENAILIKE_IMAGE_MODEL';
+    '-p:SYSTEM_INIT_MESSAGE|-n:MAX_HISTORY_LENGTH|-a:AI_PROVIDER|-ai:AI_IMAGE_PROVIDER|-m:CHAT_MODEL|-v:OPENAI_VISION_MODEL|-t:OPENAI_TTS_MODEL|-ex:OPENAI_API_EXTRA_PARAMS|-mk:MAPPING_KEY|-mv:MAPPING_VALUE|-asap:FUNCTION_REPLY_ASAP|-fm:FUNCTION_CALL_MODEL|-tool:USE_TOOLS|-oli:IMAGE_MODEL';
   // /set 指令映射值  | 分隔多个关系，:分隔映射
   MAPPING_VALUE = '';
   // MAPPING_VALUE = "cson:claude-3-5-sonnet-20240620|haiku:claude-3-haiku-20240307|g4m:gpt-4o-mini|g4:gpt-4o|rp+:command-r-plus";

@@ -1,12 +1,16 @@
-import { sendMediaGroupToTelegramWithContext } from "../telegram/telegram.js";
+import { sendMediaGroupToTelegramWithContext, sendMessageToTelegramWithContext,sendPhotoToTelegramWithContext, sendChatActionToTelegramWithContext } from "../telegram/telegram.js";
 import { openaiLikeAgent } from "./openai.js";
+import { loadImageGen } from "./agents.js";
 
-const requestHander = {
-  'silicon': requestImage2ImageFromSilicon
+export async function requestI2IHander(context, params) {
+  const agent = context.USER_CONFIG.AI_IMAGE_PROVIDER;
+  const handlers = {
+    'silicon': requestImage2ImageFromSilicon
+  };
+  return await (handlers[agent] || handlers['silicon'])(params, context);
 }
 
-
-function requestImage2ImageFromSilicon(context, params) {
+async function requestImage2ImageFromSilicon(params, context) {
   const { prompt, images, batch_size, size, extra_params = {} } = params;
   const { style_name, num_inference_steps } = extra_params;
   const { url, key, model } = openaiLikeAgent(context, 'image2image');
@@ -41,7 +45,7 @@ function requestImage2ImageFromSilicon(context, params) {
     body.reference_style_image = images[1];
   } else throw new Error('unsupported model');
 
-  return requestImage2Image(url, header, body, context);
+  return await requestImage2Image(url, header, body, context);
   
 }
 
@@ -66,12 +70,27 @@ async function requestImage2Image(url, header, body, context) {
   }
 
   if (resp.images && resp.images.length > 0) {
-    return sendMediaGroupToTelegramWithContext(context)({type: 'photo', media: resp.images});
+    return renderPic2PicResult(context, resp);
   } else {
     console.log(JSON.stringify(resp));
-    throw new Error('No images return')
+    throw new Error('No images return');
   };
-  
+}
+
+export async function requestText2Image(context, params) {
+
+  const gen = loadImageGen(context)?.request;
+  if (!gen) {
+    return sendMessageToTelegramWithContext(context)(`ERROR: Image generator not found`, 'tip');
+  }
+  setTimeout(() => sendChatActionToTelegramWithContext(context)('upload_photo').catch(console.error), 0);
+  const {url, header, body} = await gen(params, context);
+  const resp = fetch(url, {
+    method: 'POST',
+    headers: header,
+    body: JSON.stringify(body),
+  });
+  return await renderText2PicResult(context, resp);
 }
 
 const defaultParams = {
@@ -79,5 +98,48 @@ const defaultParams = {
   num_inference_steps: 20,
   stabilityai: {
     image_size: ['1024x1024', '1024x2048', '1536x1024', '1536x2048', '1152x2048', '2048x1152'],
+  }
+}
+
+
+/**
+ * @description: 
+ * @param {ContextType} context
+ * @param {Promise<Response>} response
+ * @return {*}
+ */
+export async function renderText2PicResult(context, response) {
+  let resp = null;
+  switch (context.USER_CONFIG.AI_IMAGE_PROVIDER) {
+    case 'openai':
+    case 'auto':
+    case 'azure':
+      resp = await response.then(r => r.json());
+      if (resp.error?.message) {
+        throw new Error(result.error.message);
+      }
+      return {
+        type: "image",
+        url: resp?.data?.map((i) => i?.url),
+        text: resp?.data?.[0]?.revised_prompt || '',
+      };
+    case 'silicon':
+      resp = await response.then(r => r.json());
+      if (resp.message) {
+        throw new Error(result.message);
+      }
+      return { type: 'image', url: (await resp?.images)?.map((i) => i?.url) };
+    case "worksai":
+      resp = await resp.then(r => r.blob());
+      return { type: 'image', url: [resp] };
+    default:
+      return sendMessageToTelegramWithContext(context)('unsupported agent');
+  }
+}
+
+export function renderPic2PicResult(context, resp) {
+  switch (context.USER_CONFIG.AI_IMAGE_PROVIDER) {
+    case 'silicon':
+      return { type: 'image', url: resp?.images?.map(i => i?.url), message: resp.message };
   }
 }

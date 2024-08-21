@@ -263,12 +263,7 @@ export const imageGenAgents = [
         name: "silicon",
         enable: isLLMEnable,
         request: requestImageFromOpenAI
-    },
-    {
-        name: "deepseek",
-        enable: isLLMEnable,
-        request: requestImageFromOpenAI
-    },
+    }
 ];
 
 

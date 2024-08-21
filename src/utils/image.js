@@ -23,22 +23,27 @@ async function fetchImage(url) {
  * @returns {Promise<string>}
  */
 export async function uploadImageToTelegraph(url) {
+  try {
     if (url.startsWith('https://telegra.ph')) {
-        return url;
+      return url;
     }
-    
-    const raw = await fetch(url).then(resp => resp.blob());
+
+    const raw = await fetch(url).then((resp) => resp.blob());
     const formData = new FormData();
     formData.append('file', raw, 'blob');
 
     const resp = await fetch('https://telegra.ph/upload', {
-        method: 'POST',
-        body: formData,
+      method: 'POST',
+      body: formData,
     });
-    let [{src}] = await resp.json();
+    let [{ src }] = await resp.json();
     src = `https://telegra.ph${src}`;
     IMAGE_CACHE.set(url, raw);
     return src;
+  } catch (e) {
+    console.error(e);
+    return url;
+  }
 }
 
 /**

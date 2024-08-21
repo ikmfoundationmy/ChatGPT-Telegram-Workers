@@ -27,12 +27,12 @@ export async function handleOpenaiFunctionCall(params, context, onStream) {
       while (call_times < ENV.FUNC_LOOP_TIMES && payload.body.tools?.length > 0) {
         const start_time = Date.now();
         call_times += 1;
-        const llm_content = await functionCallWithLLM(context, payload, tools_name, chatPromise);
+        const llm_content = await functionCallWithLLM(context, payload, tools_name);
 
         if (!Array.isArray(llm_content)) {
           return { call_times, llm_content, func_results };
         }
-        context._info.setCallInfo(((Date.now() - start_time) / 1000).toFixed(1) + 's', 'c_t');
+        context._info.step.setCallInfo(((Date.now() - start_time) / 1000).toFixed(1) + 's', 'c_t');
         setTimeout(() => {
           chatPromise = sendMessageToTelegramWithContext(context)(`\`call ${llm_content[0].name}\``);
         }, 0);
@@ -55,7 +55,7 @@ export async function handleOpenaiFunctionCall(params, context, onStream) {
     if (e.name === 'AbortError') {
       errorMsg = 'call timeout';
     }
-    context._info.setCallInfo(`⚠️${errorMsg.slice(0,50)}`);
+    context._info.step.setCallInfo(`⚠️${errorMsg.slice(0,50)}`);
     return { call_times, message: e.message, func_results };
   }
 }
@@ -90,21 +90,21 @@ function renderCallPayload(params, tools_structs, context, onStream) {
     tool_choice: 'auto',
     ...tools_settings.default.extra_params,
     messages: [...body.messages],
-    stream: context.USER_CONFIG.FUNCTION_REPLY_ASAP,
+    stream: !!(context.USER_CONFIG.FUNCTION_REPLY_ASAP && onStream),
     ...(context.USER_CONFIG.ENABLE_SHOWTOKEN && { stream_options: { include_usage: true } }),
   };
 
-  let stream = null;
+  let streamHandler = null;
   if (context.USER_CONFIG.FUNCTION_REPLY_ASAP) {
     delete call_body['max_tokens'];
-    stream = onStream;
+    streamHandler = onStream;
   }
   // 通用prompt
   const tool_prompt = tools_settings.default.prompt;
   if (prompt) call_body.messages.shift(); // 直接丢掉原始prompt避免关联修改
   call_body.messages.unshift({ role: 'system', content: tool_prompt });
 
-  return { url: call_url, header: call_headers, body: call_body, stream, options };
+  return { url: call_url, header: call_headers, body: call_body, streamHandler, options };
 }
 
 /**
@@ -168,13 +168,10 @@ function filterValidTools(tools) {
  * @param {Promise<Response>} chatPromise
  * @return {Promise<object>}
  */
-async function functionCallWithLLM(context, payload, tools_name, chatPromise) {
-  const { url, header, body, stream, options } = payload;
-  setTimeout(() => {
-    chatPromise = sendMessageToTelegramWithContext(context)(`\`chat with llm.\``);
-  }, 0);
+async function functionCallWithLLM(context, payload, tools_name) {
+  const { url, header, body, streamHandler, options } = payload;
 
-  const llm_resp = await requestChatCompletions(url, header, body, context, stream, null, options);
+  const llm_resp = await requestChatCompletions(url, header, body, context, streamHandler, null, options);
 
   if (!llm_resp.tool_calls) {
     return llm_resp.content;
@@ -182,7 +179,7 @@ async function functionCallWithLLM(context, payload, tools_name, chatPromise) {
 
   const valid_calls = llm_resp?.tool_calls?.filter((i) => tools_name.includes(i.function.name));
   if (valid_calls.length === 0) return llm_resp.content;
-  await chatPromise;
+  // await chatPromise;
 
   return valid_calls.map((func) => ({
     name: func.function.name,
@@ -210,7 +207,7 @@ async function functionExec(funcList, context, opt) {
   for (const { name, args } of funcList) {
     if (exec_times <= 0) break;
     const args_i = Object.values(args).join();
-    context._info.setCallInfo(`${name}:${args_i.length > INFO_LENGTH_LIMIT ? args_i.slice(0, INFO_LENGTH_LIMIT) : args_i}`, 'f_i');
+    context._info.step.setCallInfo(`${name}:${args_i.length > INFO_LENGTH_LIMIT ? args_i.slice(0, INFO_LENGTH_LIMIT) : args_i}`, 'f_i');
     console.log('start use function: ', name);
     const params = args;
     if (ENV.TOOLS[name].need) {
@@ -230,9 +227,9 @@ async function functionExec(funcList, context, opt) {
 
   console.log('func call content: ', content.join('\n\n').substring(0, 500));
 
-  if (func_time.join('').trim()) context._info.setCallInfo(func_time.join(), 'f_t');
+  if (func_time.join('').trim()) context._info.step.setCallInfo(func_time.join(), 'f_t');
   if (!content.join('').trim()) {
-    context._info.setCallInfo(`func call response is none or timeout.`);
+    context._info.step.setCallInfo(`func call response is none or timeout.`);
     throw new Error('None response in func call.');
   }
   return content;

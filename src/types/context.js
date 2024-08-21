@@ -55,6 +55,7 @@
  * @property {?object} extraMessageContext - 额外消息上下文
  * @property {?Set<TelegramID>} sentMessageIds - 已发送的消息ID
  * @property {?string} messageId - 原始消息ID
+ * @property {?string} storeMessageKey - 存储消息 - store_message:$chatId:$from_id
  */
 
 /**

@@ -12,8 +12,6 @@ import {
 import {
     getChatRoleWithContext,
     sendMessageToTelegramWithContext,
-    sendPhotoToTelegramWithContext,
-    sendChatActionToTelegramWithContext
 } from './telegram.js';
 import {chatWithLLM} from '../agent/llm.js';
 import {
@@ -25,6 +23,8 @@ import {
     loadImageGen, customInfo
 } from "../agent/agents.js";
 import { trimUserConfig } from "../config/context.js";
+import { requestText2Image } from "../agent/imagerequest.js";
+import { sendTelegramMessage } from "./message.js";
 const commandAuthCheck = {
     default: function (chatType) {
         if (CONST.GROUP_TYPES.includes(chatType)) {
@@ -140,18 +140,8 @@ async function commandGenerateImg(message, command, subcommand, context) {
     return sendMessageToTelegramWithContext(context)(ENV.I18N.command.help.img, 'tip');
   }
   try {
-    
-    if (!context.CURRENT_CHAT_CONTEXT) {
-      context.CURRENT_CHAT_CONTEXT = {};
-    }
-    const gen = loadImageGen(context)?.request;
-    if (!gen) {
-      return sendMessageToTelegramWithContext(context)(`ERROR: Image generator not found`, 'tip');
-    }
-    setTimeout(() => sendChatActionToTelegramWithContext(context)('upload_photo').catch(console.error), 0);
-    
-    const img = await gen(subcommand, context);
-    return sendPhotoToTelegramWithContext(context)(img);
+    const img = await requestText2Image(context, { message: subcommand });
+    return sendTelegramMessage(context, img);
   } catch (e) {
     console.error(e.message);
     return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`, 'tip');
@@ -255,9 +245,9 @@ async function commandUpdateUserConfig(message, command, subcommand, context, pr
     });
     if (processUpdate) {
       if (key.endsWith('_MODEL')) {
-        context._info.config('model', value);
+        context._info.step.config('model', value);
       } else if (key === 'CURRENT_MODE') {
-        context._info.config('mode', value);
+        context._info.step.config('mode', value);
       }
       return null;
     }
@@ -300,9 +290,9 @@ async function commandUpdateUserConfigs(message, command, subcommand, context, p
       });
       if (processUpdate) {
         if (key.endsWith('_MODEL')) {
-          context._info.config('model', value);
+          context._info.step.config('model', value);
         } else if (key === 'CURRENT_MODE') {
-          context._info.config('mode', value);
+          context._info.step.config('mode', value);
         }
         continue;
       }
@@ -370,7 +360,7 @@ async function commandSetUserConfigs(message, command, subcommand, context) {
                 msg += `>\`${v} is not exist, will use default prompt\`\n`;
                 value = ENV.I18N?.env?.system_init_message || 'You are a helpful assistant';
                 // continue;
-              }  // else context._info.config('prompt', v.substring(1));
+              }  // else context._info.step.config('prompt', v.substring(1));
               // 静默继续向下执行
             }  
             break;
@@ -405,7 +395,7 @@ async function commandSetUserConfigs(message, command, subcommand, context) {
         }
         context.USER_CONFIG[key] = value ?? v;
         context.USER_CONFIG.DEFINE_KEYS.push(key);
-        console.log(`/set ${key || 'unknown'} ${(JSON.stringify(value) || v).substring(0, 20)}`);
+        console.log(`/set ${key || 'unknown'} ${(JSON.stringify(value) || v).substring(0, 100)}`);
       } else return sendMessageToTelegramWithContext(context)(`Mapping Key ${k} is not exist`, 'tip');
       if(!hasKey) hasKey = true;
     }

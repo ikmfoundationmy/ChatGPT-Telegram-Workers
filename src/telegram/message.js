@@ -1,12 +1,12 @@
 import {CONST, DATABASE, ENV} from '../config/env.js';
 import {Context} from '../config/context.js';
-import { getBot, sendMessageToTelegramWithContext, sendPhotoToTelegramWithContext, sendChatActionToTelegramWithContext } from './telegram.js';
+import { getBot, sendMessageToTelegramWithContext, sendPhotoToTelegramWithContext, sendChatActionToTelegramWithContext, sendMediaGroupToTelegramWithContext } from './telegram.js';
 import {handleCommandMessage} from './command.js';
 import {errorToString} from '../utils/utils.js';
-import { chatViaFileWithLLM, chatWithLLM } from '../agent/llm.js';
-import { loadImageGen, loadVisionLLM } from "../agent/agents.js";
-import { MiddleInfo } from "../config/middle.js";
-// import tasks from "../tools/scheduleTask.js";
+import { chatViaFileWithLLM, chatWithLLM, sendTextMessageHandler } from '../agent/llm.js';
+import { MiddleInfo, getTelegramFileUrl } from "../config/middle.js";
+import { requestI2IHander, requestText2Image } from "../agent/imagerequest.js";
+
 
 import '../types/telegram.js';
 
@@ -274,7 +274,6 @@ async function msgHandleGroupMessage(message, context) {
  */
 async function msgInitUserConfig(message, context) {
     try {
-      // console.log('init user config');
       await context._initUserConfig(context.SHARE_CONTEXT.configStoreKey);
       const telegraphAccessTokenKey = context.SHARE_CONTEXT.telegraphAccessTokenKey;
       context.SHARE_CONTEXT.telegraphAccessToken = await DATABASE.get(telegraphAccessTokenKey);
@@ -310,11 +309,7 @@ async function msgIgnoreSpecificMessage(message) {
  */
 async function msgInitMiddleInfo(message, context) {
   try {
-    context._info = await MiddleInfo.initInfo(message, context);
-    if (!message.text && !message.reply_to_message?.text) {
-      const msg = await sendMessageToTelegramWithContext(context)('file info get successful.').then(r => r.json());
-      context.CURRENT_CHAT_CONTEXT.message_id = msg.result.message_id;
-    }
+    await MiddleInfo.initInfo(message, context);
     return null;
   } catch (e) {
     console.log(e.message);
@@ -343,79 +338,150 @@ async function msgHandleCommand(message, context) {
  * @return {Promise<Response>}
  */
 async function msgChatWithLLM(message, context) {
-  let content = (message.text || message.caption || '').trim();
-  if (
-    ENV.EXTRA_MESSAGE_CONTEXT &&
-    (context.SHARE_CONTEXT.extraMessageContext?.text || context.SHARE_CONTEXT.extraMessageContext?.caption)
-  ) {
-    content =
-      '> ' +
-      (context.SHARE_CONTEXT.extraMessageContext?.text || '') +
-      (context.SHARE_CONTEXT.extraMessageContext?.caption || '') +
-      '\n' +
-      content;
-  }
-
-  const params = { message: content };
+  const is_concurrent = context._info.is_concurrent;
+  const llmPromises = [];
 
   // 与LLM交互
   try {
     let result = null;
-
-    for (let i = 0; i < context._info.process_count; i++) {
-      if (result && result instanceof Response) {
-        return result;
-      }
-      context._info.initProcess(context.USER_CONFIG);
-      if (context._info.file[i].type === 'image') {
-        params.images = [context._info.file[i].url];
-      }
-      switch (context._info.process_type) {
-        case 'text:text':
-          result = await chatWithLLM(params, context, null);
-          break;
-        case 'text:image':
-          {
-            const gen = loadImageGen(context)?.request;
-            if (!gen) {
-              return sendMessageToTelegramWithContext(context)(`ERROR: Image generator not found`, 'tip');
-            }
-            setTimeout(() => sendChatActionToTelegramWithContext(context)('upload_photo').catch(console.error), 0);
-            result = await gen(context._info.lastStep.text || text, context);
-            if (!context._info.isLastStep) {
-              context._info.setFile(typeof result === 'string' ? { url: result } : { raw: result });
-            }
-            const response = await sendPhotoToTelegramWithContext(context)(result);
-            if (response.status != 200) {
-              console.error(await response.text());
-            }
-          }
-          break;
-        case 'audio:text':
-          result = await chatViaFileWithLLM(context);
-          break;
-        case 'image:text':
-          result = await chatWithLLM(params, context, null, loadVisionLLM);
-          break;
-        case 'audio:audio':
-        case 'text:audio':
-        default:
-          return sendMessageToTelegramWithContext(context)('unsupported type', 'tip');
-      }
-
-      // 每个流程独立消息
+    for (let i = 0; i < context._info.chains.length; i++) {
+      // if (result && result instanceof Response) {
+      //   return result;
+      // }
+      // 每个独立消息
       if (context.CURRENT_CHAT_CONTEXT.message_id && !ENV.HIDE_MIDDLE_MESSAGE) {
         context.CURRENT_CHAT_CONTEXT.message_id = null;
+        context.SHARE_CONTEXT.telegraphPath = null;
       }
-      delete params.images;
+      context._info.initStep(i, result ?? context._info.file);
+      const file = result ?? context._info.file;
+      const params = { message: file.text, step_index: i };
 
+      if (file.type !== 'text') {
+        const file_urls = await getTelegramFileUrl(file, context.SHARE_CONTEXT.currentBotToken);
+        if (file.type === 'image') {
+          params.images = file_urls;
+        } else params.files = { type: file.type, url: file_urls, raw: file.raw };
+      }
+
+      if (is_concurrent && i === 0 || !is_concurrent) await sendInitMessage(context);
+      
+      if (is_concurrent) {
+        context.USER_CONFIG.ENABLE_SHOWTOKEN = false;
+        llmPromises.push(chatLlmHander(context, params));
+      } else {
+        result = await chatLlmHander(context, params);
+        if (result && result instanceof Response) {
+          return result;
+        }
+        if (i + 1 === context._info.chains.length || !ENV.HIDE_MIDDLE_MESSAGE) {
+          console.log(result.text);
+          await sendTelegramMessage(context, result);
+        }
+      }
     }
+    const results = await Promise.all(llmPromises);
+    results.forEach((result, index) => {
+      if (result.type === 'text') {
+        context._info.steps[index].concurrent_content = result.text;
+      }
+    });
+    if (is_concurrent && results.filter(i=>i.type === 'text').length > 0) {
+      await sendTextMessageHandler(context)(context._info.concurrent_content);
+    }
+    return new Response('success', { status: 200 });
   } catch (e) {
     console.error(e);
     return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`, 'tip');
   }
+}
 
-  return new Response('success', { status: 200 });
+
+
+/**
+ * 
+ * @param {Context} context
+ * @param {string} chain_type
+ * @param {object} params
+ * @return {Promise<Response>}
+ */
+async function chatLlmHander(context, params) {
+  const chain_type = context._info.step.chain_type;
+  // sendInitAction(context, chain_type);
+  switch (chain_type) {
+    case 'text:text':
+    case 'image:text':
+
+      return chatWithLLM(params, context);
+    case 'text:image':
+
+      return requestText2Image(context, params);
+    case 'audio:text':
+
+      return chatViaFileWithLLM(context, params);
+    case 'image:image':
+      return requestI2IHander(context, params);
+    case 'audio:audio':
+    case 'text:audio':
+    default:
+      return sendMessageToTelegramWithContext(context)('unsupported type', 'tip');
+  }
+}
+
+/**
+ * 
+ * @param {Context} context
+ * @return {Promise<Response>}
+ */
+async function sendInitMessage(context) {
+  try {
+    const chain_type = context._info.step.chain_type;
+    let text = '...',
+      type = 'chat';
+    if (['text:image', 'image:image'].includes(chain_type)) {
+      text = 'It may take a longer time, please wait a moment.';
+      type = 'tip';
+    }
+    const parseMode = context.CURRENT_CHAT_CONTEXT.parse_mode;
+    context.CURRENT_CHAT_CONTEXT.parse_mode = null;
+    const msg = await sendMessageToTelegramWithContext(context)(text, type).then((r) => r.json());
+    context.CURRENT_CHAT_CONTEXT.message_id = msg.result.message_id;
+    context.CURRENT_CHAT_CONTEXT.parse_mode = parseMode;
+    context.CURRENT_CHAT_CONTEXT.reply_markup = null;
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+export function sendTelegramMessage(context, file) {
+  switch (file.type) {
+    case 'text':
+      return sendTextMessageHandler(context)(file.text);
+    case 'image':
+      file.type = 'photo';
+      if (file.url?.length > 1) {
+        return sendMediaGroupToTelegramWithContext(context)(file);
+      } else if (file.url?.length > 0 || file.raw?.length > 0) {
+        return sendPhotoToTelegramWithContext(context)(file);
+      }
+    default:
+      return sendMessageToTelegramWithContext(context)(`Not supported type`);
+  }
+}
+
+function sendInitAction(context, type) {
+  switch (type) {
+    case 'text:text':
+    case 'image:text':
+    case 'audio:text':
+    default:
+      setTimeout(() => sendChatActionToTelegramWithContext(context)('typing').catch(console.error), 0);
+      break;
+    case 'text:image':
+    case 'image:image':
+      setTimeout(() => sendChatActionToTelegramWithContext(context)('upload_photo').catch(console.error), 0);
+      break;
+  }
 }
 
 
@@ -435,15 +501,22 @@ function loadMessage(body) {
   }
 }
 
-async function scheduledDeleteMessage(request, context) {
-  // 未发出消息
+/**
+ * @description: 
+ * @param {TelegramMessage} message
+ * @param {Context} context
+ * @return {Promise<Response>}
+ */
+async function scheduledDeleteMessage(message, context) {
   const { sentMessageIds } = context.SHARE_CONTEXT;
+  // 未记录消息
   if (!sentMessageIds || sentMessageIds.size === 0)
     return new Response('success', { status: 200 });
 
   const chatId = context.SHARE_CONTEXT.chatId;
   const botName = context.SHARE_CONTEXT.currentBotName;
-  const scheduledData = JSON.parse((await DATABASE.get(context.SHARE_CONTEXT.scheduleDeteleKey)) || '{}');
+  const scheduleDeteleKey = context.SHARE_CONTEXT.scheduleDeteleKey;
+  const scheduledData = JSON.parse((await DATABASE.get(scheduleDeteleKey)) || '{}');
   if (!scheduledData[botName]) {
     scheduledData[botName] = {};
   }
@@ -456,16 +529,35 @@ async function scheduledDeleteMessage(request, context) {
     ttl: Date.now() + offsetInMillisenconds,
   });
   
-  await DATABASE.put(context.SHARE_CONTEXT.scheduleDeteleKey, JSON.stringify(scheduledData));
-  console.log(`message need delete: ${chatId} - ${[...sentMessageIds]}`);
+  await DATABASE.put(scheduleDeteleKey, JSON.stringify(scheduledData));
+  console.log(`Record message id: ${chatId} - ${[...sentMessageIds]}`);
 
-  // await tasks.schedule_detele_message();
   return new Response('success', { status: 200 });
 }
 
-async function msgTagNeedDelete(request, context) {
-  return await scheduledDeleteMessage(request, context);
+/**
+ * @description: 
+ * @param {TelegramMessage} message
+ * @param {Context} context
+ * @return {Promise<Response>}
+ */
+async function msgTagNeedDelete(message, context) {
+  return await scheduledDeleteMessage(message, context);
 }
+
+async function msgStoreWhiteListMessage(message, context) {
+  if (ENV.STORE_MESSAGE_WHITELIST.includes(message.message.from.id) && ENV.STORE_MESSAGE_NUM > 0) {
+    const storeMessageKey = context.SHARE_CONTEXT.storeMessageKey;
+    const data = JSON.parse(await DATABASE.get(storeMessageKey) || '[]');
+    data.push(await extractMessageType(message));
+    if (data.length > ENV.STORE_MESSAGE_NUM) {
+      data.splice(0, data.length - ENV.STORE_MESSAGE_NUM);
+    }
+    await DATABASE.put(storeMessageKey, JSON.stringify(data));
+  }
+  return new Response('ok');
+}
+
 
 /**
  * 处理消息
@@ -513,7 +605,7 @@ export async function handleMessage(token, body) {
       msgChatWithLLM,
     ];
   
-    const exitHanders = [msgTagNeedDelete];
+    const exitHanders = [msgTagNeedDelete,msgStoreWhiteListMessage];
 
   for (const handler of handlers) {
         try {

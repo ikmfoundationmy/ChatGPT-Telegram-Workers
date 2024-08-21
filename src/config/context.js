@@ -189,6 +189,7 @@ export class Context {
         this.SHARE_CONTEXT.speakerId = message.from.id || message.chat.id;
         this.SHARE_CONTEXT.messageId = message.message_id;
         if (ENV.EXPIRED_TIME > 0) this.SHARE_CONTEXT.sentMessageIds = new Set();
+        this.SHARE_CONTEXT.storeMessageKey = `store_message:${message.chat.id}:${message.from.id || message.chat.id}`
 
     }
 

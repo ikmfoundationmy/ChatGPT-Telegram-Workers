@@ -24,7 +24,7 @@ export const jina_reader = {
       throw new Error('url is null');
     }
     if (!Array.isArray(keys) || keys?.length === 0) {
-      throw new Error('JINA\\_API\\_KEY is null or all keys is expired.');
+      throw new Error('JINA_API_KEY is null or all keys is expired.');
     }
     const key_length = keys.length;
     const key = keys[Math.floor(Math.random() * key_length)];

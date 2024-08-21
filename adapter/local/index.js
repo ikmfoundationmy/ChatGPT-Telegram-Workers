@@ -7,7 +7,7 @@ import fetch from 'node-fetch';
 import { ENV } from '../../src/config/env.js';
 import toml from 'toml';
 import { default as worker } from '../../main.js';
-import cron from 'node-cron';
+import * as cron from 'node-cron';
 
 const config = JSON.parse(fs.readFileSync('./config.json', 'utf-8'));
 

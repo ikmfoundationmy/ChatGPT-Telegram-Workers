@@ -1,8 +1,8 @@
 import "../types/context.js";
 import {requestChatCompletions} from "./request.js";
 import {ENV} from "../config/env.js";
-import { handleOpenaiFunctionCall, renderAfterCallPayload } from "../agent/toolHander.js";
-import { renderBase64DataURI, imageToBase64String} from "../utils/image.js";
+import { handleOpenaiFunctionCall, renderAfterCallPayload } from "./functioncall.js";
+import { renderBase64DataURI, imageToBase64String } from "../utils/image.js";
 
 /**
  * @param {ContextType} context
@@ -48,9 +48,6 @@ export async function renderOpenAIMessage(item) {
     };
     if (item.images && item.images.length > 0) {
         res.content = [];
-        // if (item.content) {
-        //     res.content.push({type: 'text', text: item.content});
-      // }
         res.content.push({type: 'text', text: item.content || '请解读这张图'});
         for (const image of item.images) {
           switch (ENV.TELEGRAM_IMAGE_TRANSFER_MODE) {
@@ -85,32 +82,33 @@ const openaiLikeSupportType = {
  */
 export function openaiLikeAgent(context, type) {
   const userConfig = context.USER_CONFIG;
-  const agent = type === 'text2image' ? userConfig.AI_IMAGE_PROVIDER : userConfig.AI_PROVIDER;
+  if (!context._info.step) {
+    if (type === 'text2image') context._info.chains = [{ chain_type: 'text:image' }];
+    context._info.initStep(0, context._info.file);
+  }
+  const agent = context._info.step.agent;
   let config = {
     url: userConfig.OPENAI_API_BASE,
     key: openAIKeyFromContext(context),
+    model: context._info.step.model,
   };
   let like_model = null;
   let like_url = userConfig.PROVIDERS[agent]?.base_url;
   switch (type) {
     case 'text2image':
-      config.model = userConfig.OPENAI_IMAGE_MODEL;
-      like_model = userConfig.OPENAILIKE_IMAGE_MODEL;
+      like_model = userConfig.IMAGE_MODEL;
       break;
     case 'image2text':
-      config.model = userConfig.OPENAI_VISION_MODEL;
-      like_model = userConfig.OPENAILIKE_VISION_MODEL;
+      like_model = userConfig.VISION_MODEL;
       break;
     case 'audio2text':
-      config.model = userConfig.OPENAI_STT_MODEL;
-      like_model = userConfig.OPENAILIKE_STT_MODEL;
+      like_model = userConfig.STT_MODEL;
       break;
     case 'text2text':
-      config.model = userConfig.OPENAI_CHAT_MODEL;
-      like_model = userConfig.OPENAILIKE_CHAT_MODEL;
+      like_model = userConfig.CHAT_MODEL;
       break;
     case 'image2image':
-      like_model = userConfig.OPENAILIKE_I2I_MODEL;
+      like_model = userConfig.I2I_MODEL;
       break;
   }
 
@@ -124,8 +122,8 @@ export function openaiLikeAgent(context, type) {
   }
 
   if (context._info?.provider?.url && context._info?.provider?.key) {
-    config.url = context._info?.provider?.url;
-    config.key = context._info?.provider?.key;
+    config.url = context._info?.provider()?.url;
+    config.key = context._info?.provider()?.key;
     return renderOpenaiLikeUrl(agent, type, config);
   }
   switch (agent) {
@@ -170,7 +168,7 @@ function renderOpenaiLikeUrl(agent, type,  agentDetail) {
  * @returns {Promise<string>}
  */
 export async function requestCompletionsFromOpenAI(params, context, onStream) {
-  const {message, images, prompt, history} = params;
+  const {message, images, prompt, history, extra} = params;
   const { url, key, model } = openaiLikeAgent(context, images && images.length > 0 ? 'image2text' : 'text2text');
   const header = {
     'Content-Type': 'application/json',
@@ -185,6 +183,7 @@ export async function requestCompletionsFromOpenAI(params, context, onStream) {
   const body = {
     model,
     ...extra_params,
+    ...(extra || {}),
     messages: await Promise.all(messages.map(renderOpenAIMessage)),
     stream: onStream != null,
     ...(context.USER_CONFIG.ENABLE_SHOWTOKEN && { stream_options: { include_usage: true } }),
@@ -207,17 +206,6 @@ export async function requestCompletionsFromOpenAI(params, context, onStream) {
   return requestChatCompletions(url, header, body, context, onStream);
 }
 
-function renderPicResult(context, resp) {
-  const render = {
-    'openai': {
-      url: resp?.data?.[0]?.url,
-      revised_prompt: resp?.data?.[0]?.revised_prompt || '',
-    },
-    'silicon': { url: resp?.images?.[0]?.url },
-  };
-  return render[context.USER_CONFIG.AI_IMAGE_PROVIDER];
-}
-
 
 
 /**
@@ -226,35 +214,30 @@ function renderPicResult(context, resp) {
  * @param {ContextType} context
  * @returns {Promise<string>}
  */
-export async function requestImageFromOpenAI(prompt, context) {
+export async function requestImageFromOpenAI(params, context) {
+  const { message, extra_params } = params;
   const { url, key, model } = openaiLikeAgent(context, 'text2image');
-  context._info.config('model', model);
   const header = {
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${key}`,
   };
   const body = {
-    prompt: prompt,
+    prompt: message,
     n: 1,
     size: context.USER_CONFIG.DALL_E_IMAGE_SIZE,
     model: model,
+    ...(extra_params || {}),
   };
   if (['silicon'].includes(context.USER_CONFIG.AI_IMAGE_PROVIDER)) {
     delete body.model;
+    delete body.n;
+    body.batch_size = 4;
   } else if (body.model === 'dall-e-3') {
     body.quality = context.USER_CONFIG.DALL_E_IMAGE_QUALITY;
     body.style = context.USER_CONFIG.DALL_E_IMAGE_STYLE;
   }
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers: header,
-    body: JSON.stringify(body),
-  }).then((res) => res.json());
-
-  if (resp.error?.message) {
-    throw new Error(resp.error.message);
-  }
-  return renderPicResult(context, resp);
+  // return { type: 'image', url: ['https://avatars.githubusercontent.com/u/30210690?v=4'], text: 'test' };
+  return { url, header, body };
 }
 
 
@@ -267,7 +250,6 @@ export async function requestImageFromOpenAI(prompt, context) {
  */
 export async function requestTranscriptionFromOpenAI(audio, file_name, context) {
   const { url, key, model } = openaiLikeAgent(context, 'audio2text');
-  context._info.config('model', model);
   const header = {
     // 'Content-Type': 'multipart/form-data',
     'Authorization': `Bearer ${key}`,

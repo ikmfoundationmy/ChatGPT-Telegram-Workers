@@ -59,12 +59,13 @@ export async function requestCompletionsFromAzureOpenAI(params, context, onStrea
  * @param {ContextType} context
  * @returns {Promise<string>}
  */
-export async function requestImageFromAzureOpenAI(prompt, context) {
+export async function requestImageFromAzureOpenAI(params, context) {
     const url = context.USER_CONFIG.AZURE_DALLE_API;
     const header = {
         'Content-Type': 'application/json',
         'api-key': azureKeyFromContext(context),
     };
+    
     const body = {
         prompt: prompt,
         n: 1,
@@ -76,14 +77,5 @@ export async function requestImageFromAzureOpenAI(prompt, context) {
     if (!validSize.includes(body.size)) {
         body.size = '1024x1024';
     }
-    const resp = await fetch(url, {
-        method: 'POST',
-        headers: header,
-        body: JSON.stringify(body),
-    }).then((res) => res.json());
-
-    if (resp.error?.message) {
-        throw new Error(resp.error.message);
-    }
-    return { url: resp?.data?.[0]?.url };
+    return { url, header, body }; 
 }
