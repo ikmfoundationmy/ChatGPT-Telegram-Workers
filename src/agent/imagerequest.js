@@ -128,7 +128,10 @@ export async function renderText2PicResult(context, response) {
         text: resp?.data?.[0]?.revised_prompt || '',
       };
     case 'silicon':
-      resp = await response.then(r => r.json());
+      resp = await response.then(async (r) => {
+        if (r.status !== 200) return { message: await r.text() };
+        return r.json();
+      });
       if (resp.message) {
         throw new Error(resp.message);
       }

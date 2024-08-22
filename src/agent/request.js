@@ -135,14 +135,6 @@ export async function requestChatCompletions(url, header, body, context, onStrea
   context._info.step.updateStartTime();
   console.log('chat start.');
 
-  if (body.model) {
-    context._info.step.config('model', body.model);
-  } else {
-    const chatAgent = loadChatLLM(context)?.name;
-    const model = currentChatModel(chatAgent, context);
-    context._info.step.config("model", model);
-  }
-
   setTimeout(() => sendChatActionToTelegramWithContext(context)('typing').catch(console.error), 0);
   const resp = await fetch(url, {
     method: 'POST',

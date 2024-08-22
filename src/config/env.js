@@ -2,6 +2,7 @@ import '../types/i18n.js';
 import '../types/context.js';
 import prompts from "../prompt/prompt.js";
 import tools from "../tools/index.js";
+import prompt from '../prompt/prompt.js';
 
 /**
  * @class
@@ -123,10 +124,10 @@ export class UserConfig {
   PROVIDERS = {};
   MODES = {
     // chain_type: 默认为'消息类型:text' ; 消息类型分为: text audio image
-        // provider: 默认为default
-        // agent: 默认为openai, 与AI对话时使用openai风格接口
-        // prompt: default
-        // model: 不同类型下 不同默认值
+    // provider: 默认为default
+    // agent: 默认为openai, 与AI对话时使用openai风格接口
+    // prompt: default
+    // model: 不同类型下 不同默认值
     // type: concurrent类型流程会并列执行
     default: {
       text: {},
@@ -140,12 +141,15 @@ export class UserConfig {
       image: {},
     },
     dalle: {
-      text: { chains: [{ prompt: 'dall-e' }, { chain_type: 'text:image' }] },
+      text: { chains: [{ tool: [], history: 0, prompt: 'dall-e' }, { chain_type: 'text:image' }] },
     },
     // compete: {
     //   text: {
     //     type: 'concurrent',
-    //     chains: [{}, { model: 'gpt-4o-2024-08-06' }],
+    //     chains: [
+    //       { tool: [], history: 0, prompt: '翻译' },
+    //       { tool: [], history: 0, model: 'gpt-4o-2024-08-06', prompt: '翻译' },
+    //     ],
     //   },
     // },
   };
@@ -153,7 +157,7 @@ export class UserConfig {
   MAX_HISTORY_LENGTH = 12;
   // /set 指令映射变量 | 分隔多个关系，:分隔映射
   MAPPING_KEY =
-    '-p:SYSTEM_INIT_MESSAGE|-n:MAX_HISTORY_LENGTH|-a:AI_PROVIDER|-ai:AI_IMAGE_PROVIDER|-m:CHAT_MODEL|-v:OPENAI_VISION_MODEL|-t:OPENAI_TTS_MODEL|-ex:OPENAI_API_EXTRA_PARAMS|-mk:MAPPING_KEY|-mv:MAPPING_VALUE|-asap:FUNCTION_REPLY_ASAP|-fm:FUNCTION_CALL_MODEL|-tool:USE_TOOLS|-oli:IMAGE_MODEL';
+    '-p:SYSTEM_INIT_MESSAGE|-n:MAX_HISTORY_LENGTH|-a:AI_PROVIDER|-ai:AI_IMAGE_PROVIDER|-m:CHAT_MODEL|-md:CURRENT_MODE|-v:OPENAI_VISION_MODEL|-t:OPENAI_TTS_MODEL|-ex:OPENAI_API_EXTRA_PARAMS|-mk:MAPPING_KEY|-mv:MAPPING_VALUE|-asap:FUNCTION_REPLY_ASAP|-fm:FUNCTION_CALL_MODEL|-tool:USE_TOOLS|-oli:IMAGE_MODEL';
   // /set 指令映射值  | 分隔多个关系，:分隔映射
   MAPPING_VALUE = '';
   // MAPPING_VALUE = "cson:claude-3-5-sonnet-20240620|haiku:claude-3-haiku-20240307|g4m:gpt-4o-mini|g4:gpt-4o|rp+:command-r-plus";

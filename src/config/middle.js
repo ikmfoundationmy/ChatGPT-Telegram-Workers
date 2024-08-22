@@ -12,7 +12,7 @@ async function extractMessageType(message, currentBotId) {
   let msg = message;
   const acceptMsgType = ENV.ENABLE_FILE ? ['document', 'photo', 'image', 'voice', 'audio', 'text'] : ['text'];
   let msgType = acceptMsgType.find((key) => key in msg);
-  let message_text = message.text || message.caption;
+  let message_text = message.text ?? message.caption;
 
   if (ENV.EXTRA_MESSAGE_CONTEXT && (message.reply_to_message?.text || message.reply_to_message?.caption) && message.reply_to_message?.from?.id !== +currentBotId) {
     message_text =
@@ -84,6 +84,7 @@ async function extractMessageType(message, currentBotId) {
  * @return {*}
  */
 export async function getTelegramFileUrl(file, botToken) {
+  if (file?.url?.length > 0) return file.url;
   const { type, url } = file;
   const ids = file.id;
   if (ids.length === 0) {
@@ -146,21 +147,18 @@ export class MiddleInfo {
       ...msg_info,
     }; // 备份tg文件
     this.steps = [];
-    // this.initStep(0, msg_info);
-    this.index = 0;
-    // return Object.assign(this.step.blind(this), this);
+    this.index = -1;
     this.concurrent_stream = null;
   }
   config(name, value) {
     if (name === 'mode') {
-      const mode_detail = this._bp_config.MODES[value]?.[this.msg_type];
+      const mode_detail = this._bp_config.MODES[value]?.[this.file.type];
       this.chains = mode_detail?.chains || [{}];
       this.is_concurrent = mode_detail?.type === 'concurrent';
-      // initStep(0, this.msg_info); // 重新初始化第一步
     }
   }
-  initStep(index, file_info) {
-    this.index = index || this.index;
+  initStep(index = 0, file_info = this.file) {
+    this.index++;
     const step = new StepStructure();
     const chains_length = this.chains.length;
     let step_info = null;
@@ -168,10 +166,10 @@ export class MiddleInfo {
     if (this.is_concurrent) {
       step_info = '';
     } else {
-      step_info = chains_length > 1 ? `${index + 1}/${chains_length}` : '';
+      step_info = chains_length > 1 ? `${(index ?? this.index) + 1}/${chains_length}` : '';
       file = file_info;
     }
-    this.steps.push(step.initInfo(this.chains[index], file, this._bp_config, step_info));
+    this.steps.push(step.initInfo(this.chains[index ?? this.index], file, this._bp_config, step_info));
     
   }
   get isLastStep() {
@@ -223,6 +221,7 @@ class StepStructure {
   history = null;
   provider = null;
   show_info = null;
+  tool = [];
   concurrent_content = '';
 
   config(name, value) {
@@ -315,17 +314,20 @@ class StepStructure {
 
     // prompt
     if (chain.prompt) {
-      this.prompt = ENV.PROMPT[chain.prompt] || chain.prompt;
+      this.prompt = ENV.PROMPT[chain.prompt] ?? chain.prompt;
     } else this.prompt = config.SYSTEM_INIT_MESSAGE;
 
     // provider
     this.provider = chain.provider;
 
     // history length
-    this.history = chain.history || config.MAX_HISTORY_LENGTH;
+    this.history = chain.history ?? config.MAX_HISTORY_LENGTH;
 
     // show_info
-    this.show_info = chain.show_info || config.ENABLE_SHOWINFO;
+    this.show_info = chain.show_info ?? config.ENABLE_SHOWINFO;
+
+    // tool
+    this.tool = chain.tool ?? config.USE_TOOLS;
 
     return this;
   }

@@ -92,12 +92,18 @@ async function loadHistory(key, MAX_HISTORY_LENGTH = ENV.MAX_HISTORY_LENGTH) {
  * @returns {Promise<string>}
  */
 async function requestCompletionsFromLLM(params, context, llm, modifier, onStream) {
-  const historyDisable = ENV.AUTO_TRIM_HISTORY && ENV.MAX_HISTORY_LENGTH <= 0;
+  if (context._info.steps.length === 0) {
+    context._info.initStep();
+    params.index = 0;
+  }
+
+  const step = context._info?.steps[params.index];
+  const historyDisable = ENV.AUTO_TRIM_HISTORY && step.history <= 0;
   const historyKey = context.SHARE_CONTEXT.chatHistoryKey;
   const readStartTime = performance.now();
   let history = [];
-  if (!params?.images) {
-    history = await loadHistory(historyKey, context._info.step.history || ENV.MAX_HISTORY_LENGTH);
+  if (!params?.images && step.history > 0) {
+    history = await loadHistory(historyKey, step.history);
   }
   const readTime = ((performance.now() - readStartTime) / 1000).toFixed(2);
   console.log(`readHistoryTime: ${readTime}s`);
@@ -109,7 +115,7 @@ async function requestCompletionsFromLLM(params, context, llm, modifier, onStrea
   const llmParams = {
     ...params,
     history: history,
-    prompt: context._info.step.prompt,
+    prompt: step.prompt,
   };
   let answer = await llm(llmParams, context, onStream);
   if (params.images) {
@@ -147,7 +153,7 @@ export async function chatWithLLM(params, context, modifier) {
     const parseMode = context.CURRENT_CHAT_CONTEXT.parse_mode;
     let onStream = null;
     let nextEnableTime = null;
-    const sendMessage = sendTextMessageHandler(context);
+    const sendMessage = sendTextMessageHandler(context, params.index);
     if (ENV.STREAM_MODE) {
       // let nextUpdateTime = Date.now();
       onStream = async (text) => {
@@ -169,7 +175,7 @@ export async function chatWithLLM(params, context, modifier) {
 
           let send_content = text;
           if (context._info.is_concurrent) {
-            context._info.steps[params.index ?? 0].concurrent_content = text;
+            context._info.steps[params.index].concurrent_content = text;
             send_content = context._info.concurrent_content;
           }
 
@@ -224,6 +230,10 @@ export async function chatWithLLM(params, context, modifier) {
     }
 
     console.log(`[DONE] Chat via ${llm.name}`);
+    if (nextEnableTime) {
+      console.log(`Need wait until ${new Date(nextEnableTime).toISOString()}`)
+      context._info.nextEnableTime = nextEnableTime;
+    }
     return { type: 'text', text: answer };
   } catch (e) {
     let errMsg = `Error: ${e.message}`;
@@ -243,7 +253,7 @@ export async function chatWithLLM(params, context, modifier) {
  * @param {*} context
  * @return {*}
  */
-export function sendTextMessageHandler(context){
+export function sendTextMessageHandler(context, index) {
     const question = context._info.step?.file.text || 'Redo';
     const prefix = `#Question\n\`\`\`\n${question?.length > 400 ? question.slice(0, 200) + '...' + question.slice(-200) : question}\n\`\`\`\n---`;
     const author = {
@@ -251,15 +261,16 @@ export function sendTextMessageHandler(context){
       author_name: context.SHARE_CONTEXT.currentBotName,
       author_url: ENV.TELEGRAPH_AUTHOR_URL,
     };
+  const step = context._info.steps[index ?? context._info.index];
     return async (text) => {
       if (
         ENV.TELEGRAPH_NUM_LIMIT > 0 &&
         text.length > ENV.TELEGRAPH_NUM_LIMIT &&
         CONST.GROUP_TYPES.includes(context.SHARE_CONTEXT.chatType)
       ) {
-        const telegraph_prefix = prefix + `\n#Answer\n🤖 _${context._info.step.model}_\n`;
-        const debug_info = `debug info:${ENV.CALL_INFO ? '' : '\n' + context._info.step.call_info.replace('$$f_t$$', '') + '\n'}`;
-        const telegraph_suffix = `\n---\n\`\`\`\n${debug_info}\n${context._info.step.message_title}\n\`\`\``;
+        const telegraph_prefix = prefix + `\n#Answer\n🤖 _${step.model}_\n`;
+        const debug_info = `debug info:${ENV.CALL_INFO ? '' : '\n' + step.call_info.replace('$$f_t$$', '') + '\n'}`;
+        const telegraph_suffix = `\n---\n\`\`\`\n${debug_info}\n${step.message_title}\n\`\`\``;
         if (!context.SHARE_CONTEXT.telegraphPath) {
           const resp = await sendTelegraphWithContext(context)(
             null,
@@ -269,9 +280,9 @@ export function sendTextMessageHandler(context){
           const url = `https://telegra.ph/${context.SHARE_CONTEXT.telegraphPath}`;
           const msg = `回答已经转换成完整文章~\n[🔗点击进行查看](${url})`;
           const show_info_tag = context.USER_CONFIG.ENABLE_SHOWINFO;
-          context._info.step.config('show_info', false);
+          step.config('show_info', false);
           await sendMessageToTelegramWithContext(context)(msg);
-          context._info.step.config('show_info', show_info_tag);
+          step.config('show_info', show_info_tag);
           return resp;
         }
         return sendTelegraphWithContext(context)(null, telegraph_prefix + text + telegraph_suffix, author);
@@ -289,7 +300,7 @@ export async function chatViaFileWithLLM(context, params) {
       return sendMessageToTelegramWithContext(context)(`LLM is not enable`);
     }
     const startTime = performance.now();
-    context._info.step.updateStartTime();
+    context._info.steps[params.index].updateStartTime();
     const answer = await llm(raw, file_name, context);
     if (!answer.ok) {
       console.error(answer.message);

@@ -4,7 +4,7 @@ import {MemoryCache} from 'cloudflare-worker-adapter/cache/memory.js';
 import fs from 'fs';
 import HttpsProxyAgent from 'https-proxy-agent';
 import fetch from 'node-fetch';
-import { ENV } from '../../src/config/env.js';
+// import { ENV } from '../../src/config/env.js';
 import toml from 'toml';
 import { default as worker } from '../../main.js';
 import * as cron from 'node-cron';
@@ -53,10 +53,10 @@ if (proxy) {
 
 // 配置版本信息
 try {
-  const buildInfo = JSON.parse(fs.readFileSync('../../dist/buildinfo.json', 'utf-8'));
-  ENV.BUILD_TIMESTAMP = buildInfo.timestamp;
-  ENV.BUILD_VERSION = buildInfo.sha;
-  console.log(buildInfo);
+  // const buildInfo = JSON.parse(fs.readFileSync('../../dist/buildinfo.json', 'utf-8'));
+  // ENV.BUILD_TIMESTAMP = buildInfo.timestamp;
+  // ENV.BUILD_VERSION = buildInfo.sha;
+  // console.log(buildInfo);
 
   // 定时任务
   const raw = fs.readFileSync('../../wrangler.toml');

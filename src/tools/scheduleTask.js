@@ -35,7 +35,6 @@ async function schedule_detele_message(ENV) {
         if (expired_msgs.length === 0) continue;
 
         scheduledData[bot_name][chat_id] = messages.filter((msg) => msg.ttl > Date.now());
-
         console.log(`Start delete: ${chat_id} - ${expired_msgs}`);
 
         // 每次最多只能删除100条
@@ -45,7 +44,8 @@ async function schedule_detele_message(ENV) {
       }
     }
     if (taskPromises.length === 0) {
-      console.log('Nothing need to delete.')
+      console.log(`Remaining historical ids: ${JSON.stringify(scheduledData)}`);
+      console.log('Nothing need to delete.');
       return new Response(`{ok:"true"}`, { headers: { 'Content-Type': "application/json" } });
     }
     
@@ -57,7 +57,6 @@ async function schedule_detele_message(ENV) {
         console.error(`task ${i+1}: ${description}`);
       }
     }
-
     await DATABASE.put(scheduleDeteleKey, JSON.stringify(scheduledData));
     return new Response(`{ok:"true"}`, { headers: { 'Content-Type': "application/json" } });
   } catch (e) {

@@ -80,17 +80,22 @@ const openaiLikeSupportType = {
  * @param {string[]} images
  * @return {object}
  */
-export function openaiLikeAgent(context, type) {
+export function openaiLikeAgent(context, type, index) {
   const userConfig = context.USER_CONFIG;
-  if (!context._info.step) {
-    if (type === 'text2image') context._info.chains = [{ chain_type: 'text:image' }];
+  if (context._info.steps.length === 0) {
+    if (type === 'text2image') {
+      context._info.chains = [{ chain_type: 'text:image' }];
+    } else {
+      context._info.chains = [{ chain_type: 'text:text' }];
+    }
     context._info.initStep(0, context._info.file);
   }
-  const agent = context._info.step.agent;
+  index = index ?? context._info.index;
+  const agent = context._info.steps[index].agent;
   let config = {
     url: userConfig.OPENAI_API_BASE,
     key: openAIKeyFromContext(context),
-    model: context._info.step.model,
+    model: context._info.steps[index].model,
   };
   let like_model = null;
   let like_url = userConfig.PROVIDERS[agent]?.base_url;
@@ -168,8 +173,8 @@ function renderOpenaiLikeUrl(agent, type,  agentDetail) {
  * @returns {Promise<string>}
  */
 export async function requestCompletionsFromOpenAI(params, context, onStream) {
-  const {message, images, prompt, history, extra} = params;
-  const { url, key, model } = openaiLikeAgent(context, images && images.length > 0 ? 'image2text' : 'text2text');
+  const {message, images, prompt, history, extra, index} = params;
+  const { url, key, model } = openaiLikeAgent(context, images && images.length > 0 ? 'image2text' : 'text2text', index);
   const header = {
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${key}`,
@@ -189,8 +194,8 @@ export async function requestCompletionsFromOpenAI(params, context, onStream) {
     ...(context.USER_CONFIG.ENABLE_SHOWTOKEN && { stream_options: { include_usage: true } }),
   };
 
-  if (message && !images && context.USER_CONFIG.USE_TOOLS?.length > 0) {
-    const result = await handleOpenaiFunctionCall({ url, header, body, prompt }, context, onStream);
+  if (message && !images && context._info.steps[index]?.tool?.length > 0) {
+    const result = await handleOpenaiFunctionCall({ url, header, body, prompt, index }, context, onStream);
     if (result.llm_content && !Array.isArray(result.llm_content) && context.USER_CONFIG.FUNCTION_REPLY_ASAP) {
       // 如果不需要重新生成结果
       return result.llm_content;
@@ -216,7 +221,7 @@ export async function requestCompletionsFromOpenAI(params, context, onStream) {
  */
 export async function requestImageFromOpenAI(params, context) {
   const { message, extra_params } = params;
-  const { url, key, model } = openaiLikeAgent(context, 'text2image');
+  const { url, key, model } = openaiLikeAgent(context, 'text2image', params.index);
   const header = {
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${key}`,

@@ -926,7 +926,7 @@ async function checkIsNeedTagIds(context, msgType, resp) {
     const clone_resp = await resp.clone().json();
     if (!sentMessageIds.has(clone_resp.result.message_id) && (CONST.GROUP_TYPES.includes(chatType) && ENV2.SCHEDULE_GROUP_DELETE_TYPE.includes(msgType) || CONST.PRIVATE_TYPES.includes(chatType) && ENV2.SCHEDULE_PRIVATE_DELETE_TYPE.includes(msgType))) {
       sentMessageIds.add(clone_resp.result.message_id);
-      if (msgType === "tip") {
+      if (msgType === "tip" && !CONST.GROUP_TYPES.includes(chatType)) {
         sentMessageIds.add(context.SHARE_CONTEXT.messageId);
       }
     }
@@ -976,6 +976,7 @@ All token list: ${botTokens}`);
       }
     }
     if (taskPromises.length === 0) {
+      console.log(`Remaining historical ids: ${JSON.stringify(scheduledData)}`);
       console.log("Nothing need to delete.");
       return new Response(`{ok:"true"}`, { headers: { "Content-Type": "application/json" } });
     }
@@ -1121,19 +1122,22 @@ var UserConfig = class {
       image: {}
     },
     dalle: {
-      text: { chains: [{ prompt: "dall-e" }, { chain_type: "text:image" }] }
+      text: { chains: [{ tool: [], history: 0, prompt: "dall-e" }, { chain_type: "text:image" }] }
     }
     // compete: {
     //   text: {
     //     type: 'concurrent',
-    //     chains: [{}, { model: 'gpt-4o-2024-08-06' }],
+    //     chains: [
+    //       { tool: [], history: 0, prompt: '翻译' },
+    //       { tool: [], history: 0, model: 'gpt-4o-2024-08-06', prompt: '翻译' },
+    //     ],
     //   },
     // },
   };
   // 历史最大长度 调整为用户配置
   MAX_HISTORY_LENGTH = 12;
   // /set 指令映射变量 | 分隔多个关系，:分隔映射
-  MAPPING_KEY = "-p:SYSTEM_INIT_MESSAGE|-n:MAX_HISTORY_LENGTH|-a:AI_PROVIDER|-ai:AI_IMAGE_PROVIDER|-m:CHAT_MODEL|-v:OPENAI_VISION_MODEL|-t:OPENAI_TTS_MODEL|-ex:OPENAI_API_EXTRA_PARAMS|-mk:MAPPING_KEY|-mv:MAPPING_VALUE|-asap:FUNCTION_REPLY_ASAP|-fm:FUNCTION_CALL_MODEL|-tool:USE_TOOLS|-oli:IMAGE_MODEL";
+  MAPPING_KEY = "-p:SYSTEM_INIT_MESSAGE|-n:MAX_HISTORY_LENGTH|-a:AI_PROVIDER|-ai:AI_IMAGE_PROVIDER|-m:CHAT_MODEL|-md:CURRENT_MODE|-v:OPENAI_VISION_MODEL|-t:OPENAI_TTS_MODEL|-ex:OPENAI_API_EXTRA_PARAMS|-mk:MAPPING_KEY|-mv:MAPPING_VALUE|-asap:FUNCTION_REPLY_ASAP|-fm:FUNCTION_CALL_MODEL|-tool:USE_TOOLS|-oli:IMAGE_MODEL";
   // /set 指令映射值  | 分隔多个关系，:分隔映射
   MAPPING_VALUE = "";
   // MAPPING_VALUE = "cson:claude-3-5-sonnet-20240620|haiku:claude-3-haiku-20240307|g4m:gpt-4o-mini|g4:gpt-4o|rp+:command-r-plus";
@@ -1157,9 +1161,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1724261460;
+  BUILD_TIMESTAMP = 1724323685;
   // 当前版本 commit id
-  BUILD_VERSION = "b5a46e1";
+  BUILD_VERSION = "92ed0fc";
   // -- 基础配置 --
   /**
    * @type {I18n | null}
@@ -1863,13 +1867,6 @@ ${JSON.stringify(body, null, 2)}`);
   }
   context._info.step.updateStartTime();
   console.log("chat start.");
-  if (body.model) {
-    context._info.step.config("model", body.model);
-  } else {
-    const chatAgent = loadChatLLM(context)?.name;
-    const model = currentChatModel(chatAgent, context);
-    context._info.step.config("model", model);
-  }
   setTimeout(() => sendChatActionToTelegramWithContext(context)("typing").catch(console.error), 0);
   const resp = await fetch(url, {
     method: "POST",
@@ -1991,8 +1988,9 @@ ${result}`
 async function handleOpenaiFunctionCall(params, context, onStream) {
   let call_times = 0;
   const func_results = [];
+  const step = context._info.steps[params.index];
   try {
-    const { tools = context.USER_CONFIG.USE_TOOLS } = params;
+    const tools = step.tool;
     const { tools_name, tools_struct } = filterValidTools(tools) || {};
     if (tools_name) {
       const payload = renderCallPayload(params, tools_struct, context, onStream);
@@ -2008,11 +2006,11 @@ async function handleOpenaiFunctionCall(params, context, onStream) {
         if (!Array.isArray(llm_content)) {
           return { call_times, llm_content, func_results };
         }
-        context._info.step.setCallInfo(((Date.now() - start_time) / 1e3).toFixed(1) + "s", "c_t");
+        step.setCallInfo(((Date.now() - start_time) / 1e3).toFixed(1) + "s", "c_t");
         setTimeout(() => {
           chatPromise = sendMessageToTelegramWithContext(context)(`\`call ${llm_content[0].name}\``);
         }, 0);
-        const func_result = await functionExec(llm_content, context, opt);
+        const func_result = await functionExec(llm_content, step, opt);
         const func_type = ENV2.TOOLS[llm_content[0].name].type;
         func_results.push({ type: func_type, content: func_result });
         trimPayload(payload, func_results, func_type);
@@ -2028,7 +2026,7 @@ async function handleOpenaiFunctionCall(params, context, onStream) {
     if (e2.name === "AbortError") {
       errorMsg = "call timeout";
     }
-    context._info.step.setCallInfo(`\u26A0\uFE0F${errorMsg.slice(0, 50)}`);
+    step.setCallInfo(`\u26A0\uFE0F${errorMsg.slice(0, 50)}`);
     return { call_times, message: e2.message, func_results };
   }
 }
@@ -2112,7 +2110,7 @@ async function functionCallWithLLM(context, payload, tools_name) {
     args: JSON.parse(func.function.arguments)
   }));
 }
-async function functionExec(funcList, context, opt) {
+async function functionExec(funcList, step, opt) {
   const controller = new AbortController();
   const { signal } = controller;
   let timeoutId = null;
@@ -2126,7 +2124,7 @@ async function functionExec(funcList, context, opt) {
     if (exec_times <= 0)
       break;
     const args_i = Object.values(args).join();
-    context._info.step.setCallInfo(`${name}:${args_i.length > INFO_LENGTH_LIMIT ? args_i.slice(0, INFO_LENGTH_LIMIT) : args_i}`, "f_i");
+    step.setCallInfo(`${name}:${args_i.length > INFO_LENGTH_LIMIT ? args_i.slice(0, INFO_LENGTH_LIMIT) : args_i}`, "f_i");
     console.log("start use function: ", name);
     const params = args;
     if (ENV2.TOOLS[name].need) {
@@ -2145,9 +2143,9 @@ async function functionExec(funcList, context, opt) {
   });
   console.log("func call content: ", content.join("\n\n").substring(0, 500));
   if (func_time.join("").trim())
-    context._info.step.setCallInfo(func_time.join(), "f_t");
+    step.setCallInfo(func_time.join(), "f_t");
   if (!content.join("").trim()) {
-    context._info.step.setCallInfo(`func call response is none or timeout.`);
+    step.setCallInfo(`func call response is none or timeout.`);
     throw new Error("None response in func call.");
   }
   return content;
@@ -2219,18 +2217,22 @@ var openaiLikeSupportType = {
   deepseek: ["text2text"],
   silicon: ["text2text", "text2image", "image2image"]
 };
-function openaiLikeAgent(context, type) {
+function openaiLikeAgent(context, type, index) {
   const userConfig = context.USER_CONFIG;
-  if (!context._info.step) {
-    if (type === "text2image")
+  if (context._info.steps.length === 0) {
+    if (type === "text2image") {
       context._info.chains = [{ chain_type: "text:image" }];
+    } else {
+      context._info.chains = [{ chain_type: "text:text" }];
+    }
     context._info.initStep(0, context._info.file);
   }
-  const agent = context._info.step.agent;
+  index = index ?? context._info.index;
+  const agent = context._info.steps[index].agent;
   let config = {
     url: userConfig.OPENAI_API_BASE,
     key: openAIKeyFromContext(context),
-    model: context._info.step.model
+    model: context._info.steps[index].model
   };
   let like_model = null;
   let like_url = userConfig.PROVIDERS[agent]?.base_url;
@@ -2298,8 +2300,8 @@ function renderOpenaiLikeUrl(agent, type, agentDetail) {
   return agentDetail;
 }
 async function requestCompletionsFromOpenAI(params, context, onStream) {
-  const { message, images, prompt: prompt2, history, extra } = params;
-  const { url, key, model } = openaiLikeAgent(context, images && images.length > 0 ? "image2text" : "text2text");
+  const { message, images, prompt: prompt2, history, extra, index } = params;
+  const { url, key, model } = openaiLikeAgent(context, images && images.length > 0 ? "image2text" : "text2text", index);
   const header2 = {
     "Content-Type": "application/json",
     "Authorization": `Bearer ${key}`
@@ -2317,8 +2319,8 @@ async function requestCompletionsFromOpenAI(params, context, onStream) {
     stream: onStream != null,
     ...context.USER_CONFIG.ENABLE_SHOWTOKEN && { stream_options: { include_usage: true } }
   };
-  if (message && !images && context.USER_CONFIG.USE_TOOLS?.length > 0) {
-    const result = await handleOpenaiFunctionCall({ url, header: header2, body, prompt: prompt2 }, context, onStream);
+  if (message && !images && context._info.steps[index]?.tool?.length > 0) {
+    const result = await handleOpenaiFunctionCall({ url, header: header2, body, prompt: prompt2, index }, context, onStream);
     if (result.llm_content && !Array.isArray(result.llm_content) && context.USER_CONFIG.FUNCTION_REPLY_ASAP) {
       return result.llm_content;
     }
@@ -2333,7 +2335,7 @@ async function requestCompletionsFromOpenAI(params, context, onStream) {
 }
 async function requestImageFromOpenAI(params, context) {
   const { message, extra_params } = params;
-  const { url, key, model } = openaiLikeAgent(context, "text2image");
+  const { url, key, model } = openaiLikeAgent(context, "text2image", params.index);
   const header2 = {
     "Content-Type": "application/json",
     "Authorization": `Bearer ${key}`
@@ -2896,7 +2898,7 @@ async function extractMessageType2(message, currentBotId) {
   let msg = message;
   const acceptMsgType = ENV2.ENABLE_FILE ? ["document", "photo", "image", "voice", "audio", "text"] : ["text"];
   let msgType = acceptMsgType.find((key) => key in msg);
-  let message_text = message.text || message.caption;
+  let message_text = message.text ?? message.caption;
   if (ENV2.EXTRA_MESSAGE_CONTEXT && (message.reply_to_message?.text || message.reply_to_message?.caption) && message.reply_to_message?.from?.id !== +currentBotId) {
     message_text = "> " + (message.reply_to_message.text || "") + (message.reply_to_message?.caption || "") + "\n" + message_text;
   }
@@ -2952,6 +2954,8 @@ async function extractMessageType2(message, currentBotId) {
   };
 }
 async function getTelegramFileUrl(file, botToken) {
+  if (file?.url?.length > 0)
+    return file.url;
   const { type, url } = file;
   const ids = file.id;
   if (ids.length === 0) {
@@ -3006,18 +3010,18 @@ var MiddleInfo = class {
       ...msg_info
     };
     this.steps = [];
-    this.index = 0;
+    this.index = -1;
     this.concurrent_stream = null;
   }
   config(name, value) {
     if (name === "mode") {
-      const mode_detail = this._bp_config.MODES[value]?.[this.msg_type];
+      const mode_detail = this._bp_config.MODES[value]?.[this.file.type];
       this.chains = mode_detail?.chains || [{}];
       this.is_concurrent = mode_detail?.type === "concurrent";
     }
   }
-  initStep(index, file_info) {
-    this.index = index || this.index;
+  initStep(index = 0, file_info = this.file) {
+    this.index++;
     const step = new StepStructure();
     const chains_length = this.chains.length;
     let step_info = null;
@@ -3025,10 +3029,10 @@ var MiddleInfo = class {
     if (this.is_concurrent) {
       step_info = "";
     } else {
-      step_info = chains_length > 1 ? `${index + 1}/${chains_length}` : "";
+      step_info = chains_length > 1 ? `${(index ?? this.index) + 1}/${chains_length}` : "";
       file = file_info;
     }
-    this.steps.push(step.initInfo(this.chains[index], file, this._bp_config, step_info));
+    this.steps.push(step.initInfo(this.chains[index ?? this.index], file, this._bp_config, step_info));
   }
   get isLastStep() {
     return this.is_concurrent || this.index + 1 === this.chains.length;
@@ -3071,6 +3075,7 @@ var StepStructure = class {
   history = null;
   provider = null;
   show_info = null;
+  tool = [];
   concurrent_content = "";
   config(name, value) {
     if (name === "show_info") {
@@ -3149,12 +3154,13 @@ ${this.token_info.map(Object.values).join("|")}`;
       model_type = `${this.agent.toUpperCase()}_${chatType}_MODEL`;
     this.model = chain.model || config[model_type] || config[`OPENAI_${chatType}_MODEL`];
     if (chain.prompt) {
-      this.prompt = ENV2.PROMPT[chain.prompt] || chain.prompt;
+      this.prompt = ENV2.PROMPT[chain.prompt] ?? chain.prompt;
     } else
       this.prompt = config.SYSTEM_INIT_MESSAGE;
     this.provider = chain.provider;
-    this.history = chain.history || config.MAX_HISTORY_LENGTH;
-    this.show_info = chain.show_info || config.ENABLE_SHOWINFO;
+    this.history = chain.history ?? config.MAX_HISTORY_LENGTH;
+    this.show_info = chain.show_info ?? config.ENABLE_SHOWINFO;
+    this.tool = chain.tool ?? config.USE_TOOLS;
     return this;
   }
 };
@@ -3413,12 +3419,17 @@ async function loadHistory(key, MAX_HISTORY_LENGTH = ENV2.MAX_HISTORY_LENGTH) {
   return history;
 }
 async function requestCompletionsFromLLM(params, context, llm, modifier, onStream) {
-  const historyDisable = ENV2.AUTO_TRIM_HISTORY && ENV2.MAX_HISTORY_LENGTH <= 0;
+  if (context._info.steps.length === 0) {
+    context._info.initStep();
+    params.index = 0;
+  }
+  const step = context._info?.steps[params.index];
+  const historyDisable = ENV2.AUTO_TRIM_HISTORY && step.history <= 0;
   const historyKey = context.SHARE_CONTEXT.chatHistoryKey;
   const readStartTime = performance.now();
   let history = [];
-  if (!params?.images) {
-    history = await loadHistory(historyKey, context._info.step.history || ENV2.MAX_HISTORY_LENGTH);
+  if (!params?.images && step.history > 0) {
+    history = await loadHistory(historyKey, step.history);
   }
   const readTime = ((performance.now() - readStartTime) / 1e3).toFixed(2);
   console.log(`readHistoryTime: ${readTime}s`);
@@ -3430,7 +3441,7 @@ async function requestCompletionsFromLLM(params, context, llm, modifier, onStrea
   const llmParams = {
     ...params,
     history,
-    prompt: context._info.step.prompt
+    prompt: step.prompt
   };
   let answer = await llm(llmParams, context, onStream);
   if (params.images) {
@@ -3455,33 +3466,33 @@ async function chatWithLLM(params, context, modifier) {
     }
     const parseMode = context.CURRENT_CHAT_CONTEXT.parse_mode;
     let onStream = null;
-    let nextEnableTime = null;
-    const sendMessage2 = sendTextMessageHandler(context);
+    let nextEnableTime2 = null;
+    const sendMessage2 = sendTextMessageHandler(context, params.index);
     if (ENV2.STREAM_MODE) {
       onStream = async (text) => {
         if (ENV2.HIDE_MIDDLE_MESSAGE && !context._info.isLastStep)
           return;
         try {
-          if (nextEnableTime && nextEnableTime > Date.now()) {
+          if (nextEnableTime2 && nextEnableTime2 > Date.now()) {
             return;
           }
           if (ENV2.TELEGRAM_MIN_STREAM_INTERVAL > 0) {
-            nextEnableTime = Date.now() + ENV2.TELEGRAM_MIN_STREAM_INTERVAL;
+            nextEnableTime2 = Date.now() + ENV2.TELEGRAM_MIN_STREAM_INTERVAL;
           }
           let send_content = text;
           if (context._info.is_concurrent) {
-            context._info.steps[params.index ?? 0].concurrent_content = text;
+            context._info.steps[params.index].concurrent_content = text;
             send_content = context._info.concurrent_content;
           }
           const resp = await sendMessage2(send_content);
           if (resp.status === 429) {
             const retryAfter = parseInt(resp.headers.get("Retry-After"));
             if (retryAfter) {
-              nextEnableTime = Date.now() + retryAfter * 1e3;
+              nextEnableTime2 = Date.now() + retryAfter * 1e3;
               return;
             }
           }
-          nextEnableTime = null;
+          nextEnableTime2 = null;
         } catch (e2) {
           console.error(e2);
         }
@@ -3511,11 +3522,15 @@ async function chatWithLLM(params, context, modifier) {
         console.error(e2);
       }
     }
-    if (nextEnableTime && nextEnableTime > Date.now()) {
-      console.log(`The last message need wait:${((nextEnableTime - Date.now()) / 1e3).toFixed(1)}s`);
-      await new Promise((resolve) => setTimeout(resolve, nextEnableTime - Date.now()));
+    if (nextEnableTime2 && nextEnableTime2 > Date.now()) {
+      console.log(`The last message need wait:${((nextEnableTime2 - Date.now()) / 1e3).toFixed(1)}s`);
+      await new Promise((resolve) => setTimeout(resolve, nextEnableTime2 - Date.now()));
     }
     console.log(`[DONE] Chat via ${llm.name}`);
+    if (nextEnableTime2) {
+      console.log(`Need wait until ${new Date(nextEnableTime2).toISOString()}`);
+      context._info.nextEnableTime = nextEnableTime2;
+    }
     return { type: "text", text: answer };
   } catch (e2) {
     let errMsg = `Error: ${e2.message}`;
@@ -3527,7 +3542,7 @@ async function chatWithLLM(params, context, modifier) {
     return sendMessageToTelegramWithContext(context)(errMsg, "tip");
   }
 }
-function sendTextMessageHandler(context) {
+function sendTextMessageHandler(context, index) {
   const question = context._info.step?.file.text || "Redo";
   const prefix = `#Question
 \`\`\`
@@ -3539,18 +3554,19 @@ ${question?.length > 400 ? question.slice(0, 200) + "..." + question.slice(-200)
     author_name: context.SHARE_CONTEXT.currentBotName,
     author_url: ENV2.TELEGRAPH_AUTHOR_URL
   };
+  const step = context._info.steps[index ?? context._info.index];
   return async (text) => {
     if (ENV2.TELEGRAPH_NUM_LIMIT > 0 && text.length > ENV2.TELEGRAPH_NUM_LIMIT && CONST.GROUP_TYPES.includes(context.SHARE_CONTEXT.chatType)) {
       const telegraph_prefix = prefix + `
 #Answer
-\u{1F916} _${context._info.step.model}_
+\u{1F916} _${step.model}_
 `;
-      const debug_info = `debug info:${ENV2.CALL_INFO ? "" : "\n" + context._info.step.call_info.replace("$$f_t$$", "") + "\n"}`;
+      const debug_info = `debug info:${ENV2.CALL_INFO ? "" : "\n" + step.call_info.replace("$$f_t$$", "") + "\n"}`;
       const telegraph_suffix = `
 ---
 \`\`\`
 ${debug_info}
-${context._info.step.message_title}
+${step.message_title}
 \`\`\``;
       if (!context.SHARE_CONTEXT.telegraphPath) {
         const resp = await sendTelegraphWithContext(context)(
@@ -3562,9 +3578,9 @@ ${context._info.step.message_title}
         const msg = `\u56DE\u7B54\u5DF2\u7ECF\u8F6C\u6362\u6210\u5B8C\u6574\u6587\u7AE0~
 [\u{1F517}\u70B9\u51FB\u8FDB\u884C\u67E5\u770B](${url})`;
         const show_info_tag = context.USER_CONFIG.ENABLE_SHOWINFO;
-        context._info.step.config("show_info", false);
+        step.config("show_info", false);
         await sendMessageToTelegramWithContext(context)(msg);
-        context._info.step.config("show_info", show_info_tag);
+        step.config("show_info", show_info_tag);
         return resp;
       }
       return sendTelegraphWithContext(context)(null, telegraph_prefix + text + telegraph_suffix, author);
@@ -3580,7 +3596,7 @@ async function chatViaFileWithLLM(context, params) {
       return sendMessageToTelegramWithContext(context)(`LLM is not enable`);
     }
     const startTime = performance.now();
-    context._info.step.updateStartTime();
+    context._info.steps[params.index].updateStartTime();
     const answer = await llm(raw2, file_name, context);
     if (!answer.ok) {
       console.error(answer.message);
@@ -3708,7 +3724,11 @@ async function renderText2PicResult(context, response) {
         text: resp?.data?.[0]?.revised_prompt || ""
       };
     case "silicon":
-      resp = await response.then((r) => r.json());
+      resp = await response.then(async (r) => {
+        if (r.status !== 200)
+          return { message: await r.text() };
+        return r.json();
+      });
       if (resp.message) {
         throw new Error(resp.message);
       }
@@ -4037,7 +4057,7 @@ async function commandSetUserConfigs(message, command, subcommand, context) {
         context.SHARE_CONTEXT.configStoreKey,
         JSON.stringify(trimUserConfig(trimUserConfig(context.USER_CONFIG)))
       );
-      msg += ">`Update user config success`\n";
+      msg += "Update user config success";
     }
     if (msg)
       await sendMessageToTelegramWithContext(context)(msg, "tip");
@@ -4116,6 +4136,7 @@ async function commandSystem(message, command, subcommand, context) {
   }
   agent.STT_MODEL = context.USER_CONFIG.OPENAI_STT_MODEL;
   agent.VISION_MODEL = context.USER_CONFIG.OPENAI_VISION_MODEL;
+  agent.IMAGE_MODEL = context.USER_CONFIG.IMAGE_MODEL;
   let msg = `<pre>AGENT: ${JSON.stringify(agent, null, 2)}
 others: ${customInfo(context.USER_CONFIG)}
 </pre>`;
@@ -4609,6 +4630,9 @@ async function msgHandleCommand(message, context) {
 }
 async function msgChatWithLLM(message, context) {
   const is_concurrent = context._info.is_concurrent;
+  if (context._info.file.type !== "text") {
+    context._info.file.url = await getTelegramFileUrl(context._info.file, context.SHARE_CONTEXT.currentBotToken);
+  }
   const llmPromises = [];
   try {
     let result = null;
@@ -4619,7 +4643,7 @@ async function msgChatWithLLM(message, context) {
       }
       context._info.initStep(i, result ?? context._info.file);
       const file = result ?? context._info.file;
-      const params = { message: file.text, step_index: i };
+      const params = { message: file.text, index: i };
       if (file.type !== "text") {
         const file_urls = await getTelegramFileUrl(file, context.SHARE_CONTEXT.currentBotToken);
         if (file.type === "image") {
@@ -4639,6 +4663,10 @@ async function msgChatWithLLM(message, context) {
         }
         if (i + 1 === context._info.chains.length || !ENV2.HIDE_MIDDLE_MESSAGE) {
           console.log(result.text);
+          if (context._info.nextEnableTime) {
+            await new Promise((resolve) => setTimeout(resolve, nextEnableTime - Date.now()));
+            context._info.nextEnableTime = null;
+          }
           await sendTelegramMessage(context, result);
         }
       }
@@ -4650,6 +4678,10 @@ async function msgChatWithLLM(message, context) {
       }
     });
     if (is_concurrent && results.filter((i) => i.type === "text").length > 0) {
+      if (context._info.nextEnableTime) {
+        await new Promise((resolve) => setTimeout(resolve, nextEnableTime - Date.now()));
+        context._info.nextEnableTime = null;
+      }
       await sendTextMessageHandler(context)(context._info.concurrent_content);
     }
     return new Response("success", { status: 200 });
@@ -4659,7 +4691,8 @@ async function msgChatWithLLM(message, context) {
   }
 }
 async function chatLlmHander(context, params) {
-  const chain_type = context._info.step.chain_type;
+  const step = context._info.steps[params.index];
+  const chain_type = step.chain_type;
   switch (chain_type) {
     case "text:text":
     case "image:text":
@@ -4694,6 +4727,7 @@ async function sendInitMessage(context) {
   }
 }
 function sendTelegramMessage(context, file) {
+  sendAction(context, file.type);
   switch (file.type) {
     case "text":
       return sendTextMessageHandler(context)(file.text);
@@ -4706,6 +4740,17 @@ function sendTelegramMessage(context, file) {
       }
     default:
       return sendMessageToTelegramWithContext(context)(`Not supported type`);
+  }
+}
+function sendAction(context, type) {
+  switch (type) {
+    case "text":
+    default:
+      setTimeout(() => sendChatActionToTelegramWithContext(context)("typing").catch(console.error), 0);
+      break;
+    case "image":
+      setTimeout(() => sendChatActionToTelegramWithContext(context)("upload_photo").catch(console.error), 0);
+      break;
   }
 }
 function loadMessage(body) {
@@ -4738,7 +4783,7 @@ async function scheduledDeleteMessage(message, context) {
     ttl: Date.now() + offsetInMillisenconds
   });
   await DATABASE.put(scheduleDeteleKey, JSON.stringify(scheduledData));
-  console.log(`Record message id: ${chatId} - ${[...sentMessageIds]}`);
+  console.log(`Record chat ${chatId}, message ids: ${[...sentMessageIds]}`);
   return new Response("success", { status: 200 });
 }
 async function msgTagNeedDelete(message, context) {

@@ -339,6 +339,9 @@ async function msgHandleCommand(message, context) {
  */
 async function msgChatWithLLM(message, context) {
   const is_concurrent = context._info.is_concurrent;
+  if (context._info.file.type !== 'text') {
+    context._info.file.url = await getTelegramFileUrl(context._info.file, context.SHARE_CONTEXT.currentBotToken);
+  }
   const llmPromises = [];
   // 与LLM交互
   try {
@@ -351,7 +354,7 @@ async function msgChatWithLLM(message, context) {
       }
       context._info.initStep(i, result ?? context._info.file);
       const file = result ?? context._info.file;
-      const params = { message: file.text, step_index: i };
+      const params = { message: file.text, index: i };
 
       if (file.type !== 'text') {
         const file_urls = await getTelegramFileUrl(file, context.SHARE_CONTEXT.currentBotToken);
@@ -372,6 +375,10 @@ async function msgChatWithLLM(message, context) {
         }
         if (i + 1 === context._info.chains.length || !ENV.HIDE_MIDDLE_MESSAGE) {
           console.log(result.text);
+          if (context._info.nextEnableTime) {
+            await new Promise(resolve => setTimeout(resolve, nextEnableTime - Date.now()));
+            context._info.nextEnableTime = null;
+          }
           await sendTelegramMessage(context, result);
         }
       }
@@ -382,7 +389,11 @@ async function msgChatWithLLM(message, context) {
         context._info.steps[index].concurrent_content = result.text;
       }
     });
-    if (is_concurrent && results.filter(i=>i.type === 'text').length > 0) {
+    if (is_concurrent && results.filter(i => i.type === 'text').length > 0) {
+      if (context._info.nextEnableTime) {
+        await new Promise(resolve => setTimeout(resolve, nextEnableTime - Date.now()));
+        context._info.nextEnableTime = null;
+      }
       await sendTextMessageHandler(context)(context._info.concurrent_content);
     }
     return new Response('success', { status: 200 });
@@ -402,7 +413,8 @@ async function msgChatWithLLM(message, context) {
  * @return {Promise<Response>}
  */
 async function chatLlmHander(context, params) {
-  const chain_type = context._info.step.chain_type;
+  const step = context._info.steps[params.index];
+  const chain_type = step.chain_type;
   // sendInitAction(context, chain_type);
   switch (chain_type) {
     case 'text:text':
@@ -448,6 +460,7 @@ async function sendInitMessage(context) {
 }
 
 export function sendTelegramMessage(context, file) {
+  sendAction(context, file.type);
   switch (file.type) {
     case 'text':
       return sendTextMessageHandler(context)(file.text);
@@ -463,16 +476,13 @@ export function sendTelegramMessage(context, file) {
   }
 }
 
-function sendInitAction(context, type) {
+function sendAction(context, type) {
   switch (type) {
-    case 'text:text':
-    case 'image:text':
-    case 'audio:text':
+    case 'text':
     default:
       setTimeout(() => sendChatActionToTelegramWithContext(context)('typing').catch(console.error), 0);
       break;
-    case 'text:image':
-    case 'image:image':
+    case 'image':
       setTimeout(() => sendChatActionToTelegramWithContext(context)('upload_photo').catch(console.error), 0);
       break;
   }
@@ -524,7 +534,7 @@ async function scheduledDeleteMessage(message, context) {
   });
   
   await DATABASE.put(scheduleDeteleKey, JSON.stringify(scheduledData));
-  console.log(`Record message id: ${chatId} - ${[...sentMessageIds]}`);
+  console.log(`Record chat ${chatId}, message ids: ${[...sentMessageIds]}`);
 
   return new Response('success', { status: 200 });
 }

@@ -411,7 +411,7 @@ async function commandSetUserConfigs(message, command, subcommand, context) {
         context.SHARE_CONTEXT.configStoreKey,
         JSON.stringify(trimUserConfig(trimUserConfig(context.USER_CONFIG))),
       );
-      msg += '>`Update user config success`\n';
+      msg += 'Update user config success';
     }
     if (msg) await sendMessageToTelegramWithContext(context)(msg, 'tip');
     return null;
@@ -533,6 +533,7 @@ async function commandSystem(message, command, subcommand, context) {
   }
   agent.STT_MODEL = context.USER_CONFIG.OPENAI_STT_MODEL;
   agent.VISION_MODEL = context.USER_CONFIG.OPENAI_VISION_MODEL;
+  agent.IMAGE_MODEL = context.USER_CONFIG.IMAGE_MODEL;
   let msg = `<pre>AGENT: ${JSON.stringify(agent, null, 2)}\n` + `others: ${ customInfo(context.USER_CONFIG)
 }` + '\n</pre>';
   if (ENV.DEV_MODE) {

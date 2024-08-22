@@ -13,8 +13,9 @@ import tools_settings from '../prompt/tools.js';
 export async function handleOpenaiFunctionCall(params, context, onStream) {
   let call_times = 0;
   const func_results = [];
+  const step = context._info.steps[params.index];
   try {
-    const { tools = context.USER_CONFIG.USE_TOOLS} = params;
+    const tools = step.tool;
     const { tools_name, tools_struct } = filterValidTools(tools) || {};
     if (tools_name) {
       const payload = renderCallPayload(params, tools_struct, context, onStream);
@@ -32,12 +33,12 @@ export async function handleOpenaiFunctionCall(params, context, onStream) {
         if (!Array.isArray(llm_content)) {
           return { call_times, llm_content, func_results };
         }
-        context._info.step.setCallInfo(((Date.now() - start_time) / 1000).toFixed(1) + 's', 'c_t');
+        step.setCallInfo(((Date.now() - start_time) / 1000).toFixed(1) + 's', 'c_t');
         setTimeout(() => {
           chatPromise = sendMessageToTelegramWithContext(context)(`\`call ${llm_content[0].name}\``);
         }, 0);
 
-        const func_result = await functionExec(llm_content, context, opt);
+        const func_result = await functionExec(llm_content, step, opt);
         // 取第一个函数的类型
         const func_type = ENV.TOOLS[llm_content[0].name].type;
         func_results.push({ type: func_type, content: func_result });
@@ -55,7 +56,7 @@ export async function handleOpenaiFunctionCall(params, context, onStream) {
     if (e.name === 'AbortError') {
       errorMsg = 'call timeout';
     }
-    context._info.step.setCallInfo(`⚠️${errorMsg.slice(0,50)}`);
+    step.setCallInfo(`⚠️${errorMsg.slice(0,50)}`);
     return { call_times, message: e.message, func_results };
   }
 }
@@ -194,7 +195,7 @@ async function functionCallWithLLM(context, payload, tools_name) {
  * @param {object} opt
  * @return {Promise<string[]>}
  */
-async function functionExec(funcList, context, opt) {
+async function functionExec(funcList, step, opt) {
   const controller = new AbortController();
   const { signal } = controller;
   let timeoutId = null;
@@ -207,7 +208,7 @@ async function functionExec(funcList, context, opt) {
   for (const { name, args } of funcList) {
     if (exec_times <= 0) break;
     const args_i = Object.values(args).join();
-    context._info.step.setCallInfo(`${name}:${args_i.length > INFO_LENGTH_LIMIT ? args_i.slice(0, INFO_LENGTH_LIMIT) : args_i}`, 'f_i');
+    step.setCallInfo(`${name}:${args_i.length > INFO_LENGTH_LIMIT ? args_i.slice(0, INFO_LENGTH_LIMIT) : args_i}`, 'f_i');
     console.log('start use function: ', name);
     const params = args;
     if (ENV.TOOLS[name].need) {
@@ -227,9 +228,9 @@ async function functionExec(funcList, context, opt) {
 
   console.log('func call content: ', content.join('\n\n').substring(0, 500));
 
-  if (func_time.join('').trim()) context._info.step.setCallInfo(func_time.join(), 'f_t');
+  if (func_time.join('').trim()) step.setCallInfo(func_time.join(), 'f_t');
   if (!content.join('').trim()) {
-    context._info.step.setCallInfo(`func call response is none or timeout.`);
+    step.setCallInfo(`func call response is none or timeout.`);
     throw new Error('None response in func call.');
   }
   return content;
