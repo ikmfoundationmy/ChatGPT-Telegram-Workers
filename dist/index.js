@@ -657,6 +657,10 @@ function sendMessageToTelegramWithContext(context) {
       context._info,
       msgType
     );
+    if (!resp.ok) {
+      console.error(await resp.clone().text());
+      return resp;
+    }
     return await checkIsNeedTagIds(context, msgType, resp);
   };
 }
@@ -694,20 +698,20 @@ async function deleteMessagesFromTelegram(chat_id, bot_token, message_ids) {
 }
 async function sendPhotoToTelegram(photo, token, context, _info = null) {
   try {
+    let photo_url = photo.url[0];
     const url = `${ENV2.TELEGRAM_API_DOMAIN}/bot${token}/sendPhoto`;
     let body;
     const headers = {};
-    if (typeof photo.url[0] === "string") {
+    if (typeof photo_url === "string") {
       if (ENV2.TELEGRAPH_IMAGE_ENABLE) {
         try {
-          const new_url = await uploadImageToTelegraph(photo.url[0]);
-          photo.url = new_url;
+          photo_url = await uploadImageToTelegraph(photo_url);
         } catch (e2) {
           console.error(e2.message);
         }
       }
       body = {
-        photo: photo.url[0]
+        photo: photo_url
       };
       for (const key of Object.keys(context)) {
         if (context[key] !== void 0 && context[key] !== null) {
@@ -749,6 +753,10 @@ function sendPhotoToTelegramWithContext(context) {
       context.CURRENT_CHAT_CONTEXT,
       context._info
     );
+    if (!resp.ok) {
+      console.error(await resp.clone().text());
+      return resp;
+    }
     return checkIsNeedTagIds(context, msgType, resp);
   };
 }
@@ -1161,9 +1169,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1724323685;
+  BUILD_TIMESTAMP = 1724326940;
   // 当前版本 commit id
-  BUILD_VERSION = "92ed0fc";
+  BUILD_VERSION = "27afa4a";
   // -- 基础配置 --
   /**
    * @type {I18n | null}

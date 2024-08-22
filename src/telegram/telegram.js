@@ -142,14 +142,18 @@ export async function sendMessageToTelegram(message, token, context, _info, type
  */
 export function sendMessageToTelegramWithContext(context) {
   return async (message, msgType = 'chat') => {
-      const resp = await sendMessageToTelegram(
-        message,
-        context.SHARE_CONTEXT.currentBotToken,
-        context.CURRENT_CHAT_CONTEXT,
-        context._info,
-        msgType,
-      );
-      return await checkIsNeedTagIds(context, msgType, resp);
+    const resp = await sendMessageToTelegram(
+      message,
+      context.SHARE_CONTEXT.currentBotToken,
+      context.CURRENT_CHAT_CONTEXT,
+      context._info,
+      msgType,
+    );
+    if (!resp.ok) {
+      console.error(await resp.clone().text());
+      return resp;
+    }
+    return await checkIsNeedTagIds(context, msgType, resp);
   };
 }
 
@@ -204,21 +208,22 @@ export async function deleteMessagesFromTelegram(chat_id, bot_token,  message_id
  */
 export async function sendPhotoToTelegram(photo, token, context, _info = null) {
   try {
+    let photo_url = photo.url[0];
     const url = `${ENV.TELEGRAM_API_DOMAIN}/bot${token}/sendPhoto`;
     let body;
     const headers = {};
-    if (typeof photo.url[0] === 'string') {
+    if (typeof photo_url === 'string') {
       if (ENV.TELEGRAPH_IMAGE_ENABLE) {
         try {
-          const new_url = await uploadImageToTelegraph(photo.url[0]);
-          photo.url = new_url;
+          photo_url = await uploadImageToTelegraph(photo_url);
         } catch (e) {
           console.error(e.message);
         }
       }
       body = {
-        photo: photo.url[0],
+        photo: photo_url,
       };
+
       for (const key of Object.keys(context)) {
         if (context[key] !== undefined && context[key] !== null) {
           body[key] = context[key];
@@ -231,7 +236,6 @@ export async function sendPhotoToTelegram(photo, token, context, _info = null) {
         info = (info ? info + '\n\n' : '') + photo.text;
       }
       body.caption = '>`' + escape(info) + '`' + `\n[原始图片](${photo.url})`;
-
       body = JSON.stringify(body);
       headers['Content-Type'] = 'application/json';
     } else {
@@ -243,6 +247,7 @@ export async function sendPhotoToTelegram(photo, token, context, _info = null) {
         }
       }
     }
+
     return await fetch(url, {
       method: 'POST',
       headers,
@@ -250,7 +255,6 @@ export async function sendPhotoToTelegram(photo, token, context, _info = null) {
     });
   } catch (e) {
     console.error(e);
-    // throw new Error('send telegram message failed, please see the log');
   }
 }
 
@@ -267,6 +271,10 @@ export function sendPhotoToTelegramWithContext(context) {
       context.CURRENT_CHAT_CONTEXT,
       context._info,
     );
+    if (!resp.ok) {
+      console.error(await resp.clone().text());
+      return resp;
+    }
     return checkIsNeedTagIds(context, msgType, resp);
   };
 }
