@@ -661,7 +661,8 @@ function sendMessageToTelegramWithContext(context) {
       console.error(await resp.clone().text());
       return resp;
     }
-    return await checkIsNeedTagIds(context, msgType, resp);
+    await checkIsNeedTagIds(context, msgType, resp);
+    return resp;
   };
 }
 function deleteMessageFromTelegramWithContext(context) {
@@ -757,7 +758,8 @@ function sendPhotoToTelegramWithContext(context) {
       console.error(await resp.clone().text());
       return resp;
     }
-    return checkIsNeedTagIds(context, msgType, resp);
+    await checkIsNeedTagIds(context, msgType, resp);
+    return resp;
   };
 }
 async function sendMediaGroupToTelegram(mediaGroup, token, context, _info) {
@@ -797,7 +799,8 @@ function sendMediaGroupToTelegramWithContext(context) {
       context.CURRENT_CHAT_CONTEXT,
       context._info
     );
-    return checkIsNeedTagIds(context, msgType, resp);
+    await checkIsNeedTagIds(context, msgType, resp);
+    return resp;
   };
 }
 async function sendChatActionToTelegram(action, token, chatId) {
@@ -932,6 +935,11 @@ async function checkIsNeedTagIds(context, msgType, resp) {
   const { sentMessageIds, chatType } = context.SHARE_CONTEXT;
   if (sentMessageIds) {
     const clone_resp = await resp.clone().json();
+    if (!clone_resp.result?.message_id) {
+      console.error(JSON.stringify(clone_resp));
+      return;
+    }
+    ;
     if (!sentMessageIds.has(clone_resp.result.message_id) && (CONST.GROUP_TYPES.includes(chatType) && ENV2.SCHEDULE_GROUP_DELETE_TYPE.includes(msgType) || CONST.PRIVATE_TYPES.includes(chatType) && ENV2.SCHEDULE_PRIVATE_DELETE_TYPE.includes(msgType))) {
       sentMessageIds.add(clone_resp.result.message_id);
       if (msgType === "tip" && !CONST.GROUP_TYPES.includes(chatType)) {
@@ -939,7 +947,6 @@ async function checkIsNeedTagIds(context, msgType, resp) {
       }
     }
   }
-  return resp;
 }
 
 // src/tools/scheduleTask.js
@@ -1169,9 +1176,9 @@ var Environment = class {
   // -- 版本数据 --
   //
   // 当前版本
-  BUILD_TIMESTAMP = 1724326940;
+  BUILD_TIMESTAMP = 1724328777;
   // 当前版本 commit id
-  BUILD_VERSION = "27afa4a";
+  BUILD_VERSION = "5dab18f";
   // -- 基础配置 --
   /**
    * @type {I18n | null}

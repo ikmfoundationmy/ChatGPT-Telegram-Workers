@@ -153,7 +153,8 @@ export function sendMessageToTelegramWithContext(context) {
       console.error(await resp.clone().text());
       return resp;
     }
-    return await checkIsNeedTagIds(context, msgType, resp);
+    await checkIsNeedTagIds(context, msgType, resp);
+    return resp;
   };
 }
 
@@ -275,7 +276,8 @@ export function sendPhotoToTelegramWithContext(context) {
       console.error(await resp.clone().text());
       return resp;
     }
-    return checkIsNeedTagIds(context, msgType, resp);
+    await checkIsNeedTagIds(context, msgType, resp);
+    return resp;
   };
 }
 
@@ -341,7 +343,8 @@ export function sendMediaGroupToTelegramWithContext(context) {
       context.CURRENT_CHAT_CONTEXT,
       context._info,
     );
-    return checkIsNeedTagIds(context, msgType, resp);
+    await checkIsNeedTagIds(context, msgType, resp);
+    return resp;
   };
 }
 
@@ -555,6 +558,10 @@ async function checkIsNeedTagIds(context, msgType, resp) {
   const { sentMessageIds, chatType } = context.SHARE_CONTEXT;
   if (sentMessageIds) {
     const clone_resp = await resp.clone().json();
+    if (!clone_resp.result?.message_id) {
+      console.error(JSON.stringify(clone_resp));
+      return
+    };
     // 标记消息id
     if (
       !sentMessageIds.has(clone_resp.result.message_id) &&
@@ -568,6 +575,5 @@ async function checkIsNeedTagIds(context, msgType, resp) {
       }
     }
   }
-  return resp;
 }
   
