@@ -1,3 +1,4 @@
+/* eslint-disable style/indent */
 import { interpolate } from './interpolate.js';
 
 {

@@ -1,3 +1,4 @@
+/* eslint-disable style/indent */
 import {
     TemplateBodyTypeForm,
     TemplateBodyTypeJson,

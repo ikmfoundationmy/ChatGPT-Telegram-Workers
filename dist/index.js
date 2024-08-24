@@ -875,8 +875,8 @@ class UserConfig {
   FUNCTION_REPLY_ASAP = false;
 }
 class Environment {
-  BUILD_TIMESTAMP = 1724490360 ;
-  BUILD_VERSION = "e9c0b90" ;
+  BUILD_TIMESTAMP = 1724514839 ;
+  BUILD_VERSION = "f09ef75" ;
   I18N = null;
   LANGUAGE = "zh-cn";
   UPDATE_BRANCH = "test";

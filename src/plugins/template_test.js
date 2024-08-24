@@ -1,3 +1,4 @@
+/* eslint-disable style/indent */
 import fs from 'node:fs';
 import { executeRequest } from './template.js';
 
