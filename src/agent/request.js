@@ -1,4 +1,3 @@
-/* eslint-disable no-unused-vars */
 import '../types/context.js';
 import { ENV } from '../config/env.js';
 import { Stream } from './stream.js';
@@ -6,20 +5,27 @@ import { loadChatLLM, currentChatModel } from "../agent/agents.js";
 import { sendChatActionToTelegramWithContext } from "../telegram/telegram.js";
 
 /**
- *
- * @typedef {Function} StreamBuilder
+ * @callback StreamBuilder
  * @param {Response} resp
  * @param {AbortController} controller
  * @returns {Stream}
- * @typedef {Function} SSEContentExtractor
+ */
+/**
+ * @callback SSEContentExtractor
  * @param {object} data
  * @returns {string|null}
- * @typedef {Function} FullContentExtractor
+ */
+/**
+ * @callback FullContentExtractor
  * @param {object} data
  * @returns {string|null}
- * @typedef {object} ErrorExtractor
+ */
+/**
+ * @callback ErrorExtractor
  * @param {object} data
  * @returns {string|null}
+ */
+/**
  * @typedef {object} SseChatCompatibleOptions
  * @property {StreamBuilder} streamBuilder
  * @property {SSEContentExtractor} contentExtractor
@@ -30,6 +36,7 @@ import { sendChatActionToTelegramWithContext } from "../telegram/telegram.js";
 /**
  * 修复OpenAI兼容的选项
  * @param {SseChatCompatibleOptions | null} options
+ * @returns {SseChatCompatibleOptions}
  * @returns {SseChatCompatibleOptions}
  */
 function fixOpenAICompatibleOptions(options) {
@@ -82,11 +89,12 @@ export function isJsonResponse(resp) {
   if (!resp.headers?.get('content-type')) {
     return false;
   }
-  return resp.headers.get('content-type').indexOf('json') !== -1;
+  return resp.headers.get('content-type').includes('json');
 }
 
 /**
  * @param {Response} resp
+ * @returns {boolean}
  * @returns {boolean}
  */
 export function isEventStreamResponse(resp) {
@@ -96,7 +104,7 @@ export function isEventStreamResponse(resp) {
   const types = ['application/stream+json', 'text/event-stream'];
   const content = resp.headers.get('content-type');
   for (const type of types) {
-    if (content.indexOf(type) !== -1) {
+    if (content.includes(type)) {
       return true;
     }
   }
@@ -109,10 +117,10 @@ export function isEventStreamResponse(resp) {
  * @param {object} header
  * @param {object} body
  * @param {ContextType} context
- * @param {Function} onStream
- * @param {Function} onResult
+ * @param {AgentTextHandler| null} onStream
+ * @param {AgentTextHandler | null} onResult
  * @param {SseChatCompatibleOptions | null} options
- * @returns {Promise<string>}
+ * @returnss {Promise<string>}
  */
 export async function requestChatCompletions(url, header, body, context, onStream, onResult = null, options = null) {
   const controller = new AbortController();
@@ -190,7 +198,6 @@ export async function requestChatCompletions(url, header, body, context, onStrea
       contentFull += `\nERROR: ${e.message}`;
     }
     if (usage) {
-      // onResult?.(result);
       context._info.step.setToken(usage?.prompt_tokens ?? 0, usage?.completion_tokens ?? 0);
     }
 
@@ -237,6 +244,7 @@ export async function requestChatCompletions(url, header, body, context, onStrea
     // return result;
     return options.fullContentExtractor(result);
   } catch (e) {
-    throw Error(JSON.stringify(result));
+    console.error(e);
+    throw new Error(JSON.stringify(result));
   }
 }

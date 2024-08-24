@@ -1,25 +1,15 @@
-import {initEnv} from './src/config/env.js';
-import {handleRequest} from './src/route.js';
-import {errorToString} from './src/utils/utils.js';
+/* eslint-disable unused-imports/no-unused-vars */
+import { initEnv } from './src/config/env.js';
+import { handleRequest } from './src/route.js';
+import { errorToString } from './src/utils/utils.js';
 import i18n from './src/i18n/index.js';
 import tasks from './src/tools/scheduleTask.js';
 
-
 export default {
-  initHander(env) {
-    try {
-      initEnv(env, i18n);
-      return handleRequest;
-    } catch (error) {
-      console.error(e);
-      return new Response(errorToString(e), { status: 500 });
-    }
-  },
-
   async fetch(request, env, ctx) {
     try {
       if (!env.DATABASE && env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN) {
-        const {RedisCache} = await import('./src/utils/redis.js');
+        const { RedisCache } = await import('./src/utils/redis.js');
         env.DATABASE = new RedisCache(env.UPSTASH_REDIS_REST_URL, env.UPSTASH_REDIS_REST_TOKEN);
       }
       initEnv(env, i18n);
@@ -33,7 +23,7 @@ export default {
   async scheduled(event, env, ctx) {
     try {
       if (!env.DATABASE && env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN) {
-        const {RedisCache} = await import('./src/utils/redis.js');
+        const { RedisCache } = await import('./src/utils/redis.js');
         env.DATABASE = new RedisCache(env.UPSTASH_REDIS_REST_URL, env.UPSTASH_REDIS_REST_TOKEN);
       }
       const promises = [];
@@ -47,4 +37,3 @@ export default {
     }
   },
 };
-

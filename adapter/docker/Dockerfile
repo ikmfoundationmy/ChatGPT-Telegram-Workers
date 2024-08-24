@@ -1,13 +1,10 @@
-FROM node:18-alpine
+FROM node:18
 
 WORKDIR /app
+COPY package.json index.js 
 
-COPY package.json index.js ./
-
-RUN apk add --no-cache git && \
-    npm install --production && \
-    npm cache clean --force
+RUN apk add --no-cache sqlite
 
 EXPOSE 8787
-
 CMD ["node", "index.js"]
+

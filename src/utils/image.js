@@ -28,7 +28,7 @@ export async function uploadImageToTelegraph(url) {
       return url;
     }
 
-    const raw = await fetch(url).then((resp) => resp.blob());
+    const raw = await fetch(url);
     const formData = new FormData();
     formData.append('file', raw, 'blob');
 

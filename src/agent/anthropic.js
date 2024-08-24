@@ -1,8 +1,9 @@
-import "../types/context.js";
-import "../types/agent.js";
-import {anthropicSseJsonParser, Stream} from "./stream.js";
-import {requestChatCompletions} from "./request.js";
-import {imageToBase64String} from "../utils/image.js";
+import '../types/context.js';
+import '../types/agent.js';
+import { imageToBase64String } from '../utils/image.js';
+import { ENV } from '../config/env.js';
+import { Stream, anthropicSseJsonParser } from './stream.js';
+import { requestChatCompletions } from './request.js';
 
 /**
  * @param {ContextType} context
@@ -25,23 +26,22 @@ async function renderAnthropicMessage(item) {
     if (item.images && item.images.length > 0) {
         res.content = [];
         if (item.content) {
-            res.content.push({type: 'text', text: item.content});
+            res.content.push({ type: 'text', text: item.content });
         }
         for (const image of item.images) {
-            res.content.push(await imageToBase64String(image).then(({format, data}) => {
-                return {type: 'image', source: {type: 'base64', media_type: format, data: data}};
+            res.content.push(await imageToBase64String(image).then(({ format, data }) => {
+                return { type: 'image', source: { type: 'base64', media_type: format, data } };
             }));
         }
     }
     return res;
 }
 
-
 /**
  * 发送消息到Anthropic AI
  * @param {LlmParams} params
  * @param {ContextType} context
- * @param {Function} onStream
+ * @param {AgentTextHandler} onStream
  * @returns {Promise<string>}
  */
 export async function requestCompletionsFromAnthropicAI(params, context, onStream) {
@@ -53,13 +53,17 @@ export async function requestCompletionsFromAnthropicAI(params, context, onStrea
     'anthropic-version': '2023-06-01',
     'content-type': 'application/json',
   };
-  const messages = ([...(history || []), {role: 'user', content: message, images}]);
+    const messages = ([...(history || []), { role: 'user', content: message, images }]);
+    if (messages.length > 0 && messages[0].role === 'assistant') {
+        messages.shift();
+    }
   const body = {
     system: prompt,
     model,
     messages: await Promise.all(messages.map(renderAnthropicMessage)),
-    stream: onStream != null,
-  };
+      stream: onStream != null,
+      max_tokens: ENV.MAX_TOKEN_LENGTH > 0 ? ENV.MAX_TOKEN_LENGTH : 2048,
+};
   if (!body.system) {
     delete body.system;
   }

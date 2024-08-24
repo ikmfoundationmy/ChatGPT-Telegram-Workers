@@ -1,4 +1,4 @@
-import {CONST, DATABASE, ENV, mergeEnvironment, UserConfig} from './env.js';
+import { CONST, DATABASE, ENV, UserConfig, mergeEnvironment } from './env.js';
 import '../types/telegram.js';
 
 /**
@@ -7,9 +7,9 @@ import '../types/telegram.js';
  */
 export function trimUserConfig(userConfig) {
     const config = {
-        ...userConfig
+        ...(userConfig || {}),
     };
-    const keysSet = new Set(userConfig.DEFINE_KEYS);
+    const keysSet = new Set(userConfig?.DEFINE_KEYS || []);
     for (const key of ENV.LOCK_USER_CONFIG_KEYS) {
         keysSet.delete(key);
     }
@@ -46,6 +46,7 @@ class ShareContext {
     sentMessageIds = null;
     messageId = null;
 
+    allMemberAreAdmin = false;
 }
 
 /**
@@ -68,7 +69,6 @@ class CurrentChatContext {
  * @implements {ContextType}
  */
 export class Context {
-
     // 用户配置
     USER_CONFIG = new UserConfig();
     CURRENT_CHAT_CONTEXT = new CurrentChatContext();
@@ -98,7 +98,7 @@ export class Context {
         try {
             // 复制默认配置
             this.USER_CONFIG = {
-                ...ENV.USER_CONFIG
+                ...ENV.USER_CONFIG,
             };
             /**
              * @type {UserConfigType}
@@ -110,7 +110,6 @@ export class Context {
             console.error(e);
         }
     }
-
 
     /**
      * @param {string} token
@@ -140,22 +139,23 @@ export class Context {
         }
 
         /*
-      message_id每次都在变的。
-      私聊消息中：
-        message.chat.id 是发言人id
-      群组消息中：
-        message.chat.id 是群id
-        message.from.id 是发言人id
-      没有开启群组共享模式时，要加上发言人id
-       chatHistoryKey = history:chat_id:bot_id:(from_id)
-       configStoreKey =  user_config:chat_id:bot_id:(from_id)
-      * */
+  message_id每次都在变的。
+  私聊消息中：
+    message.chat.id 是发言人id
+  群组消息中：
+    message.chat.id 是群id
+    message.from.id 是发言人id
+  没有开启群组共享模式时，要加上发言人id
+   chatHistoryKey = history:chat_id:bot_id:(from_id)
+   configStoreKey =  user_config:chat_id:bot_id:(from_id)
+  * */
 
         const botId = this.SHARE_CONTEXT.currentBotId;
         let historyKey = `history:${id}`;
         let configStoreKey = `user_config:${id}`;
         let groupAdminKey = null;
         let telegraphAccessTokenKey = `telegraph_access_token:${id}`;
+        const isGroup = CONST.GROUP_TYPES.includes(message.chat?.type);
 
         if (botId) {
             historyKey += `:${botId}`;
@@ -170,7 +170,7 @@ export class Context {
         }
 
         // 标记群组消息
-        if (CONST.GROUP_TYPES.includes(message.chat?.type)) {
+        if (isGroup) {
             if (!ENV.GROUP_CHAT_BOT_SHARE_MODE && message.from.id) {
                 historyKey += `:${message.from.id}`;
                 configStoreKey += `:${message.from.id}`;
@@ -188,9 +188,17 @@ export class Context {
         this.SHARE_CONTEXT.chatId = message.chat.id;
         this.SHARE_CONTEXT.speakerId = message.from.id || message.chat.id;
         this.SHARE_CONTEXT.messageId = message.message_id;
-        if (ENV.EXPIRED_TIME > 0) this.SHARE_CONTEXT.sentMessageIds = new Set();
         this.SHARE_CONTEXT.storeMessageKey = `store_message:${message.chat.id}:${message.from.id || message.chat.id}`
+        this.SHARE_CONTEXT.allMemberAreAdmin = message?.chat?.all_members_are_administrators;
 
+        if (ENV.EXPIRED_TIME > 0) this.SHARE_CONTEXT.sentMessageIds = new Set();
+
+        if (ENV.EXPIRED_TIME > 0) {
+          const isPrivate = CONST.PRIVATE_TYPES.includes(message.chat?.type);
+          const isNeedTag =
+            (isGroup && ENV.SCHEDULE_GROUP_DELETE_TYPE.includes(msgType)) ||
+            (isPrivate && ENV.SCHEDULE_PRIVATE_DELETE_TYPE.includes(msgType));
+        }
     }
 
     /**
@@ -198,7 +206,7 @@ export class Context {
      * @returns {Promise<void>}
      */
     async initContext(message) {
-        // 按顺序初始化上下文
+    // 按顺序初始化上下文
         const chatId = message?.chat?.id;
         let replyId = CONST.GROUP_TYPES.includes(message.chat?.type) ? message.message_id : null;
         // 回复提及的消息

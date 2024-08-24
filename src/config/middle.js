@@ -1,5 +1,5 @@
 import { ENV } from './env.js';
-import { getFileUrl } from '../telegram/telegram.js';
+import { getFileLink } from '../telegram/telegram.js';
 import { uploadImageToTelegraph } from '../utils/image.js';
 
 /**
@@ -92,7 +92,7 @@ export async function getTelegramFileUrl(file, botToken) {
   }
   const getUrlPromise = [];
   for (const id of ids) {
-    getUrlPromise.push(getFileUrl(id, botToken));
+    getUrlPromise.push(getFileLink(id, botToken));
   }
   let file_urls = (await Promise.all(getUrlPromise)).filter(Boolean);
   if (file_urls.length === 0) {

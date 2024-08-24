@@ -151,4 +151,4 @@ out
 .wrangler
 .DS_Store
 package-lock.json
-.prettierrc
+/plugins/interpolate.js

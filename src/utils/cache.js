@@ -1,6 +1,8 @@
 /**
  * A simple cache implementation.
- * 主要作用是防止本地部署使用base64图片时，重复请求相同的图片
+ * 主要作用
+ *  1. 防止本地部署使用base64图片时，重复请求相同的图片
+ *  2. 上传图片telegraph后又使用base64图片时，重复请求相同的图片
  */
 export class Cache {
     constructor() {
@@ -10,8 +12,8 @@ export class Cache {
     }
 
     /**
-     * @param {string} key 
-     * @param {any} value 
+     * @param {string} key
+     * @param {any} value
      */
     set(key, value) {
         this.trim();
@@ -22,7 +24,7 @@ export class Cache {
     }
 
     /**
-     * @param {string} key 
+     * @param {string} key
      * @returns {any}
      */
     get(key) {

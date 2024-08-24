@@ -1,5 +1,4 @@
-/* eslint-disable no-constant-condition */
-import "../types/context.js";
+import '../types/context.js';
 import {
     CONST,
     CUSTOM_COMMAND,
@@ -7,32 +6,42 @@ import {
     DATABASE,
     ENV,
     ENV_KEY_MAPPER,
-    mergeEnvironment
+    PLUGINS_COMMAND,
+    PLUGINS_COMMAND_DESCRIPTION,
+    mergeEnvironment,
 } from '../config/env.js';
-import {
-    getChatRoleWithContext,
-    sendMessageToTelegramWithContext,
-} from './telegram.js';
-import {chatWithLLM} from '../agent/llm.js';
 import {
     chatModelKey,
     currentChatModel,
     currentImageModel,
     imageModelKey,
     loadChatLLM,
-    loadImageGen, customInfo
-} from "../agent/agents.js";
-import { trimUserConfig } from "../config/context.js";
-import { requestText2Image } from "../agent/imagerequest.js";
+    loadImageGen, customInfo,
+} from '../agent/agents.js';
+import {  trimUserConfig  } from '../config/context.js';
+import {
+    TemplateOutputTypeHTML,
+    TemplateOutputTypeImage,
+    TemplateOutputTypeMarkdown,
+    TemplateOutputTypeText,
+} from '../types/template.js';
+import { executeRequest, formatInput } from '../plugins/template.js';
+import {
+    sendMessageToTelegramWithContext,
+    sendPhotoToTelegramWithContext,
+    setMyCommands,
+} from './telegram.js';
+import { chatWithLLM } from './agent.js';
+import { getChatRoleWithContext } from './utils.js';import { requestText2Image } from "../agent/imagerequest.js";
 import { sendTelegramMessage } from "./message.js";
 const commandAuthCheck = {
-    default: function (chatType) {
+    default(chatType) {
         if (CONST.GROUP_TYPES.includes(chatType)) {
             return ['administrator', 'creator'];
         }
-        return false;
+        return null;
     },
-    shareModeGroup: function (chatType) {
+    shareModeGroup(chatType) {
         if (CONST.GROUP_TYPES.includes(chatType)) {
             // 每个人在群里有上下文的时候，不限制
             if (!ENV.GROUP_CHAT_BOT_SHARE_MODE) {
@@ -40,10 +49,9 @@ const commandAuthCheck = {
             }
             return ['administrator', 'creator'];
         }
-        return false;
+        return null;
     },
 };
-
 
 const commandSortList = [
     '/new',
@@ -57,7 +65,32 @@ const commandSortList = [
     '/mode',
 ];
 
-// 命令绑定
+/**
+ *
+ * @callback CommandFunction
+ * @param {TelegramMessage} message
+ * @param {string} command
+ * @param {string} subcommand
+ * @param {ContextType} context
+ * @returns {Promise<Response>}
+ */
+
+/**
+ * @callback AuthCheckFunction
+ * @param {string} chatType
+ * @returns {string[] | null}
+ */
+
+/**
+ * @typedef {object} CommandHandler
+ * @property {string} scopes - 权限范围
+ * @property {CommandFunction} fn - 处理函数
+ * @property {AuthCheckFunction} [needAuth] - 权限检查函数
+ */
+
+/**
+ * @type {{[key: string]: CommandHandler}}
+ */
 const commandHandlers = {
   '/help': {
     scopes: ['all_private_chats', 'all_chat_administrators'],
@@ -128,12 +161,11 @@ const commandHandlers = {
   
 /**
  * /img 命令
- *
  * @param {TelegramMessage} message
  * @param {string} command
  * @param {string} subcommand
  * @param {ContextType} context
- * @return {Promise<Response>}
+ * @returns {Promise<Response>}
  */
 async function commandGenerateImg(message, command, subcommand, context) {
   if (!subcommand.trim()) {
@@ -144,9 +176,9 @@ async function commandGenerateImg(message, command, subcommand, context) {
     console.log(JSON.stringify(img));
     const resp = await sendTelegramMessage(context, img);
     if (!resp.ok) {
-      console.log(await resp.text());
+      console.log(resp.statusText);
+      return sendMessageToTelegramWithContext(context)(`ERROR: ${resp.statusText} ${await resp.text()}`);
     }
-    return new Response('done');
     
   } catch (e) {
     console.error(e.message);
@@ -156,21 +188,24 @@ async function commandGenerateImg(message, command, subcommand, context) {
 
 /**
  * /help 获取帮助信息
- *
  * @param {TelegramMessage} message
  * @param {string} command
  * @param {string} subcommand
  * @param {ContextType} context
- * @return {Promise<Response>}
+ * @returns {Promise<Response>}
  */
 async function commandGetHelp(message, command, subcommand, context) {
-  let helpMsg = ENV.I18N.command.help.summary + '\n';
+  let helpMsg = `${ENV.I18N.command.help.summary}\n`;
   helpMsg += Object.keys(commandHandlers)
-    .map((key) => `${key}：${ENV.I18N.command.help[key.substring(1)]}`)
+    .map(key => `${key}：${ENV.I18N.command.help[key.substring(1)]}`)
     .join('\n');
   helpMsg += '\n' + Object.keys(CUSTOM_COMMAND)
-    .filter((key) => !!CUSTOM_COMMAND_DESCRIPTION[key])
-    .map((key) => `${key}：${CUSTOM_COMMAND_DESCRIPTION[key]}`)
+    .filter(key => !!CUSTOM_COMMAND_DESCRIPTION[key])
+    .map(key => `${key}：${CUSTOM_COMMAND_DESCRIPTION[key]}`)
+        .join('\n');
+    helpMsg += Object.keys(PLUGINS_COMMAND)
+        .filter(key => !!PLUGINS_COMMAND_DESCRIPTION[key])
+        .map(key => `${key}：${PLUGINS_COMMAND_DESCRIPTION[key]}`)
     .join('\n');
   context.CURRENT_CHAT_CONTEXT.parse_mode = null;
   context.CURRENT_CHAT_CONTEXT.entities = [
@@ -183,39 +218,47 @@ async function commandGetHelp(message, command, subcommand, context) {
 
 /**
  * /new /start 新的会话
- *
  * @param {TelegramMessage} message
  * @param {string} command
  * @param {string} subcommand
  * @param {ContextType} context
- * @return {Promise<Response>}
+ * @returns {Promise<Response>}
  */
 async function commandCreateNewChatContext(message, command, subcommand, context) {
     try {
         await DATABASE.delete(context.SHARE_CONTEXT.chatHistoryKey);
-        context.CURRENT_CHAT_CONTEXT.reply_markup = JSON.stringify({
-            remove_keyboard: true,
-            selective: true,
-        });
-        if (command === '/new') {
-            return sendMessageToTelegramWithContext(context)(ENV.I18N.command.new.new_chat_start, 'tip');
+
+        const isNewCommand = command.startsWith('/new');
+        const text = ENV.I18N.command.new.new_chat_start + (isNewCommand ? '' : `(${context.CURRENT_CHAT_CONTEXT.chat_id})`);
+
+        // 非群组消息，显示回复按钮
+        if (ENV.SHOW_REPLY_BUTTON && !CONST.GROUP_TYPES.includes(context.SHARE_CONTEXT.chatType)) {
+            context.CURRENT_CHAT_CONTEXT.reply_markup = {
+                keyboard: [[{ text: '/new' }, { text: '/redo' }]],
+                selective: true,
+                resize_keyboard: true,
+                one_time_keyboard: false,
+            };
         } else {
-            return sendMessageToTelegramWithContext(context)(`${ENV.I18N.command.new.new_chat_start}(${context.CURRENT_CHAT_CONTEXT.chat_id})`, 'tip');
+            context.CURRENT_CHAT_CONTEXT.reply_markup = {
+                remove_keyboard: true,
+                selective: true,
+            };
         }
+
+        return sendMessageToTelegramWithContext(context)(text, 'tip');
     } catch (e) {
         return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`, 'tip');
     }
 }
 
-
 /**
  * /setenv 用户配置修改
- *
  * @param {TelegramMessage} message
  * @param {string} command
  * @param {string} subcommand
  * @param {ContextType} context
- * @return {Promise<Response>}
+ * @returns {Promise<Response>}
  */
 async function commandUpdateUserConfig(message, command, subcommand, context, processUpdate = false) {
   if (command == '/mode') {
@@ -259,6 +302,7 @@ async function commandUpdateUserConfig(message, command, subcommand, context, pr
     }
     context.USER_CONFIG.DEFINE_KEYS.push(key);
     context.USER_CONFIG.DEFINE_KEYS = Array.from(new Set(context.USER_CONFIG.DEFINE_KEYS));
+    console.log('Update user config: ', key, context.USER_CONFIG[key]);
     await DATABASE.put(context.SHARE_CONTEXT.configStoreKey, JSON.stringify(trimUserConfig(context.USER_CONFIG)));
     return sendMessageToTelegramWithContext(context)('Update user config success', 'tip');
   } catch (e) {
@@ -268,12 +312,11 @@ async function commandUpdateUserConfig(message, command, subcommand, context, pr
 
 /**
  * /setenvs 批量用户配置修改
- *
  * @param {TelegramMessage} message
  * @param {string} command
  * @param {string} subcommand
  * @param {ContextType} context
- * @return {Promise<Response>}
+ * @returns {Promise<Response>}
  */
 async function commandUpdateUserConfigs(message, command, subcommand, context, processUpdate = false) {
   try {
@@ -303,7 +346,7 @@ async function commandUpdateUserConfigs(message, command, subcommand, context, p
         continue;
       }
       context.USER_CONFIG.DEFINE_KEYS.push(key);
-      console.log("Update user config: ", key, context.USER_CONFIG[key]);
+      console.log('Update user config: ', key, context.USER_CONFIG[key]);
     }
     if (processUpdate) {
       return null;
@@ -422,12 +465,11 @@ async function commandSetUserConfigs(message, command, subcommand, context) {
 
 /**
  * /delenv 用户配置修改
- *
  * @param {TelegramMessage} message
  * @param {string} command
  * @param {string} subcommand
  * @param {ContextType} context
- * @return {Promise<Response>}
+ * @returns {Promise<Response>}
  */
 async function commandDeleteUserConfig(message, command, subcommand, context) {
   if (!subcommand) {
@@ -439,7 +481,7 @@ async function commandDeleteUserConfig(message, command, subcommand, context) {
     }
     try {
         context.USER_CONFIG[subcommand] = null;
-        context.USER_CONFIG.DEFINE_KEYS = context.USER_CONFIG.DEFINE_KEYS.filter((key) => key !== subcommand);
+        context.USER_CONFIG.DEFINE_KEYS = context.USER_CONFIG.DEFINE_KEYS.filter(key => key !== subcommand);
         await DATABASE.put(
             context.SHARE_CONTEXT.configStoreKey,
             JSON.stringify(trimUserConfig(context.USER_CONFIG)),
@@ -450,15 +492,13 @@ async function commandDeleteUserConfig(message, command, subcommand, context) {
     }
 }
 
-
 /**
  * /clearenv 清空用户配置
- *
  * @param {TelegramMessage} message
  * @param {string} command
  * @param {string} subcommand
  * @param {ContextType} context
- * @return {Promise<Response>}
+ * @returns {Promise<Response>}
  */
 async function commandClearUserConfig(message, command, subcommand, context) {
   try {
@@ -475,15 +515,13 @@ async function commandClearUserConfig(message, command, subcommand, context) {
     }
 }
 
-
 /**
  * /version 获得更新信息
- *
  * @param {TelegramMessage} message
  * @param {string} command
  * @param {string} subcommand
  * @param {ContextType} context
- * @return {Promise<Response>}
+ * @returns {Promise<Response>}
  */
 async function commandFetchUpdate(message, command, subcommand, context) {
 
@@ -508,19 +546,17 @@ async function commandFetchUpdate(message, command, subcommand, context) {
     }
 }
 
-
 /**
  * /system 获得系统信息
- *
  * @param {TelegramMessage} message
  * @param {string} command
  * @param {string} subcommand
  * @param {ContextType} context
- * @return {Promise<Response>}
+ * @returns {Promise<Response>}
  */
 async function commandSystem(message, command, subcommand, context) {
-  let chatAgent = loadChatLLM(context)?.name;
-  let imageAgent = loadImageGen(context)?.name;
+  const chatAgent = loadChatLLM(context)?.name;
+  const imageAgent = loadImageGen(context)?.name;
   const agent = {
     AI_PROVIDER: chatAgent,
     AI_IMAGE_PROVIDER: imageAgent,
@@ -537,7 +573,7 @@ async function commandSystem(message, command, subcommand, context) {
   let msg = `<pre>AGENT: ${JSON.stringify(agent, null, 2)}\n` + `others: ${ customInfo(context.USER_CONFIG)
 }` + '\n</pre>';
   if (ENV.DEV_MODE) {
-    const shareCtx = { ...context.SHARE_CONTEXT };
+    const shareCtx = {  ...context.SHARE_CONTEXT  };
     shareCtx.currentBotToken = '******';
     context.USER_CONFIG.OPENAI_API_KEY = ['******'];
     context.USER_CONFIG.AZURE_API_KEY = '******';
@@ -550,7 +586,7 @@ async function commandSystem(message, command, subcommand, context) {
     context.USER_CONFIG.COHERE_API_KEY = '******';
     context.USER_CONFIG.ANTHROPIC_API_KEY = '******';
     const config = trimUserConfig(context.USER_CONFIG);
-    msg = '<pre>\n' + msg;
+    msg = `<pre>\n${msg}`;
     msg += `USER_CONFIG: ${JSON.stringify(config, null, 2)}\n`;
     msg += `CHAT_CONTEXT: ${JSON.stringify(context.CURRENT_CHAT_CONTEXT, null, 2)}\n`;
     msg += `SHARE_CONTEXT: ${JSON.stringify(shareCtx, null, 2)}\n`;
@@ -562,12 +598,11 @@ async function commandSystem(message, command, subcommand, context) {
 
 /**
  * /redo 重新生成上一条消息
- *
  * @param {TelegramMessage} message
  * @param {string} command
  * @param {string} subcommand
  * @param {ContextType} context
- * @return {Promise<Response>}
+ * @returns {Promise<Response>}
  */
 async function commandRegenerate(message, command, subcommand, context) {
     const mf = (history, text) => {
@@ -592,102 +627,155 @@ async function commandRegenerate(message, command, subcommand, context) {
         }
         return {history: historyCopy, message: nextText};
     };
-    return chatWithLLM(null, context, mf);
+    return chatWithLLM({ message: null }, context, mf);
 }
 
 /**
  * /echo 回显消息
- *
  * @param {TelegramMessage} message
  * @param {string} command
  * @param {string} subcommand
  * @param {ContextType} context
- * @return {Promise<Response>}
+ * @returns {Promise<Response>}
  */
 async function commandEcho(message, command, subcommand, context) {
     let msg = '<pre>';
-    msg += JSON.stringify({message}, null, 2);
+    msg += JSON.stringify({ message }, null, 2);
     msg += '</pre>';
     context.CURRENT_CHAT_CONTEXT.parse_mode = 'HTML';
     return sendMessageToTelegramWithContext(context)(msg, 'tip');
 }
 
 /**
+ * @param {TelegramMessage} message
+ * @param {string} command
+ * @param {string} raw
+ * @param {CommandHandler} handler
+ * @param {ContextType} context
+ * @returns {Promise<Response|*>}
+ */
+async function handleSystemCommand(message, command, raw, handler, context) {
+  try {
+        const commandLine =/^.*(\n|$)/.exec(message.text)[0];
+        message.text = message.text.substring(commandLine.length);
+        // 如果存在权限条件
+        if (handler.needAuth) {
+            const roleList = handler.needAuth(context.SHARE_CONTEXT.chatType);
+            if (roleList) {
+                // 获取身份并判断
+                const chatRole = await getChatRoleWithContext(context);
+                if (chatRole === null) {
+                    return sendMessageToTelegramWithContext(context)('ERROR: Get chat role failed');
+                }
+                if (!roleList.includes(chatRole)) {
+                    return sendMessageToTelegramWithContext(context)(`ERROR: Permission denied, need ${roleList.join(' or ')}`);
+                }
+            }
+        }
+    } catch (e) {
+        return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`);
+    }
+    const subcommand = raw.substring(command.length).trim();
+    try {
+      const result = await handler.fn(message, command, subcommand, context);
+      console.log('[DONE] Command: ' + command + ' ' + subcommand);
+      if (result instanceof Response) return result;
+      if (message.text.length === 0) return new Response('None question');
+      if (message.text.startsWith('/')) return sendMessageToTelegramWithContext(context)(`Oops, it's not a command`, 'tip');
+      return null;
+    } catch (e) {
+        return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`, 'tip');
+    }
+}
+
+/**
+ * @param {TelegramMessage} message
+ * @param {string} command
+ * @param {string} raw
+ * @param {RequestTemplate} template
+ * @param {ContextType} context
+ * @returns {Promise<Response|*>}
+ */
+async function handlePluginCommand(message, command, raw, template, context) {
+    try {
+        const subcommand = raw.substring(command.length).trim();
+        const DATA = formatInput(subcommand, template.input?.type);
+        const { type, content } = await executeRequest(template, {
+            DATA,
+            ENV: ENV.PLUGINS_ENV,
+        });
+        if (type === TemplateOutputTypeImage) {
+            return sendPhotoToTelegramWithContext(context)(content);
+        }
+        switch (type) {
+            case TemplateOutputTypeHTML:
+                context.CURRENT_CHAT_CONTEXT.parse_mode = 'HTML';
+                break;
+            case TemplateOutputTypeMarkdown:
+                context.CURRENT_CHAT_CONTEXT.parse_mode = 'Markdown';
+                break;
+            case TemplateOutputTypeText:
+            default:
+                context.CURRENT_CHAT_CONTEXT.parse_mode = null;
+                break;
+        }
+        return sendMessageToTelegramWithContext(context)(content);
+    } catch (e) {
+        const help = PLUGINS_COMMAND_DESCRIPTION[command];
+        return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}\n${help}`);
+    }
+}
+
+/**
+ * 注入命令处理器
+ */
+function injectCommandHandlerIfNeed() {
+    if (ENV.DEV_MODE) {
+        commandHandlers['/echo'] = {
+            help: '[DEBUG ONLY] echo message',
+            scopes: ['all_private_chats', 'all_chat_administrators'],
+            fn: commandEcho,
+            needAuth: commandAuthCheck.default,
+        };
+    }
+}
+/**
  * 处理命令消息
- *
  * @param {TelegramMessage} message
  * @param {ContextType} context
- * @return {Promise<Response>}
+ * @returns {Promise<Response>}
  */
 export async function handleCommandMessage(message, context) {
-  if (!message.text) {
-    return null;
-  }
-  if (ENV.DEV_MODE) {
-    commandHandlers['/echo'] = {
-      help: '[DEBUG ONLY] echo message',
-      scopes: ['all_private_chats', 'all_chat_administrators'],
-      fn: commandEcho,
-      needAuth: commandAuthCheck.default,
-    };
-  }
-
+  injectCommandHandlerIfNeed();
+  // 触发自定义命令 替换为对应的命令
   const customKey = Object.keys(CUSTOM_COMMAND).find((k) => message.text === k || message.text.startsWith(k + ' '));
   if (customKey) {
     message.text = message.text.replace(customKey, CUSTOM_COMMAND[customKey]);
   }
-
-  for (const key in commandHandlers) {
-    if (message.text === key || message.text.startsWith(key + ' ')) {
-      const command = commandHandlers[key];
-      const commandLine =/^.*(\n|$)/.exec(message.text)[0];
-      message.text = message.text.substring(commandLine.length);
-      
-      try {
-        // 如果存在权限条件
-        if (command.needAuth) {
-          const roleList = command.needAuth(context.SHARE_CONTEXT.chatType);
-          if (roleList) {
-            // 获取身份并判断
-            const chatRole = await getChatRoleWithContext(context)(context.SHARE_CONTEXT.speakerId);
-            if (chatRole === null) {
-              return sendMessageToTelegramWithContext(context)('ERROR: Get chat role failed', 'tip');
-            }
-            if (!roleList.includes(chatRole)) {
-              return sendMessageToTelegramWithContext(context)(
-                `ERROR: Permission denied, need ${roleList.join(' or ')}`, 'tip'
-              );
-            }
-          }
-        }
-      } catch (e) {
-        return sendMessageToTelegramWithContext(context)(`ERROR: ${e.message}`, 'tip');
+  const text = message.text;
+  for (const key in PLUGINS_COMMAND) {
+    if (text === key || text.startsWith(`${key} `)) {
+      let template = PLUGINS_COMMAND[key].trim();
+      if (template.startsWith('http')) {
+        template = await fetch(template).then(r => r.text());
       }
-
-      const subcommand = commandLine.substring(key.length).trim();
-      try {
-        const result = await command.fn(message, key, subcommand, context);
-        console.log('[DONE] Command: ' + key + ' ' + subcommand);
-        if (result instanceof Response) return result;
-        if (message.text.length === 0) return new Response('None question');
-      } catch (e) {
-        return sendMessageToTelegramWithContext(context)(e.message, 'tip');
-      }
-      break;
+      return await handlePluginCommand(message, key, text, JSON.parse(template), context);
     }
   }
-  // 除命令外, 以 / 开头 的文本不再处理
-  if (message.text.startsWith('/')) {
-    return sendMessageToTelegramWithContext(context)(`Oops! It's not a command.`, 'tip');
+  for (const key in commandHandlers) {
+    if (text === key || text.startsWith(`${key} `)) {
+      const command = commandHandlers[key];
+      return await handleSystemCommand(message, key, text, command, context);
+    }
   }
   return null;
+  
 }
 
 /**
  * 绑定命令到Telegram
- *
  * @param {string} token
- * @return {Promise<{result: {}, ok: boolean}>}
+ * @returns {Promise<object>}
  */
 export async function bindCommandForTelegram(token) {
     const scopeCommandMap = {
@@ -711,31 +799,26 @@ export async function bindCommandForTelegram(token) {
 
     const result = {};
     for (const scope in scopeCommandMap) {
-        result[scope] = await fetch(
-            `https://api.telegram.org/bot${token}/setMyCommands`,
-            {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    commands: scopeCommandMap[scope].map((command) => ({
-                        command,
-                        description: ENV.I18N.command.help[command.substring(1)] || '',
-                    })),
-                    scope: {
-                        type: scope,
-                    },
-                }),
+        const body = {
+            commands: scopeCommandMap[scope].map(command => ({
+                command,
+                description: ENV.I18N.command.help[command.substring(1)] || '',
+            })),
+            scope: {
+                type: scope,
             },
-        ).then((res) => res.json());
+        };
+        result[scope] = await setMyCommands(body, token).then(res => res.json());
     }
-    return {ok: true, result: result};
+    return {
+        ok: true,
+        result,
+    };
 }
 
 /**
  * 获取所有命令的描述
- * @return {{description: *, command: *}[]}
+ * @returns {{description: *, command: *}[]}
  */
 export function commandsDocument() {
     return Object.keys(commandHandlers).map((key) => {

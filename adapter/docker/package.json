@@ -1,17 +1,23 @@
 {
   "name": "chatgpt-telegram-bot",
+  "type": "module",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
-  "type": "module",
-  "scripts": {
-    "start": "node index.js"
-  },
   "author": "TBXark",
   "license": "MIT",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "build": "node esbuild.config.js",
+    "docker": "npm run build && docker build -t chatgpt-telegram-bot:latest ."
+  },
   "dependencies": {
     "chatgpt-telegram-workers": "github:adolphnov/ChatGPT-Telegram-Workers#test",
-    "cloudflare-worker-adapter": "github:adolphnov/cloudflare-worker-adapter",
-    "node-cron": "^3.0.3"
+    "cloudflare-worker-adapter": "1.2.2",
+    "node-cron": "^3.0.3",
+    "sqlite3": "^5.1.7"
+  },
+  "devDependencies": {
+    "esbuild": "^0.23.1"
   }
 }

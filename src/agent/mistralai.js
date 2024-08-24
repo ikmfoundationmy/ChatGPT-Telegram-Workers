@@ -25,7 +25,7 @@ function renderMistralMessage(item) {
  * 发送消息到Mistral AI
  * @param {LlmParams} params
  * @param {ContextType} context
- * @param {Function} onStream
+ * @param {AgentTextHandler} onStream
  * @returns {Promise<string>}
  */
 export async function requestCompletionsFromMistralAI(params, context, onStream) {
@@ -42,11 +42,13 @@ export async function requestCompletionsFromMistralAI(params, context, onStream)
         messages.unshift({role: context.USER_CONFIG.SYSTEM_INIT_MESSAGE_ROLE, content: prompt})
     }
 
+
     const body = {
         model: model,
         messages,
         stream: onStream != null,
     };
+
 
     return requestChatCompletions(url, header, body, context, onStream);
 }

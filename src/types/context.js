@@ -77,3 +77,15 @@
  * @property {ShareContextType} SHARE_CONTEXT - 共享上下文
  * @property {function(TelegramMessage): Promise<void>} initContext
  */
+
+/**
+ * @typedef {object} APIGuard
+ * @property {(request: Request) => Promise<Response>} fetch
+ */
+
+/**
+ * @typedef {object} KVNamespace
+ * @property {(key: string) => Promise<string|any>} get
+ * @property {(key: string, value: any, options?: {expirationTtl?: number, expiration?: number}) => Promise<void>} put
+ * @property {(key: string) => Promise<void>} delete
+ */

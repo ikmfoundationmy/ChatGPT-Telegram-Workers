@@ -11,7 +11,6 @@ function azureKeyFromContext(context) {
     return context.USER_CONFIG.AZURE_API_KEY;
 }
 
-
 /**
  * @param {ContextType} context
  * @returns {boolean}
@@ -28,12 +27,11 @@ export function isAzureImageEnable(context) {
     return !!(context.USER_CONFIG.AZURE_API_KEY && context.USER_CONFIG.AZURE_DALLE_API);
 }
 
-
 /**
  * 发送消息到Azure ChatGPT
  * @param {LlmParams} params
  * @param {ContextType} context
- * @param {Function} onStream
+ * @param {AgentTextHandler} onStream
  * @returns {Promise<string>}
  */
 export async function requestCompletionsFromAzureOpenAI(params, context, onStream) {
@@ -44,6 +42,7 @@ export async function requestCompletionsFromAzureOpenAI(params, context, onStrea
         messages.unshift({role: context.USER_CONFIG.SYSTEM_INIT_MESSAGE_ROLE, content: prompt})
     }
     const extra_params = context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS; 
+
     const body = {
         ...extra_params,
         messages: await Promise.all(messages.map(renderOpenAIMessage)),
@@ -67,11 +66,11 @@ export async function requestImageFromAzureOpenAI(params, context) {
     };
     
     const body = {
-        prompt: prompt,
+        prompt,
         n: 1,
         size: context.USER_CONFIG.DALL_E_IMAGE_SIZE,
         style: context.USER_CONFIG.DALL_E_IMAGE_STYLE,
-        quality: context.USER_CONFIG.DALL_E_IMAGE_QUALITY
+        quality: context.USER_CONFIG.DALL_E_IMAGE_QUALITY,
     };
     const validSize = ['1792x1024', '1024x1024', '1024x1792'];
     if (!validSize.includes(body.size)) {

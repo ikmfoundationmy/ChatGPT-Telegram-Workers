@@ -1,7 +1,7 @@
 import {handleMessage} from './telegram/message.js';
 import {API_GUARD, ENV} from './config/env.js';
 import {bindCommandForTelegram, commandsDocument} from './telegram/command.js';
-import {bindTelegramWebHook, getBot} from './telegram/telegram.js';
+import {bindTelegramWebHook, getBotName} from './telegram/telegram.js';
 import {errorToString, makeResponse200, renderHTML} from './utils/utils.js';
 import { Router } from './utils/router.js';
 
@@ -133,7 +133,7 @@ async function loadBotInfo() {
     const result = [];
     for (const token of ENV.TELEGRAM_AVAILABLE_TOKENS) {
         const id = token.split(':')[0];
-        result[id] = await getBot(token);
+        result[id] = await getBotName(token);
     }
     const HTML = renderHTML(`
     <h1>ChatGPT-Telegram-Workers</h1>

@@ -11,7 +11,7 @@ export class Router {
 
     /**
      * @private
-     * @param {URLSearchParams} searchParams 
+     * @param {URLSearchParams} searchParams
      * @returns {object}
      */
     parseQueryParams(searchParams) {
@@ -24,7 +24,7 @@ export class Router {
 
     /**
      * @private
-     * @param {string} path 
+     * @param {string} path
      * @returns {string}
      */
     normalizePath(path) {
@@ -33,7 +33,7 @@ export class Router {
 
     /**
      * @private
-     * @param {string} path 
+     * @param {string} path
      * @returns {RegExp}
      */
     createRouteRegex(path) {
@@ -42,12 +42,12 @@ export class Router {
             .replace(/(\/?\.?):(\w+)/g, '($1(?<$2>[^$1/]+?))') // named params and image format
             .replace(/\./g, '\\.') // dot in path
             .replace(/(\/?)\*/g, '($1.*)?') // wildcard
-            }/*$`);
+        }/*$`);
     }
 
     /**
-     * @param {Request} request 
-     * @param  {...any} args 
+     * @param {Request} request
+     * @param  {...any} args
      * @returns {Promise<Response|null>}
      */
     async fetch(request, ...args) {
@@ -56,21 +56,23 @@ export class Router {
         request.query = this.parseQueryParams(url.searchParams);
         for (const [method, regex, handlers, path] of this.routes) {
             let match = null;
+            // eslint-disable-next-line no-cond-assign
             if ((method === reqMethod || method === 'ALL') && (match = url.pathname.match(regex))) {
                 request.params = match?.groups || {};
                 request.route = path;
                 for (const handler of handlers) {
                     const response = await handler(request.proxy ?? request, ...args);
-                    if (response != null) return response;
+                    if (response != null)
+                        return response;
                 }
             }
         }
     }
 
     /**
-     * @param {string} method 
-     * @param {string} path 
-     * @param  {...any} handlers 
+     * @param {string} method
+     * @param {string} path
+     * @param  {...any} handlers
      * @returns {Router}
      */
     route(method, path, ...handlers) {
@@ -81,8 +83,8 @@ export class Router {
     }
 
     /**
-     * @param {string} path 
-     * @param  {...any} handlers 
+     * @param {string} path
+     * @param  {...any} handlers
      * @returns {Router}
      */
     get(path, ...handlers) {
@@ -90,8 +92,8 @@ export class Router {
     }
 
     /**
-     * @param {string} path 
-     * @param  {...any} handlers 
+     * @param {string} path
+     * @param  {...any} handlers
      * @returns {Router}
      */
     post(path, ...handlers) {
@@ -99,8 +101,8 @@ export class Router {
     }
 
     /**
-     * @param {string} path 
-     * @param  {...any} handlers 
+     * @param {string} path
+     * @param  {...any} handlers
      * @returns {Router}
      */
     put(path, ...handlers) {
@@ -108,8 +110,8 @@ export class Router {
     }
 
     /**
-     * @param {string} path 
-     * @param  {...any} handlers 
+     * @param {string} path
+     * @param  {...any} handlers
      * @returns {Router}
      */
     delete(path, ...handlers) {
@@ -117,8 +119,8 @@ export class Router {
     }
 
     /**
-     * @param {string} path 
-     * @param  {...any} handlers 
+     * @param {string} path
+     * @param  {...any} handlers
      * @returns {Router}
      */
     patch(path, ...handlers) {
@@ -126,8 +128,8 @@ export class Router {
     }
 
     /**
-     * @param {string} path 
-     * @param  {...any} handlers 
+     * @param {string} path
+     * @param  {...any} handlers
      * @returns {Router}
      */
     head(path, ...handlers) {
@@ -135,8 +137,8 @@ export class Router {
     }
 
     /**
-     * @param {string} path 
-     * @param  {...any} handlers 
+     * @param {string} path
+     * @param  {...any} handlers
      * @returns {Router}
      */
     options(path, ...handlers) {
@@ -144,8 +146,8 @@ export class Router {
     }
 
     /**
-     * @param {string} path 
-     * @param  {...any} handlers 
+     * @param {string} path
+     * @param  {...any} handlers
      * @returns {Router}
      */
     all(path, ...handlers) {

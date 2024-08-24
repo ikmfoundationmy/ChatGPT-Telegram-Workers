@@ -1,50 +1,47 @@
-import {CONST, DATABASE, ENV} from '../config/env.js';
-import {Context} from '../config/context.js';
-import { getBot, sendMessageToTelegramWithContext, sendPhotoToTelegramWithContext, sendChatActionToTelegramWithContext, sendMediaGroupToTelegramWithContext } from './telegram.js';
-import {handleCommandMessage} from './command.js';
-import {errorToString} from '../utils/utils.js';
-import { chatViaFileWithLLM, chatWithLLM, sendTextMessageHandler } from '../agent/llm.js';
+import { CONST, DATABASE, ENV } from '../config/env.js';
+import { Context } from '../config/context.js';
+import { errorToString } from '../utils/utils.js';
+import { getBotName, sendMessageToTelegramWithContext, sendChatActionToTelegramWithContext, sendPhotoToTelegramWithContext, sendMediaGroupToTelegramWithContext } from './telegram.js';
+import { handleCommandMessage } from './command.js';
 import { MiddleInfo, getTelegramFileUrl } from "../config/middle.js";
 import { requestI2IHander, requestText2Image } from "../agent/imagerequest.js";
+import { sendTextMessageHandler, chatWithLLM } from "./agent.js";
+import { chatViaFileWithLLM } from "../agent/chat.js";
 
 
 import '../types/telegram.js';
-
+import { checkMention } from './utils.js';
 
 /**
  * 初始化聊天上下文
- *
  * @param {TelegramMessage} message
  * @param {ContextType} context
- * @return {Promise<Response>}
+ * @returns {Promise<Response>}
  */
 async function msgInitChatContext(message, context) {
     await context.initContext(message);
     return null;
 }
 
-
 /**
  * 保存最后一条消息
- *
  * @param {TelegramMessage} message
  * @param {ContextType} context
- * @return {Promise<Response>}
+ * @returns {Promise<Response>}
  */
 async function msgSaveLastMessage(message, context) {
     if (ENV.DEBUG_MODE) {
         const lastMessageKey = `last_message:${context.SHARE_CONTEXT.chatHistoryKey}`;
-        await DATABASE.put(lastMessageKey, JSON.stringify(message), {expirationTtl: 3600});
+        await DATABASE.put(lastMessageKey, JSON.stringify(message), { expirationTtl: 3600 });
     }
     return null;
 }
 
 /**
  * 忽略旧的消息
- *
  * @param {TelegramMessage} message
  * @param {ContextType} context
- * @return {Promise<Response>}
+ * @returns {Promise<Response>}
  */
 async function msgIgnoreOldMessage(message, context) {
     if (ENV.SAFE_MODE) {
@@ -71,10 +68,9 @@ async function msgIgnoreOldMessage(message, context) {
 
 /**
  * 检查环境变量是否设置
- *
  * @param {TelegramMessage} message
  * @param {ContextType} context
- * @return {Promise<Response>}
+ * @returns {Promise<Response>}
  */
 async function msgCheckEnvIsReady(message, context) {
     if (!DATABASE) {
@@ -85,10 +81,9 @@ async function msgCheckEnvIsReady(message, context) {
 
 /**
  * 过滤非白名单用户
- *
  * @param {TelegramMessage} message
  * @param {ContextType} context
- * @return {Promise<Response>}
+ * @returns {Promise<Response>}
  */
 async function msgFilterWhiteList(message, context) {
     if (ENV.I_AM_A_GENEROUS_PERSON) {
@@ -96,7 +91,7 @@ async function msgFilterWhiteList(message, context) {
     }
     // 判断私聊消息
     if (context.SHARE_CONTEXT.chatType === 'private') {
-        // 白名单判断
+    // 白名单判断
         if (!ENV.CHAT_WHITE_LIST.includes(`${context.CURRENT_CHAT_CONTEXT.chat_id}`)) {
             return sendMessageToTelegramWithContext(context)(
                 `You are not in the white list, please contact the administrator to add you to the white list. Your chat_id: ${context.CURRENT_CHAT_CONTEXT.chat_id}`,
@@ -107,7 +102,7 @@ async function msgFilterWhiteList(message, context) {
 
     // 判断群组消息
     if (CONST.GROUP_TYPES.includes(context.SHARE_CONTEXT.chatType)) {
-        // 未打开群组机器人开关,直接忽略
+    // 未打开群组机器人开关,直接忽略
         if (!ENV.GROUP_CHAT_BOT_ENABLE) {
             throw new Error('Not support');
         }
@@ -124,15 +119,13 @@ async function msgFilterWhiteList(message, context) {
     );
 }
 
-
 /**
  * 过滤不支持的消息
- *
  * @param {TelegramMessage} message
  * @param {ContextType} context
- * @return {Promise<Response>}
+ * @returns {Promise<Response>}
  */
-// eslint-disable-next-line no-unused-vars
+// eslint-disable-next-line unused-imports/no-unused-vars
 async function msgFilterUnsupportedMessage(message, context) {
   if (message.text || (ENV.EXTRA_MESSAGE_CONTEXT && message.reply_to_message?.text)) {
     return null;
@@ -175,96 +168,76 @@ async function msgHandlePrivateMessage(message, context) {
 
 /**
  * 处理群消息
- *
  * @param {TelegramMessage} message
  * @param {ContextType} context
- * @return {Promise<Response>}
+ * @returns {Promise<Response>}
  */
 async function msgHandleGroupMessage(message, context) {
-
-  // 非群组消息不作处理
+  // 非群组消息不作判断，交给下一个中间件处理
   if (!CONST.GROUP_TYPES.includes(context.SHARE_CONTEXT.chatType)) {
     return null;
   }
 
   // 处理群组消息，过滤掉AT部分
   let botName = context.SHARE_CONTEXT.currentBotName;
+  if (!botName) {
+    botName = await getBotName(context.SHARE_CONTEXT.currentBotToken);
+    context.SHARE_CONTEXT.currentBotName = botName;
+  }
+  if (!botName) {
+    throw new Error('Not set bot name');
+  }
 
   // 检查替换词
   const chatMsgKey = Object.keys(ENV.CHAT_MESSAGE_TRIGGER).find((key) =>
     (message?.text || message?.caption || '').startsWith(key),
   );
   if (chatMsgKey) {
-    if (message?.text) {
-      message.text = message.text.replace(chatMsgKey, ENV.CHAT_MESSAGE_TRIGGER[chatMsgKey]);
-    } else message.caption = message.caption.replace(chatMsgKey, ENV.CHAT_MESSAGE_TRIGGER[chatMsgKey]);
+    let modifyType = '';
+    if (message.text) {
+      modifyType = 'text';
+    } else modifyType = 'caption';
+    message[modifyType] = message[modifyType].replace(chatMsgKey, ENV.CHAT_MESSAGE_TRIGGER[chatMsgKey]);
   }
 
-  // 存在被回复对象 被回复对象是机器人时直接返回 否则处理共享上下文
+  // 处理回复消息, 如果回复的是当前机器人的消息交给下一个中间件处理
   if (message.reply_to_message) {
     if (`${message.reply_to_message.from.id}` === context.SHARE_CONTEXT.currentBotId) {
+      if (message.text.endsWith(`@${botName}`)) {
+        message.text = message.text.substring(0, message.text.length - `@${botName}`.length);
+      }
       return null;
     } else if (ENV.EXTRA_MESSAGE_CONTEXT) {
       context.SHARE_CONTEXT.extraMessageContext = message.reply_to_message;
     }
   }
-  
-  if (!botName) {
-    const res = await getBot(context.SHARE_CONTEXT.currentBotToken);
-    context.SHARE_CONTEXT.currentBotName = res.info.bot_name;
-    botName = res.info.bot_name;
+
+  let isMention = false;
+  // 检查text中是否有机器人的提及
+  if (message.text && message.entities) {
+    const res = checkMention(message.text, message.entities, botName, context.SHARE_CONTEXT.currentBotId);
+    isMention = res.isMention;
+    message.text = res.content.trim();
   }
-  if (botName) {
-    let mentioned = false;
-    // Reply消息
-    if (message.entities) {
-      let content = '';
-      let offset = 0;
-      message.entities.forEach((entity) => {
-        switch (entity.type) {
-          case 'bot_command':
-            if (!mentioned) {
-              const mention = message.text.substring(entity.offset, entity.offset + entity.length);
-              if (mention.endsWith(botName)) {
-                mentioned = true;
-              }
-              const cmd = mention
-                .replaceAll('@' + botName, '')
-                .replaceAll(botName, '')
-                .trim();
-              content += cmd;
-              offset = entity.offset + entity.length;
-            }
-            break;
-          case 'mention':
-          case 'text_mention':
-            if (!mentioned) {
-              const mention = message.text.substring(entity.offset, entity.offset + entity.length);
-              if (mention === botName || mention === '@' + botName) {
-                mentioned = true;
-              }
-            }
-            content += message.text.substring(offset, entity.offset);
-            offset = entity.offset + entity.length;
-            break;
-        }
-      });
-      content += message.text.substring(offset, message.text.length);
-      message.text = content.trim();
-    }
-    if (!mentioned && chatMsgKey) {
-      // 触发关键词时调整为true
-      mentioned = true;
-    }
-    // 未AT机器人的消息不作处理
-    if (!mentioned) {
-      return new Response('No mentioned');
-    } else {
-      return null;
-    }
+  // 检查caption中是否有机器人的提及
+  if (message.caption && message.caption_entities) {
+    const res = checkMention(message.caption, message.caption_entities, botName, context.SHARE_CONTEXT.currentBotId);
+    isMention = res.isMention || isMention;
+    message.caption = res.content.trim();
   }
-  throw new Error('Not set bot name');
+
+  if (!isMention && chatMsgKey) {
+    // 触发关键词时调整为true
+    isMention = true;
+  }
+
+  if (!isMention) {
+    throw new Error('Not mention');
+  }
+  return null;
 }
+
+
 
 /**
  * 初始化用户配置 
@@ -318,24 +291,27 @@ async function msgInitMiddleInfo(message, context) {
 }
 
 
+
 /**
  * 响应命令消息
- *
  * @param {TelegramMessage} message
  * @param {ContextType} context
- * @return {Promise<Response>}
+ * @returns {Promise<Response>}
  */
 async function msgHandleCommand(message, context) {
+    if (!message.text) {
+    // 非文本消息不作处理
+        return null;
+    }
     return await handleCommandMessage(message, context);
 }
 
 
 /**
  * 与llm聊天
- *
  * @param {TelegramMessage} message
  * @param {Context} context
- * @return {Promise<Response>}
+ * @returns {Promise<Response>}
  */
 async function msgChatWithLLM(message, context) {
   const is_concurrent = context._info.is_concurrent;
@@ -488,21 +464,20 @@ function sendAction(context, type) {
   }
 }
 
-
 /**
  * 加载真实TG消息
  * @param {TelegramWebhookRequest} body
  * @returns {TelegramMessage}
  */
 function loadMessage(body) {
-  if (body?.edited_message) {
-      throw new Error('Ignore edited message');
-  }
-  if (body?.message) {
-      return body?.message;
-  } else {
-      throw new Error('Invalid message');
-  }
+    if (body?.edited_message) {
+        throw new Error('Ignore edited message');
+    }
+    if (body?.message) {
+        return body?.message;
+    } else {
+        throw new Error('Invalid message');
+    }
 }
 
 /**
@@ -568,6 +543,9 @@ async function msgStoreWhiteListMessage(message, context) {
  * @param {string} token
  * @param {TelegramWebhookRequest} body
  * @returns {Promise<Response|null>}
+ * @param {string} token
+ * @param {TelegramWebhookRequest} body
+ * @returns {Promise<Response|null>}
  */
 export async function handleMessage(token, body) {
   const context = new Context();
@@ -589,6 +567,8 @@ export async function handleMessage(token, body) {
       msgCheckEnvIsReady,
       // 过滤非白名单用户
       msgFilterWhiteList,
+      // 忽略旧消息
+      msgIgnoreOldMessage,
       // DEBUG: 保存最后一条消息
       msgSaveLastMessage,
       // 过滤不支持的消息(抛出异常结束消息处理)
@@ -597,8 +577,6 @@ export async function handleMessage(token, body) {
       msgHandlePrivateMessage,
       // 处理群消息，判断是否需要响应此条消息
       msgHandleGroupMessage,
-      // 忽略旧消息
-      msgIgnoreOldMessage,
       // 初始化用户配置
       msgInitUserConfig,
       // 初始化基础中间信息

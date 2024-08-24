@@ -25,24 +25,10 @@ export default async (req, res) => {
     ...(body && { body }),
   });
 
-  const encoder = new TextEncoder();
-  const stream = new ReadableStream({
-    async start(controller) {
-      try {
-        const resp = await worker.fetch(cfReq, env);
-        controller.enqueue(encoder.encode(await resp.text()));
-        controller.close();
-      } catch (e) {
-        controller.close();
-      }
-    },
-  });
-
-  return new Response(stream, {
-    headers: {
-      'Content-Type': 'text/html; charset=utf-8',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
-    },
-  });
+  const resp = await worker.fetch(cfReq, env);
+  res.status(resp.status);
+  for (const [key, value] of resp.headers) {
+    res.setHeader(key, value);
+  }
+  res.send(await resp.text());
 };

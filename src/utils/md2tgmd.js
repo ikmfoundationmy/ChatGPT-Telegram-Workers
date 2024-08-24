@@ -34,12 +34,11 @@ export function escape(text) {
         }
     }
     if (stack.length) {
-        const last = lines.slice(stack[0]).join('\n') + '\n```';
+        const last = `${lines.slice(stack[0]).join('\n')}\n\`\`\``;
         result.push(handleEscape(last, 'code'));
     }
     return result.join('\n');
 }
-
 
 /**
  * 处理转义
@@ -75,7 +74,7 @@ function handleEscape(text, type = 'text') {
         }
         text = text
             .trimEnd()
-            .replace(/([\\\`])/g, '\\$1')
+            .replace(/([\\`])/g, '\\$1')
             .replace(/^\\`\\`\\`([\s\S]+)\\`\\`\\`$/g, '```$1```'); // code block
     }
     return text;
