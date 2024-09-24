@@ -98,7 +98,10 @@ export async function executeRequest(template, data) {
             content,
         };
     }
-    const content = await renderOutput(template.response.content?.input_type, template.response.content?.output, response);
+    let content = await renderOutput(template.response.content?.input_type, template.response.content?.output, response);
+    if (template.response?.render) {
+        content = template.response.render.replace('{{input}}', data.DATA).replace('{{output}}', content);
+    }
     return {
         type: template.response.content.output_type,
         content,

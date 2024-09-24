@@ -5,12 +5,13 @@
     "content": {
       "input_type": "json",
       "output_type": "MarkdownV2",
-      "output": "`卡BIN查询结果`\n查询状态: {{Status}}\n\n卡组织💳:  {{Scheme}}\n类型💰:  {{Type}}\n发卡行🏦:  {{Issuer}}\n卡等级🌟:  {{CardTier}}\n发卡国家🌏:  {{Country.Name}} {{Country.N3}}\n电话区号📞:  +{{Country.ISD}}\n所属洲🌊:  {{Country.Cont}}\n是否通过Luhn算法验证✔️: {{Luhn}}"
+      "output": "`查询状态: {{Status}}`\n\n卡组织💳:  {{#if Scheme}}{{Scheme}}{{#else}}无{{/if}}\n类型💰:  {{#if Type}}{{Type}}{{#else}}无{{/if}}\n发卡行🏦:  {{#if Issuer}}{{Issuer}}{{#else}}无{{/if}}\n卡等级🌟:  {{#if CardTier}}{{CardTier}}{{#else}}无{{/if}}\n发卡国家🌏:  {{#if Country.Name}}{{Country.Name}}{{#else}}无{{/if}}  {{#if Country.N3}}{{Country.N3}}{{#else}}无{{/if}}\n电话区号📞:  {{#if Country.ISD}}+{{Country.ISD}}{{#else}}无{{/if}}\n所属洲🌊:   {{#if Country.Cont}}{{Country.Cont}}{{#else}}无{{/if}}\n是否通过Luhn算法验证✔️: {{#if Luhn}}{{Luhn}}{{#else}}无{{/if}}"
     },
     "error": {
       "input_type": "text",
       "output_type": "text",
       "output": "Error: {{.}}"
-    }
+    },
+    "render": "`卡BIN` **{{input}}** `查询结果如下`\n\n{{output}}"
   }
 }
