@@ -353,7 +353,7 @@ async function msgChatWithLLM(message, context) {
         if (i + 1 === context._info.chains.length || !ENV.HIDE_MIDDLE_MESSAGE) {
           // console.log(result.text);
           if (context._info.nextEnableTime) {
-            await new Promise(resolve => setTimeout(resolve, nextEnableTime - Date.now()));
+            await new Promise(resolve => setTimeout(resolve, context._info.nextEnableTime - Date.now()));
             context._info.nextEnableTime = null;
           }
           await sendMessageToTelegramWithContext(context)(result.text);

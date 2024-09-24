@@ -773,8 +773,8 @@ class UserConfig {
   FUNCTION_REPLY_ASAP = false;
 }
 class Environment {
-  BUILD_TIMESTAMP = 1727156708 ;
-  BUILD_VERSION = "86295e5" ;
+  BUILD_TIMESTAMP = 1727157400 ;
+  BUILD_VERSION = "3e359ea" ;
   I18N = null;
   LANGUAGE = "zh-cn";
   UPDATE_BRANCH = "test";
@@ -4259,7 +4259,7 @@ async function msgChatWithLLM(message, context) {
         }
         if (i + 1 === context._info.chains.length || !ENV$1.HIDE_MIDDLE_MESSAGE) {
           if (context._info.nextEnableTime) {
-            await new Promise(resolve => setTimeout(resolve, nextEnableTime - Date.now()));
+            await new Promise(resolve => setTimeout(resolve, context._info.nextEnableTime - Date.now()));
             context._info.nextEnableTime = null;
           }
           await sendMessageToTelegramWithContext(context)(result.text);

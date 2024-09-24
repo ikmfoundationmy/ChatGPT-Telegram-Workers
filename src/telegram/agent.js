@@ -1,3 +1,5 @@
+/* eslint-disable style/no-trailing-spaces */
+/* eslint-disable style/indent */
 import { ENV, CONST } from '../config/env.js';
 import { loadChatLLM } from '../agent/agents.js';
 import { requestCompletionsFromLLM } from '../agent/chat.js';
