@@ -13,6 +13,7 @@ export const TemplateOutputTypeText = 'text';
 export const TemplateOutputTypeImage = 'image';
 export const TemplateOutputTypeHTML = 'html';
 export const TemplateOutputTypeMarkdown = 'markdown';
+export const TemplateOutputTypeMarkdownV2 = 'MarkdownV2';
 
 /**
  * @typedef {object} RequestTemplate

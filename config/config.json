@@ -4,6 +4,6 @@
     "path": ""
   },
   "server": {
-    "baseURL": "//www.example.com"
+    "baseURL": "https://www.example.com"
   }
 }

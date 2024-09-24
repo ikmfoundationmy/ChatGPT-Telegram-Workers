@@ -1,3 +1,5 @@
+/* eslint-disable regexp/no-unused-capturing-group */
+/* eslint-disable style/indent */
 import '../types/context.js';
 import {
     CONST,
@@ -23,6 +25,7 @@ import {
     TemplateOutputTypeHTML,
     TemplateOutputTypeImage,
     TemplateOutputTypeMarkdown,
+    TemplateOutputTypeMarkdownV2,
     TemplateOutputTypeText,
 } from '../types/template.js';
 import { executeRequest, formatInput } from '../plugins/template.js';
@@ -657,7 +660,7 @@ async function commandEcho(message, command, subcommand, context) {
  */
 async function handleSystemCommand(message, command, raw, handler, context) {
   try {
-        const commandLine =/^.*(\n|$)/.exec(message.text)[0];
+        const commandLine = /^.*(\n|$)/.exec(message.text)[0];
         message.text = message.text.substring(commandLine.length);
         // 如果存在权限条件
         if (handler.needAuth) {
@@ -714,6 +717,9 @@ async function handlePluginCommand(message, command, raw, template, context) {
                 break;
             case TemplateOutputTypeMarkdown:
                 context.CURRENT_CHAT_CONTEXT.parse_mode = 'Markdown';
+                break;
+            case TemplateOutputTypeMarkdownV2:
+                context.CURRENT_CHAT_CONTEXT.parse_mode = 'MarkdownV2';
                 break;
             case TemplateOutputTypeText:
             default:

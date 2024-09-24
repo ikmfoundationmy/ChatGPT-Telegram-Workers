@@ -1,3 +1,4 @@
+/* eslint-disable style/indent */
 import { CONST, DATABASE, ENV } from '../config/env.js';
 import { Context } from '../config/context.js';
 import { errorToString } from '../utils/utils.js';

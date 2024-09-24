@@ -773,8 +773,8 @@ class UserConfig {
   FUNCTION_REPLY_ASAP = false;
 }
 class Environment {
-  BUILD_TIMESTAMP = 1727151311 ;
-  BUILD_VERSION = "0f52b07" ;
+  BUILD_TIMESTAMP = 1727156708 ;
+  BUILD_VERSION = "86295e5" ;
   I18N = null;
   LANGUAGE = "zh-cn";
   UPDATE_BRANCH = "test";
@@ -2602,6 +2602,7 @@ const TemplateOutputTypeText = 'text';
 const TemplateOutputTypeImage = 'image';
 const TemplateOutputTypeHTML = 'html';
 const TemplateOutputTypeMarkdown = 'markdown';
+const TemplateOutputTypeMarkdownV2 = 'MarkdownV2';
 
 const INTERPOLATE_LOOP_REGEXP = /\{\{#each(?::(\w+))?\s+(\w+)\s+in\s+([\w.[\]]+)\}\}([\s\S]*?)\{\{\/each(?::\1)?\}\}/g;
 const INTERPOLATE_CONDITION_REGEXP = /\{\{#if(?::(\w+))?\s+([\w.[\]]+)\}\}([\s\S]*?)(?:\{\{#else(?::\1)?\}\}([\s\S]*?))?\{\{\/if(?::\1)?\}\}/g;
@@ -3907,7 +3908,7 @@ async function commandEcho(message, command, subcommand, context) {
 }
 async function handleSystemCommand(message, command, raw, handler, context) {
   try {
-        const commandLine =/^.*(\n|$)/.exec(message.text)[0];
+        const commandLine = /^.*(\n|$)/.exec(message.text)[0];
         message.text = message.text.substring(commandLine.length);
         if (handler.needAuth) {
             const roleList = handler.needAuth(context.SHARE_CONTEXT.chatType);
@@ -3953,6 +3954,9 @@ async function handlePluginCommand(message, command, raw, template, context) {
                 break;
             case TemplateOutputTypeMarkdown:
                 context.CURRENT_CHAT_CONTEXT.parse_mode = 'Markdown';
+                break;
+            case TemplateOutputTypeMarkdownV2:
+                context.CURRENT_CHAT_CONTEXT.parse_mode = 'MarkdownV2';
                 break;
             case TemplateOutputTypeText:
             default:

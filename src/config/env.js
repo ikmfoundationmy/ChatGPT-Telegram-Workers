@@ -1,3 +1,4 @@
+/* eslint-disable style/indent */
 import '../types/i18n.js';
 import '../types/context.js';
 import prompts from "../prompt/prompt.js";
