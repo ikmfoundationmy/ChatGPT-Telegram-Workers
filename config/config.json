@@ -1,0 +1,9 @@
+{
+  "database": {
+    "type": "sqlite",
+    "path": ""
+  },
+  "server": {
+    "baseURL": "//www.example.com"
+  }
+}

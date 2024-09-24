@@ -192,13 +192,6 @@ export class Context {
         this.SHARE_CONTEXT.allMemberAreAdmin = message?.chat?.all_members_are_administrators;
 
         if (ENV.EXPIRED_TIME > 0) this.SHARE_CONTEXT.sentMessageIds = new Set();
-
-        if (ENV.EXPIRED_TIME > 0) {
-          const isPrivate = CONST.PRIVATE_TYPES.includes(message.chat?.type);
-          const isNeedTag =
-            (isGroup && ENV.SCHEDULE_GROUP_DELETE_TYPE.includes(msgType)) ||
-            (isPrivate && ENV.SCHEDULE_PRIVATE_DELETE_TYPE.includes(msgType));
-        }
     }
 
     /**

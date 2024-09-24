@@ -1,7 +1,8 @@
 import { ENV, CONST } from '../config/env.js';
 import { loadChatLLM } from '../agent/agents.js';
 import { requestCompletionsFromLLM } from '../agent/chat.js';
-import { sendMessageToTelegramWithContext } from './telegram.js';
+import { sendMessageToTelegramWithContext, deleteMessageFromTelegramWithContext } from './telegram.js';
+import { sendInitMessage } from "./message.js";
 
 /**
  * 与LLM聊天
@@ -15,6 +16,9 @@ export async function chatWithLLM(params, context, modifier) {
       const llm = loadChatLLM(context)?.request;
       if (llm === null) {
         return sendMessageToTelegramWithContext(context)(`LLM is not enable`);
+      }
+      if (!context.SHARE_CONTEXT.message_id) {
+        await sendInitMessage(context);
       }
   
       const parseMode = context.CURRENT_CHAT_CONTEXT.parse_mode;

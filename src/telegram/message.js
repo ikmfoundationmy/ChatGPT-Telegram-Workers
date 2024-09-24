@@ -350,12 +350,12 @@ async function msgChatWithLLM(message, context) {
           return result;
         }
         if (i + 1 === context._info.chains.length || !ENV.HIDE_MIDDLE_MESSAGE) {
-          console.log(result.text);
+          // console.log(result.text);
           if (context._info.nextEnableTime) {
             await new Promise(resolve => setTimeout(resolve, nextEnableTime - Date.now()));
             context._info.nextEnableTime = null;
           }
-          await sendTelegramMessage(context, result);
+          await sendMessageToTelegramWithContext(context)(result.text);
         }
       }
     }
@@ -391,7 +391,6 @@ async function msgChatWithLLM(message, context) {
 async function chatLlmHander(context, params) {
   const step = context._info.steps[params.index];
   const chain_type = step.chain_type;
-  // sendInitAction(context, chain_type);
   switch (chain_type) {
     case 'text:text':
     case 'image:text':
@@ -414,15 +413,13 @@ async function chatLlmHander(context, params) {
  * @param {Context} context
  * @return {Promise<Response>}
  */
-async function sendInitMessage(context) {
+export async function sendInitMessage(context) {
   try {
-    const chain_type = context._info.step.chain_type;
+    const chain_type = context._info?.step?.chain_type || 'text:text';
     let text = '...',
       type = 'chat';
     if (['text:image', 'image:image'].includes(chain_type)) {
       return;
-      // text = 'It may take a longer time, please wait a moment.';
-      // type = 'tip';
     }
     const parseMode = context.CURRENT_CHAT_CONTEXT.parse_mode;
     context.CURRENT_CHAT_CONTEXT.parse_mode = null;

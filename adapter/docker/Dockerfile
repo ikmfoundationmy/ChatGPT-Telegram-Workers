@@ -1,10 +1,6 @@
-FROM node:18
-
+FROM node:alpine
 WORKDIR /app
-COPY package.json index.js 
-
-RUN apk add --no-cache sqlite
-
+COPY ./package.json ./index.js /app/
+RUN npm install --only=production --omit=dev && apk add --no-cache sqlite
 EXPOSE 8787
-CMD ["node", "index.js"]
-
+CMD ["npm", "run", "start"]

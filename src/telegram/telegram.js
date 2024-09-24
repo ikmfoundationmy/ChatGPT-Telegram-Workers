@@ -1,6 +1,5 @@
 import { ENV, CONST } from '../config/env.js';
 import {  escape  } from '../utils/md2tgmd.js';
-import { uploadImageToTelegraph } from "../utils/image.js";
 import '../types/context.js';
 import '../types/telegram.js';
 
@@ -202,13 +201,6 @@ export async function deleteMessagesFromTelegram(chat_id, token, message_ids) {
     try {
       let photo = photo_obj.url[0];
       if (typeof photo === 'string') {
-        if (ENV.TELEGRAPH_IMAGE_ENABLE) {
-          try {
-            photo = await uploadImageToTelegraph(photo);
-          } catch (e) {
-            console.error(e.message);
-          }
-        }
         const body = {
           photo,
         };

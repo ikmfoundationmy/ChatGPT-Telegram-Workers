@@ -35,6 +35,7 @@ async function bindWebHookAction(request) {
     const hookMode = API_GUARD ? 'safehook' : 'webhook';
     for (const token of ENV.TELEGRAM_AVAILABLE_TOKENS) {
         const url = `https://${domain}/telegram/${token.trim()}/${hookMode}`;
+        console.log(url)
         const id = token.split(':')[0];
         result[id] = {
             webhook: await bindTelegramWebHook(token, url).catch((e) => errorToString(e)),

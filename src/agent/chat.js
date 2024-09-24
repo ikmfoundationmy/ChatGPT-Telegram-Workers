@@ -1,5 +1,7 @@
 import { DATABASE, ENV } from '../config/env.js';
-import '../types/agent.js';
+import { sendMessageToTelegramWithContext } from "../telegram/telegram.js";
+import { loadAudioLLM } from '../agent/agents.js';
+import { handleFile } from "../config/middle.js";
 
 /**
  * @returns {(function(string): number)}
@@ -155,6 +157,6 @@ export async function chatViaFileWithLLM(context, params) {
       return file_result;
     } catch (e) {
       context.CURRENT_CHAT_CONTEXT.disable_web_page_preview = true;
-      return sendMessageToTelegramWithContext(context)(e.substring(2048), 'tip');
+      return sendMessageToTelegramWithContext(context)(e.message.substring(2048), 'tip');
     }
   }

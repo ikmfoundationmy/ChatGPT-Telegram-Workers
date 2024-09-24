@@ -605,29 +605,30 @@ async function commandSystem(message, command, subcommand, context) {
  * @returns {Promise<Response>}
  */
 async function commandRegenerate(message, command, subcommand, context) {
-    const mf = (history, text) => {
-        let nextText = text;
-        if (!(history && Array.isArray(history) && history.length > 0)) {
-            throw new Error('History not found');
+  const mf = (history, text) => {
+    let nextText = text;
+    if (!(history && Array.isArray(history) && history.length > 0)) {
+      throw new Error('History not found');
+    }
+    const historyCopy = structuredClone(history);
+    while (true) {
+      const data = historyCopy.pop();
+      if (data === undefined || data === null) {
+        break;
+      } else if (data.role === 'user') {
+        if (text === '' || text === undefined || text === null) {
+          nextText = data.content;
         }
-        const historyCopy = structuredClone(history);
-        while (true) {
-            const data = historyCopy.pop();
-            if (data === undefined || data === null) {
-                break;
-            } else if (data.role === 'user') {
-              if (text === '' || text === undefined || text === null) {
-                  nextText = data.content;
-                }
-              break;
-            }
-        }
-        if (subcommand) {
-            nextText = subcommand;
-        }
-        return {history: historyCopy, message: nextText};
-    };
-    return chatWithLLM({ message: null }, context, mf);
+        break;
+      }
+    }
+    if (subcommand) {
+      nextText = subcommand;
+    }
+    return { history: historyCopy, message: nextText };
+  };
+  const result = await chatWithLLM({ message: null }, context, mf);
+  return sendMessageToTelegramWithContext(context)(result.text);
 }
 
 /**

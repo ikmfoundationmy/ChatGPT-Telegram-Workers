@@ -28,7 +28,7 @@ export async function uploadImageToTelegraph(url) {
       return url;
     }
 
-    const raw = await fetch(url);
+    const raw = await (await fetch(url)).blob();
     const formData = new FormData();
     formData.append('file', raw, 'blob');
 
@@ -36,7 +36,10 @@ export async function uploadImageToTelegraph(url) {
       method: 'POST',
       body: formData,
     });
-    let [{ src }] = await resp.json();
+      let [{ src }] = await resp.json();
+      if (!src) {
+          return url;
+      }
     src = `https://telegra.ph${src}`;
     IMAGE_CACHE.set(url, raw);
     return src;

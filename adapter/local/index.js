@@ -6,7 +6,9 @@ import { schedule } from 'node-cron';
 import worker from '../../main.js';
 
 const config = JSON.parse(fs.readFileSync('./config.json', 'utf-8'));
-const cache = await createCache(config?.database?.type, config?.database);
+const cache = createCache(config?.database?.type, {
+  uri: config.database.path || '',
+});
 console.log(`database: ${config?.database?.type} is ready`);
 
 // 配置代理
@@ -36,9 +38,9 @@ try {
 
 startServer(
   config.port || 8787,
-  config.host || '0.0.0.0',
+  config.server.hostname || '0.0.0.0',
   '../../wrangler.toml',
   { DATABASE: cache },
-  { server: config.server },
+  { server: config.server.baseURL },
   worker.fetch,
 );

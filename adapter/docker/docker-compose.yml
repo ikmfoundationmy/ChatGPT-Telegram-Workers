@@ -1,25 +1,11 @@
-version: '3.8'
 name: gpt-worker
 services:
   gptworker:
     build: .
-      # context: ../../
-      # dockerfile: ./adapter/docker/Dockerfile
-    image: chatgpt-telegram-bot:latest
+    image: adolphnov/gptworker:latest
+    platform: linux/arm64
     ports:
       - "8787:8787"
     volumes:
       - ./config:/app/config
-    environment:
-      - REDIS_URL=redis://redis:6379
-      # 设置为空时读取请求的host作为DOMAIN
-      - DOMAIN=
-    depends_on:
-      - redis
-    restart: unless-stopped
-  redis:
-    image: "redis:alpine"
-    volumes:
-      - ./redis-data:/data
-    command: redis-server --save 60 20 --save 300 10 --save 600 1 --appendonly no --dir /data
     restart: unless-stopped
