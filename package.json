@@ -21,7 +21,8 @@
     "wrangler": "wrangler",
     "deploy:dist": "wrangler deploy",
     "deploy:build": "npm run build && wrangler deploy",
-    "start:dist": "node dist/index.js"
+    "start:dist": "node dist/index.js",
+    "start:local": "node adapter/local/index.js"
   },
   "dependencies": {
     "cloudflare-worker-adapter": "^1.3.3"

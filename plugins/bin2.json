@@ -1,0 +1,16 @@
+{
+  "url": "https://data.handyapi.com/bin/{{DATA}}",
+  "method": "GET",
+  "response": {
+    "content": {
+      "input_type": "json",
+      "output_type": "MarkdownV2",
+      "output": "`卡BIN查询结果`\n查询状态: {{Status}}\n\n卡组织💳:  {{Scheme}}\n类型💰:  {{Type}}\n发卡行🏦:  {{Issuer}}\n卡等级🌟:  {{CardTier}}\n发卡国家🌏:  {{Country.Name}} {{Country.N3}}\n电话区号📞:  +{{Country.ISD}}\n所属洲🌊:  {{Country.Cont}}\n是否通过Luhn算法验证✔️: {{Luhn}}"
+    },
+    "error": {
+      "input_type": "text",
+      "output_type": "text",
+      "output": "Error: {{.}}"
+    }
+  }
+}

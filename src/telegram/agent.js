@@ -1,10 +1,11 @@
 /* eslint-disable style/no-trailing-spaces */
 /* eslint-disable style/indent */
-import { ENV, CONST } from '../config/env.js';
+import { CONST, ENV } from '../config/env.js';
 import { loadChatLLM } from '../agent/agents.js';
 import { requestCompletionsFromLLM } from '../agent/chat.js';
-import { sendMessageToTelegramWithContext, deleteMessageFromTelegramWithContext } from './telegram.js';
-import { sendInitMessage } from "./message.js";
+import { deleteMessageFromTelegramWithContext, sendMessageToTelegramWithContext } from './telegram.js';
+import { sendTelegraphWithContext } from "./telegraph.js";
+import { sendInitMessage } from './message.js';
 
 /**
  * 与LLM聊天
@@ -29,7 +30,8 @@ export async function chatWithLLM(params, context, modifier) {
       const sendMessage = sendTextMessageHandler(context, params.index);
       if (ENV.STREAM_MODE) {
         onStream = async (text) => {
-          if (ENV.HIDE_MIDDLE_MESSAGE && !context._info.isLastStep) return;
+          if (ENV.HIDE_MIDDLE_MESSAGE && !context._info.isLastStep) 
+return;
           try {
             // 判断是否需要等待
             if (nextEnableTime && nextEnableTime > Date.now()) {
@@ -51,7 +53,7 @@ export async function chatWithLLM(params, context, modifier) {
             // 判断429
             if (resp.status === 429) {
               // 获取重试时间
-              const retryAfter = parseInt(resp.headers.get('Retry-After'));
+              const retryAfter = Number.parseInt(resp.headers.get('Retry-After'));
               if (retryAfter) {
                 nextEnableTime = Date.now() + retryAfter * 1000;
                 return;
@@ -93,12 +95,12 @@ export async function chatWithLLM(params, context, modifier) {
       }
       if (nextEnableTime && nextEnableTime > Date.now()) {
         console.log(`The last message need wait:${((nextEnableTime - Date.now()) / 1000).toFixed(1)}s`);
-        await new Promise((resolve) => setTimeout(resolve, nextEnableTime - Date.now()));
+        await new Promise(resolve => setTimeout(resolve, nextEnableTime - Date.now()));
       }
   
       console.log(`[DONE] Chat via ${llm.name}`);
       if (nextEnableTime) {
-        console.log(`Need wait until ${new Date(nextEnableTime).toISOString()}`)
+        console.log(`Need wait until ${new Date(nextEnableTime).toISOString()}`);
         context._info.nextEnableTime = nextEnableTime;
       }
       return { type: 'text', text: answer };
@@ -114,7 +116,6 @@ export async function chatWithLLM(params, context, modifier) {
     }
   }
   
-  
   /**
    * @description: 发送消息的方式
    * @param {*} context
@@ -122,7 +123,7 @@ export async function chatWithLLM(params, context, modifier) {
    */
   export function sendTextMessageHandler(context, index) {
       const question = context._info.step?.file.text || 'Redo';
-      const prefix = `#Question\n\`\`\`\n${question?.length > 400 ? question.slice(0, 200) + '...' + question.slice(-200) : question}\n\`\`\`\n---`;
+      const prefix = `#Question\n\`\`\`\n${question?.length > 400 ? `${question.slice(0, 200)}...${question.slice(-200)}` : question}\n\`\`\`\n---`;
       const author = {
         short_name: context.SHARE_CONTEXT.currentBotName,
         author_name: context.SHARE_CONTEXT.currentBotName,
@@ -131,12 +132,12 @@ export async function chatWithLLM(params, context, modifier) {
     const step = context._info.steps[index ?? context._info.index];
       return async (text) => {
         if (
-          ENV.TELEGRAPH_NUM_LIMIT > 0 &&
-          text.length > ENV.TELEGRAPH_NUM_LIMIT &&
-          CONST.GROUP_TYPES.includes(context.SHARE_CONTEXT.chatType)
+          ENV.TELEGRAPH_NUM_LIMIT > 0
+          && text.length > ENV.TELEGRAPH_NUM_LIMIT
+          && CONST.GROUP_TYPES.includes(context.SHARE_CONTEXT.chatType)
         ) {
-          const telegraph_prefix = prefix + `\n#Answer\n🤖 _${step.model}_\n`;
-          const debug_info = `debug info:${ENV.CALL_INFO ? '' : '\n' + step.call_info.replace('$$f_t$$', '') + '\n'}`;
+          const telegraph_prefix = `${prefix}\n#Answer\n🤖 _${step.model}_\n`;
+          const debug_info = `debug info:${ENV.CALL_INFO ? '' : `\n${step.call_info.replace('$$f_t$$', '')}\n`}`;
           const telegraph_suffix = `\n---\n\`\`\`\n${debug_info}\n${step.message_title}\n\`\`\``;
           if (!context.SHARE_CONTEXT.telegraphPath) {
             const resp = await sendTelegraphWithContext(context)(
@@ -153,9 +154,8 @@ export async function chatWithLLM(params, context, modifier) {
             return resp;
           }
           return sendTelegraphWithContext(context)(null, telegraph_prefix + text + telegraph_suffix, author);
-        } else return sendMessageToTelegramWithContext(context)(text);
+        } else {
+ return sendMessageToTelegramWithContext(context)(text);
+}
       };
   };
-
-
-  

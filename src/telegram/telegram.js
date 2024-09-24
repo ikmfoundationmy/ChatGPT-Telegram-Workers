@@ -1,5 +1,5 @@
-import { ENV, CONST } from '../config/env.js';
-import {  escape  } from '../utils/md2tgmd.js';
+import { CONST, ENV } from '../config/env.js';
+import { escape } from '../utils/md2tgmd.js';
 import '../types/context.js';
 import '../types/telegram.js';
 
@@ -61,23 +61,24 @@ export async function sendMessageToTelegram(message, token, context, _info, type
     message_id: Array.isArray(context.message_id) ? 0 : context.message_id,
   };
   const limit = 4000;
-  let origin_msg = message;
+  const origin_msg = message;
   let info = '';
   const escapeContent = (parse_mode = chatContext?.parse_mode) => {
-    if (!_info || _info?.steps?.length === 0 || type === 'tip') return;
+    if ((!_info || _info?.steps?.length === 0 || type === 'tip') && parse_mode !== 'MarkdownV2')
+      return;
     info = _info.is_concurrent ? '' : _info.step?.message_title || '';
-    if (!_info.isLastStep && _info.steps.length !== 0 && parse_mode !== null || _info.is_concurrent || origin_msg.length > limit) {
+    if ((!_info.isLastStep && _info.steps.length !== 0 && parse_mode !== null) || _info.is_concurrent || origin_msg.length > limit) {
       chatContext.parse_mode = null;
-      message = (info && ( info + '\n\n' )) + origin_msg;
+      message = (info && (`${info}\n\n`)) + origin_msg;
       chatContext.entities = [
         { type: 'code', offset: 0, length: message.length },
         { type: 'blockquote', offset: 0, length: message.length },
       ];
     } else if (parse_mode === 'MarkdownV2') {
-      info &&= ( '>`' + info + '`\n\n' );
+      info &&= (`>\`${info}\`\n\n`);
       message = info + escape(origin_msg);
     } else if (parse_mode === null) {
-      message = (info && ( info + '\n' )) + origin_msg;
+      message = (info && (`${info}\n`)) + origin_msg;
       chatContext.entities = [
         { type: 'code', offset: 0, length: info.length },
         { type: 'blockquote', offset: 0, length: info.length },
@@ -86,20 +87,20 @@ export async function sendMessageToTelegram(message, token, context, _info, type
   };
   if (message.length <= limit) {
     escapeContent();
-    let resp = await sendMessage(message, token, chatContext);
+    const resp = await sendMessage(message, token, chatContext);
     if (resp.status === 200) {
       return resp;
     } else {
       chatContext.parse_mode = null;
       context.parse_mode = null;
       info = _info?.message_title;
-      message = info ? info + '\n\n' + origin_msg : origin_msg;
+      message = info ? `${info}\n\n${origin_msg}` : origin_msg;
       return await sendMessage(message, token, chatContext);
     }
   }
   chatContext.parse_mode = null;
   info = _info?.message_title;
-  message = info && (info + '\n\n' ) + origin_msg;
+  message = info && `${info}\n\n${origin_msg}`;
   if (!Array.isArray(context.message_id)) {
     context.message_id = [context.message_id];
   }
@@ -125,7 +126,7 @@ export async function sendMessageToTelegram(message, token, context, _info, type
       { type: 'blockquote', offset: 0, length: msg.length },
     ];
 
-    let resp = await sendMessage(msg, token, chatContext);
+    const resp = await sendMessage(msg, token, chatContext);
     if (resp.status == 429) {
       return resp;
     } else if (resp.status !== 200) {
@@ -156,13 +157,12 @@ export function sendMessageToTelegramWithContext(context) {
       context._info,
       msgType,
     );
-    if (!resp.ok) return resp;
+    if (!resp.ok)
+      return resp;
     await checkIsNeedTagIds(context, msgType, resp.clone());
     return resp;
   };
 }
-
-
 
 /**
  * @param {ContextType} context
@@ -189,7 +189,6 @@ export async function deleteMessagesFromTelegram(chat_id, token, message_ids) {
   return sendTelegramRequest('deleteMessages', token, { chat_id, message_ids });
 }
 
-
 /**
  * 发送图片消息到Telegram
  * @param {string | Blob} photo
@@ -197,41 +196,40 @@ export async function deleteMessagesFromTelegram(chat_id, token, message_ids) {
  * @param {CurrentChatContextType} context
  * @returns {Promise<Response>}
  */
-  export async function sendPhotoToTelegram(photo_obj, token, context, _info) {
-    try {
-      let photo = photo_obj.url[0];
-      if (typeof photo === 'string') {
-        const body = {
-          photo,
-        };
-        body.parse_mode = 'MarkdownV2';
-        let info = _info?.step?.message_title || '';
-        if (photo_obj.text) {
-          info = (info ? info + '\n\n' : '') + photo_obj.text;
-        }
-        body.caption = '>`' + escape(info) + '`' + `\n[原始图片](${photo_obj.url[0]})`;
-
-        for (const key of Object.keys(context)) {
-          if (context[key] !== undefined && context[key] !== null) {
-            body[key] = context[key];
-          }
-        }
-        return sendTelegramRequest('sendPhoto', token, body);
-      } else {
-        const body = new FormData();
-        body.append('photo', photo, 'photo.png');
-        for (const key of Object.keys(context)) {
-          if (context[key] !== undefined && context[key] !== null) {
-            body.append(key, `${context[key]}`);
-          }
-        }
-        return sendTelegramRequest('sendPhoto', token, body);
+export async function sendPhotoToTelegram(photo_obj, token, context, _info) {
+  try {
+    const photo = photo_obj.url[0];
+    if (typeof photo === 'string') {
+      const body = {
+        photo,
+      };
+      body.parse_mode = 'MarkdownV2';
+      let info = _info?.step?.message_title || '';
+      if (photo_obj.text) {
+        info = (info ? `${info}\n\n` : '') + photo_obj.text;
       }
-    } catch (e) {
-      console.error(e);
-    }
-  }
+      body.caption = `>\`${escape(info)}\`` + `\n[原始图片](${photo_obj.url[0]})`;
 
+      for (const key of Object.keys(context)) {
+        if (context[key] !== undefined && context[key] !== null) {
+          body[key] = context[key];
+        }
+      }
+      return sendTelegramRequest('sendPhoto', token, body);
+    } else {
+      const body = new FormData();
+      body.append('photo', photo, 'photo.png');
+      for (const key of Object.keys(context)) {
+        if (context[key] !== undefined && context[key] !== null) {
+          body.append(key, `${context[key]}`);
+        }
+      }
+      return sendTelegramRequest('sendPhoto', token, body);
+    }
+  } catch (e) {
+    console.error(e);
+  }
+}
 
 /**
  * @param {ContextType} context
@@ -270,13 +268,13 @@ export async function sendMediaGroupToTelegram(mediaGroup, token, context, _info
   }
 
   const body = {
-    media: mediaGroup.url.map((i) => ({ type: media_type, media: i })),
+    media: mediaGroup.url.map(i => ({ type: media_type, media: i })),
     chat_id: context.chat_id,
   };
 
   let info = _info?.step.message_title;
   if (mediaGroup.text) {
-    info += '\n\n' + mediaGroup.text;
+    info += `\n\n${mediaGroup.text}`;
   }
 
   body.media[0].caption = info;
@@ -287,7 +285,6 @@ export async function sendMediaGroupToTelegram(mediaGroup, token, context, _info
 
   return sendTelegramRequest('sendMediaGroup', token, body);
 }
-
 
 /**
  * @param {ContextType} context
@@ -314,12 +311,11 @@ export function sendMediaGroupToTelegramWithContext(context) {
  * @returns {Promise<Response>}
  */
 async function sendChatActionToTelegram(action, token, chatId) {
-    return sendTelegramRequest('sendChatAction', token, {
-        chat_id: chatId,
-        action,
-    });
+  return sendTelegramRequest('sendChatAction', token, {
+    chat_id: chatId,
+    action,
+  });
 }
-
 
 /**
  * @param {ContextType} context
@@ -327,7 +323,7 @@ async function sendChatActionToTelegram(action, token, chatId) {
  */
 export function sendChatActionToTelegramWithContext(context) {
   return (action) => {
-      return sendChatActionToTelegram(action, context.SHARE_CONTEXT.currentBotToken, context.CURRENT_CHAT_CONTEXT.chat_id);
+    return sendChatActionToTelegram(action, context.SHARE_CONTEXT.currentBotToken, context.CURRENT_CHAT_CONTEXT.chat_id);
   };
 }
 
@@ -338,7 +334,7 @@ export function sendChatActionToTelegramWithContext(context) {
  * @returnss {Promise<Response>}
  */
 export async function bindTelegramWebHook(token, url) {
-    return sendTelegramRequest('setWebhook', token, { url });
+  return sendTelegramRequest('setWebhook', token, { url });
 }
 
 /**
@@ -347,7 +343,7 @@ export async function bindTelegramWebHook(token, url) {
  * @returns {Promise<string>}
  */
 export async function deleteTelegramWebHook(token) {
-    return sendTelegramRequest('deleteWebhook', token);
+  return sendTelegramRequest('deleteWebhook', token);
 }
 
 /**
@@ -357,8 +353,8 @@ export async function deleteTelegramWebHook(token) {
  * @returns {Promise<{result: TelegramWebhookRequest[]}>}
  */
 export async function getTelegramUpdates(token, offset) {
-    return sendTelegramRequest('getUpdates', token, { offset })
-        .then(res => res.json());
+  return sendTelegramRequest('getUpdates', token, { offset })
+    .then(res => res.json());
 }
 
 /**
@@ -368,8 +364,8 @@ export async function getTelegramUpdates(token, offset) {
  * @returns {Promise<{result: object[]}>}
  */
 export async function getChatAdministrators(chatId, token) {
-    return sendTelegramRequest('getChatAdministrators', token, { chat_id: chatId })
-        .then(res => res.json()).catch(() => null);
+  return sendTelegramRequest('getChatAdministrators', token, { chat_id: chatId })
+    .then(res => res.json()).catch(() => null);
 }
 
 /**
@@ -378,9 +374,9 @@ export async function getChatAdministrators(chatId, token) {
  * @returns {Promise<string>}
  */
 export async function getBotName(token) {
-    const { result: { username } } = await sendTelegramRequest('getMe', token)
-        .then(res => res.json());
-    return username;
+  const { result: { username } } = await sendTelegramRequest('getMe', token)
+    .then(res => res.json());
+  return username;
 }
 
 /**
@@ -390,14 +386,14 @@ export async function getBotName(token) {
  * @returns {Promise<string>}
  */
 export async function getFileLink(fileId, token) {
-    try {
-        const { result: { file_path } } = await sendTelegramRequest('getFile', token, { file_id: fileId })
-            .then(res => res.json());
-        return `https://api.telegram.org/file/bot${token}/${file_path}`;
-    } catch (e) {
-        console.error(e);
-    }
-    return '';
+  try {
+    const { result: { file_path } } = await sendTelegramRequest('getFile', token, { file_id: fileId })
+      .then(res => res.json());
+    return `https://api.telegram.org/file/bot${token}/${file_path}`;
+  } catch (e) {
+    console.error(e);
+  }
+  return '';
 }
 
 /**
@@ -406,10 +402,8 @@ export async function getFileLink(fileId, token) {
  * @returns {Promise<Response>}
  */
 export async function setMyCommands(config, token) {
-    return sendTelegramRequest('setMyCommands', token, config);
+  return sendTelegramRequest('setMyCommands', token, config);
 }
-
-
 
 /**
  * @description: 标记消息id
@@ -424,16 +418,18 @@ async function checkIsNeedTagIds(context, msgType, resp) {
   if (sentMessageIds) {
     const clone_resp = await resp.json();
     if (Array.isArray(clone_resp.result)) {
-      message_id = clone_resp?.result?.map((i) => i.message_id);
-    } else message_id = [clone_resp?.result?.message_id];
+      message_id = clone_resp?.result?.map(i => i.message_id);
+    } else {
+      message_id = [clone_resp?.result?.message_id];
+    }
     if (!message_id) {
       console.error(JSON.stringify(clone_resp));
       return;
     }
     const isGroup = CONST.GROUP_TYPES.includes(chatType);
-    const isNeedTag =
-      (isGroup && ENV.SCHEDULE_GROUP_DELETE_TYPE.includes(msgType)) ||
-      (!isGroup && ENV.SCHEDULE_PRIVATE_DELETE_TYPE.includes(msgType));
+    const isNeedTag
+      = (isGroup && ENV.SCHEDULE_GROUP_DELETE_TYPE.includes(msgType))
+      || (!isGroup && ENV.SCHEDULE_PRIVATE_DELETE_TYPE.includes(msgType));
     if (isNeedTag) {
       // 标记消息id
       sentMessageIds.add(...message_id);
@@ -444,4 +440,3 @@ async function checkIsNeedTagIds(context, msgType, resp) {
     }
   }
 }
-  
