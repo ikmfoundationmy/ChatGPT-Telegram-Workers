@@ -506,7 +506,7 @@ async function deleteMessagesFromTelegram(chat_id, token, message_ids) {
 }
 async function sendPhotoToTelegram(photo_obj, token, context, _info) {
   try {
-    const photo = photo_obj?.url[0] || photo_obj;
+    const photo = photo_obj?.url?.[0] || photo_obj;
     if (typeof photo === 'string') {
       const body = {
         photo,
@@ -777,8 +777,8 @@ class UserConfig {
   FUNCTION_REPLY_ASAP = false;
 }
 class Environment {
-  BUILD_TIMESTAMP = 1727178539 ;
-  BUILD_VERSION = "1748c13" ;
+  BUILD_TIMESTAMP = 1727516296 ;
+  BUILD_VERSION = "970e2d1" ;
   I18N = null;
   LANGUAGE = "zh-cn";
   UPDATE_BRANCH = "test";
