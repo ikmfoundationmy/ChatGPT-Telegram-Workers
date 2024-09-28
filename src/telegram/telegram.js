@@ -198,17 +198,17 @@ export async function deleteMessagesFromTelegram(chat_id, token, message_ids) {
  */
 export async function sendPhotoToTelegram(photo_obj, token, context, _info) {
   try {
-    const photo = photo_obj.url[0];
+    const photo = photo_obj?.url?.[0] || photo_obj;
     if (typeof photo === 'string') {
       const body = {
         photo,
       };
       body.parse_mode = 'MarkdownV2';
       let info = _info?.step?.message_title || '';
-      if (photo_obj.text) {
+      if (photo_obj?.text) {
         info = (info ? `${info}\n\n` : '') + photo_obj.text;
       }
-      body.caption = `>\`${escape(info)}\`` + `\n[原始图片](${photo_obj.url[0]})`;
+      body.caption = `>\`${escape(info)}\`` + `\n[原始图片](${photo})`;
 
       for (const key of Object.keys(context)) {
         if (context[key] !== undefined && context[key] !== null) {
