@@ -516,7 +516,11 @@ async function sendPhotoToTelegram(photo_obj, token, context, _info) {
       if (photo_obj?.text) {
         info = (info ? `${info}\n\n` : '') + photo_obj.text;
       }
-      body.caption = `>\`${escape(info)}\`` + `\n[原始图片](${photo})`;
+      body.caption = '';
+      if (info) {
+        body.caption += `>\`${escape(info)}\``;
+      }
+      body.caption += `\n[原始图片](${photo})`;
       for (const key of Object.keys(context)) {
         if (context[key] !== undefined && context[key] !== null) {
           body[key] = context[key];
@@ -777,8 +781,8 @@ class UserConfig {
   FUNCTION_REPLY_ASAP = false;
 }
 class Environment {
-  BUILD_TIMESTAMP = 1727516296 ;
-  BUILD_VERSION = "970e2d1" ;
+  BUILD_TIMESTAMP = 1727625737 ;
+  BUILD_VERSION = "0b7627f" ;
   I18N = null;
   LANGUAGE = "zh-cn";
   UPDATE_BRANCH = "test";
@@ -2089,6 +2093,10 @@ async function requestTranscriptionFromOpenAI(audio, file_name, context) {
   });
   if (resp.ok) {
     resp = await resp.json();
+    if (!resp?.text) {
+      console.error(JSON.stringify(resp));
+      throw new Error(JSON.stringify(resp));
+    }
     console.log(`Transcription: ${resp.text}`);
     return { ok: !resp.error, type: 'text', content: resp.text, message: resp.error };
   } else {
@@ -2839,7 +2847,8 @@ async function requestText2Image(context, params) {
     headers: header,
     body: JSON.stringify(body),
   });
-  return await renderText2PicResult(context, resp);
+  const result = await renderText2PicResult(context, resp);
+  return sendPhotoToTelegramWithContext(context)(result);
 }
 const defaultParams = {
   batch_size: 1,
@@ -3253,6 +3262,9 @@ async function chatViaFileWithLLM(context, params) {
       const file_result = { type: answer.type };
       if (answer.type === 'text') {
         file_result.text = answer.content;
+        if (context._info.chains.length === context._info.step || !ENV$1.HIDE_MIDDLE_MESSAGE) {
+          await sendMessageToTelegramWithContext(context)(answer.content);
+        }
       } else if (typeof answer.content === 'string') {
         file_result.url = [answer.content];
       } else file_result.raw = [answer.content];
@@ -3537,13 +3549,16 @@ return;
       }
       if (nextEnableTime && nextEnableTime > Date.now()) {
         console.log(`The last message need wait:${((nextEnableTime - Date.now()) / 1000).toFixed(1)}s`);
-        await new Promise(resolve => setTimeout(resolve, nextEnableTime - Date.now()));
+      }
+      if (context._info.chains.length === context._info.step || !ENV$1.HIDE_MIDDLE_MESSAGE) {
+        if (context._info.nextEnableTime) {
+          console.log(`Need wait until ${new Date(nextEnableTime).toISOString()}`);
+          await new Promise(resolve => setTimeout(resolve, context._info.nextEnableTime - Date.now()));
+          context._info.nextEnableTime = null;
+        }
+        await onStreamSelect(answer);
       }
       console.log(`[DONE] Chat via ${llm.name}`);
-      if (nextEnableTime) {
-        console.log(`Need wait until ${new Date(nextEnableTime).toISOString()}`);
-        context._info.nextEnableTime = nextEnableTime;
-      }
       return { type: 'text', text: answer };
     } catch (e) {
       let errMsg = `Error: ${e.message}`;
@@ -4478,19 +4493,12 @@ async function msgChatWithLLM(message, context) {
         context.USER_CONFIG.ENABLE_SHOWTOKEN = false;
         llmPromises.push(chatLlmHander(context, params));
       } else {
-        result = await chatLlmHander(context, params);
-        if (result && result instanceof Response) {
-          return result;
-        }
-        if (i + 1 === context._info.chains.length || !ENV$1.HIDE_MIDDLE_MESSAGE) {
-          if (context._info.nextEnableTime) {
-            await new Promise(resolve => setTimeout(resolve, context._info.nextEnableTime - Date.now()));
-            context._info.nextEnableTime = null;
+          result = await chatLlmHander(context, params);
+          if (result && result instanceof Response) {
+            return result;
           }
-          await sendMessageToTelegramWithContext(context)(result.text);
         }
       }
-    }
     const results = await Promise.all(llmPromises);
     results.forEach((result, index) => {
       if (result.type === 'text') {

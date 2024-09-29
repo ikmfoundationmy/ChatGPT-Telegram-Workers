@@ -95,14 +95,16 @@ return;
       }
       if (nextEnableTime && nextEnableTime > Date.now()) {
         console.log(`The last message need wait:${((nextEnableTime - Date.now()) / 1000).toFixed(1)}s`);
-        await new Promise(resolve => setTimeout(resolve, nextEnableTime - Date.now()));
       }
-  
+      if (context._info.chains.length === context._info.step || !ENV.HIDE_MIDDLE_MESSAGE) {
+        if (context._info.nextEnableTime) {
+          console.log(`Need wait until ${new Date(nextEnableTime).toISOString()}`);
+          await new Promise(resolve => setTimeout(resolve, context._info.nextEnableTime - Date.now()));
+          context._info.nextEnableTime = null;
+        }
+        await onStreamSelect(answer);
+      }
       console.log(`[DONE] Chat via ${llm.name}`);
-      if (nextEnableTime) {
-        console.log(`Need wait until ${new Date(nextEnableTime).toISOString()}`);
-        context._info.nextEnableTime = nextEnableTime;
-      }
       return { type: 'text', text: answer };
     } catch (e) {
       let errMsg = `Error: ${e.message}`;

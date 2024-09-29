@@ -281,6 +281,10 @@ export async function requestTranscriptionFromOpenAI(audio, file_name, context) 
   });
   if (resp.ok) {
     resp = await resp.json();
+    if (!resp?.text) {
+      console.error(JSON.stringify(resp));
+      throw new Error(JSON.stringify(resp));
+    }
     console.log(`Transcription: ${resp.text}`);
     return { ok: !resp.error, type: 'text', content: resp.text, message: resp.error };
   } else {

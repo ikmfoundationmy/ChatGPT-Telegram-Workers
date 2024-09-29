@@ -346,20 +346,12 @@ async function msgChatWithLLM(message, context) {
         context.USER_CONFIG.ENABLE_SHOWTOKEN = false;
         llmPromises.push(chatLlmHander(context, params));
       } else {
-        result = await chatLlmHander(context, params);
-        if (result && result instanceof Response) {
-          return result;
-        }
-        if (i + 1 === context._info.chains.length || !ENV.HIDE_MIDDLE_MESSAGE) {
-          // console.log(result.text);
-          if (context._info.nextEnableTime) {
-            await new Promise(resolve => setTimeout(resolve, context._info.nextEnableTime - Date.now()));
-            context._info.nextEnableTime = null;
+          result = await chatLlmHander(context, params);
+          if (result && result instanceof Response) {
+            return result;
           }
-          await sendMessageToTelegramWithContext(context)(result.text);
         }
       }
-    }
     const results = await Promise.all(llmPromises);
     results.forEach((result, index) => {
       if (result.type === 'text') {

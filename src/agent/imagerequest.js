@@ -94,7 +94,8 @@ export async function requestText2Image(context, params) {
     headers: header,
     body: JSON.stringify(body),
   });
-  return await renderText2PicResult(context, resp);
+  const result = await renderText2PicResult(context, resp);
+  return sendPhotoToTelegramWithContext(context)(result);
 }
 
 const defaultParams = {

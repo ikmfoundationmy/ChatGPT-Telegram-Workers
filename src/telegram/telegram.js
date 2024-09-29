@@ -208,7 +208,11 @@ export async function sendPhotoToTelegram(photo_obj, token, context, _info) {
       if (photo_obj?.text) {
         info = (info ? `${info}\n\n` : '') + photo_obj.text;
       }
-      body.caption = `>\`${escape(info)}\`` + `\n[原始图片](${photo})`;
+      body.caption = '';
+      if (info) {
+        body.caption += `>\`${escape(info)}\``;
+      }
+      body.caption += `\n[原始图片](${photo})`;
 
       for (const key of Object.keys(context)) {
         if (context[key] !== undefined && context[key] !== null) {

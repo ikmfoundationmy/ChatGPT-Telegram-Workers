@@ -1,3 +1,10 @@
+/* eslint-disable object-shorthand */
+/* eslint-disable prefer-template */
+/* eslint-disable style/no-multiple-empty-lines */
+/* eslint-disable antfu/curly */
+/* eslint-disable style/eol-last */
+/* eslint-disable style/no-trailing-spaces */
+/* eslint-disable style/indent */
 import { DATABASE, ENV } from '../config/env.js';
 import { sendMessageToTelegramWithContext } from "../telegram/telegram.js";
 import { loadAudioLLM } from '../agent/agents.js';
@@ -150,6 +157,9 @@ export async function chatViaFileWithLLM(context, params) {
       const file_result = { type: answer.type };
       if (answer.type === 'text') {
         file_result.text = answer.content;
+        if (context._info.chains.length === context._info.step || !ENV.HIDE_MIDDLE_MESSAGE) {
+          await sendMessageToTelegramWithContext(context)(answer.content);
+        }
       } else if (typeof answer.content === 'string') {
         file_result.url = [answer.content];
       } else file_result.raw = [answer.content];
