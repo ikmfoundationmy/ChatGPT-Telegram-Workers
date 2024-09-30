@@ -3777,11 +3777,9 @@ async function commandGenerateImg(message, command, subcommand, context) {
     return sendMessageToTelegramWithContext(context)(ENV$1.I18N.command.help.img, 'tip');
   }
   try {
-    const img = await requestText2Image(context, { message: subcommand });
-    console.log(JSON.stringify(img));
-    const resp = await sendTelegramMessage(context, img);
+    const resp = await requestText2Image(context, { message: subcommand });
     if (!resp.ok) {
-      console.log(resp.statusText);
+      console.error(resp.statusText);
       return sendMessageToTelegramWithContext(context)(`ERROR: ${resp.statusText} ${await resp.text()}`);
     }
   } catch (e) {
